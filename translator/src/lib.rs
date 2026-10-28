@@ -6,5 +6,9 @@
 pub mod analyze;
 pub mod elf_model;
 pub mod error;
+pub mod graph;
 pub mod naming;
+pub mod resolve;
+pub mod shim_abi;
+pub mod shim_exports;
 pub mod source;
