@@ -17,6 +17,8 @@ from pathlib import Path
 
 WIDTH = 880
 PADDING = 24
+FOOTER_HEIGHT = 52
+FOOTER_TEXT = "Milestones differ greatly in size. M6 is a first real GUI app, not the finished product."
 HEADER_Y = 38
 BAR_Y = 56
 BAR_HEIGHT = 14
@@ -67,11 +69,11 @@ def load_milestones(path: Path) -> list[Milestone]:
     return milestones
 
 
-def summarize(milestones: list[Milestone]) -> tuple[int, int, int]:
-    """Returns (done milestones, total milestones, percent of milestones done)."""
+def summarize(milestones: list[Milestone]) -> tuple[int, int]:
+    """Returns (done milestones, total milestones). No percentage: milestones differ greatly in size."""
     done = sum(1 for m in milestones if m.status == "done")
     total = len(milestones)
-    return done, total, round(100 * done / total) if total else 0
+    return done, total
 
 
 def status_color(status: str) -> str:
@@ -83,11 +85,11 @@ def status_text_color(status: str) -> str:
     return "var(--muted)" if status == "planned" else status_color(status)
 
 
-def render_header(done: int, total: int, percent: int) -> str:
+def render_header(done: int, total: int) -> str:
     return (
         f'<text x="{PADDING}" y="{HEADER_Y}" font-size="20" font-weight="700">Milestones</text>'
         f'<text x="{WIDTH - PADDING}" y="{HEADER_Y}" font-size="15" text-anchor="end" '
-        f'class="muted">{done} of {total} done · {percent}%</text>'
+        f'class="muted">{done} of {total} milestones done</text>'
     )
 
 
@@ -140,10 +142,15 @@ def render_row(index: int, milestone: Milestone) -> str:
 
 
 def render_svg(milestones: list[Milestone]) -> str:
-    done, total, percent = summarize(milestones)
-    height = ROWS_Y + len(milestones) * ROW_HEIGHT + PADDING
-    body = render_header(done, total, percent) + render_overall_bar(milestones)
+    done, total = summarize(milestones)
+    rows_end = ROWS_Y + len(milestones) * ROW_HEIGHT
+    height = rows_end + FOOTER_HEIGHT
+    body = render_header(done, total) + render_overall_bar(milestones)
     body += "".join(render_row(i, m) for i, m in enumerate(milestones))
+    body += (
+        f'<text x="{PADDING}" y="{rows_end + 28}" font-size="12" class="muted">'
+        f"{escape(FOOTER_TEXT)}</text>"
+    )
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {WIDTH} {height}" '
         f'width="{WIDTH}" role="img" aria-label="Crossport progress: {done} of {total} milestones done">'

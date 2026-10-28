@@ -35,7 +35,9 @@
 </p>
 
 <sub>Progress is generated from [docs/progress.json](docs/progress.json) by `python tools/gen_progress.py`.
-Each cell is one roadmap task; the full list is in [docs/ROADMAP.md](docs/ROADMAP.md).</sub>
+Each cell is one roadmap task; the full list is in [docs/ROADMAP.md](docs/ROADMAP.md).
+Milestones differ greatly in size, and finishing the last one proves the approach on a real GUI
+application rather than finishing the project. See "Beyond Milestone 6" in the roadmap.</sub>
 
 Crossport takes an existing Linux AppImage and turns it into a native Windows application by
 translating the executable format and the operating system interface, not the machine code. The app

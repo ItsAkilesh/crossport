@@ -26,10 +26,10 @@ def sample() -> list[gen_progress.Milestone]:
 
 class GenProgressTest(unittest.TestCase):
     def test_summary_counts_only_done_milestones(self) -> None:
-        self.assertEqual(gen_progress.summarize(sample()), (1, 3, 33))
+        self.assertEqual(gen_progress.summarize(sample()), (1, 3))
 
     def test_summary_of_nothing_is_zero(self) -> None:
-        self.assertEqual(gen_progress.summarize([]), (0, 0, 0))
+        self.assertEqual(gen_progress.summarize([]), (0, 0))
 
     def test_svg_is_well_formed_and_escapes_text(self) -> None:
         svg = gen_progress.render_svg(sample())
