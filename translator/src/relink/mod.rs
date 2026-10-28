@@ -16,9 +16,19 @@ use crate::pe_model::{
     SCN_CODE, SCN_DISCARDABLE, SCN_EXECUTE, SCN_INITIALIZED_DATA, SCN_READ, SCN_WRITE,
 };
 use crate::resolve::Resolver;
+use crate::rewrite::{self, RewriteStats};
 use crate::shim_abi::{INFO_SYMBOL, SHIM_DLL, START_SYMBOL};
-use crate::startup::{self, Binding, CopyRecord, ModuleInfo};
+use crate::startup::{self, Binding, CopyRecord, ModuleInfo, TlsInfo};
+use crate::tls_layout::TlsLayout;
 use patch::{PatchContext, Patched};
+
+const CANARY_CELL_BYTES: usize = 8;
+
+/// A relinked module together with what the rewrite pass did to it.
+pub struct Relinked {
+    pub image: PeImage,
+    pub stats: RewriteStats,
+}
 
 /// Hands out consecutive page-aligned RVAs for the sections added after the ELF segments.
 struct SectionPlan {
@@ -47,31 +57,35 @@ impl SectionPlan {
 pub fn relink_module(
     graph: &ModuleGraph,
     resolver: &Resolver<'_>,
+    tls: &TlsLayout,
     index: usize,
-) -> Result<PeImage, TranslateError> {
+) -> Result<Relinked, TranslateError> {
     let module = &graph.modules[index];
     let layout = layout::plan(&module.info.segments)?;
     let mut image = layout::build_image(&module.info, &module.data, &layout)?;
     let image_base = preferred_base(index);
-    let patched = patch::apply(
-        &mut image,
-        &PatchContext {
-            graph,
-            resolver,
-            module: index,
-            image_base,
-        },
-    )?;
+    let context = PatchContext {
+        graph,
+        resolver,
+        module: index,
+        image_base,
+        tls,
+    };
+    let patched = patch::apply(&mut image, &context)?;
 
     let mut plan = SectionPlan {
         next_rva: layout.end_rva,
-        sections: layout::elf_sections(&layout, &image),
+        sections: Vec::new(),
     };
+    let rewritten = rewrite_fs_accesses(&mut image, module, &mut plan)?;
+    let mut sections = layout::elf_sections(&layout, &image);
+
     let is_executable = index == 0;
     let imports = import_tables(&patched, is_executable, plan.next_rva());
     plan.push(".idata", imports.data.clone(), SCN_READ | SCN_WRITE);
 
-    let info = module_info(graph, index, module, &patched, &imports)?;
+    let tls_info = tls_info(index, module, tls, &rewritten);
+    let info = module_info(graph, index, module, &patched, &imports, tls_info)?;
     let startup_rva = plan.next_rva();
     let startup = if is_executable {
         let start_iat = imports
@@ -90,19 +104,87 @@ pub fn relink_module(
         push_exports(&mut plan, module, info_rva)
     };
     let base_reloc_directory = push_base_relocs(&mut plan, &patched);
-    Ok(PeImage {
-        kind: if is_executable {
-            ImageKind::Executable
-        } else {
-            ImageKind::Dll
+    sections.append(&mut plan.sections);
+    Ok(Relinked {
+        image: PeImage {
+            kind: if is_executable {
+                ImageKind::Executable
+            } else {
+                ImageKind::Dll
+            },
+            image_base,
+            entry_rva: if is_executable { startup_rva } else { 0 },
+            sections,
+            import_directory: imports.directory,
+            export_directory,
+            base_reloc_directory,
         },
-        image_base,
-        entry_rva: if is_executable { startup_rva } else { 0 },
-        sections: plan.sections,
-        import_directory: imports.directory,
-        export_directory,
-        base_reloc_directory,
+        stats: rewritten.stats,
     })
+}
+
+/// What the FS-rewrite pass left behind for the rest of the pipeline.
+struct Rewritten {
+    stats: RewriteStats,
+    canary_cell_rva: u32,
+    /// RVAs of the 4-byte displacements the shim patches with the Windows TLS slot.
+    slot_fixups: Vec<u32>,
+}
+
+/// Rewrites the module's FS-relative instructions and reserves the `.cdata`
+/// (canary cell) and `.ctls` (stubs) sections they need.
+fn rewrite_fs_accesses(
+    image: &mut [u8],
+    module: &Module,
+    plan: &mut SectionPlan,
+) -> Result<Rewritten, TranslateError> {
+    let sites = rewrite::find_sites(image, &module.info)?;
+    let mut canary_cell_rva = 0;
+    if rewrite::count_canary_sites(&sites) > 0 {
+        canary_cell_rva = plan.next_rva();
+        plan.push(".cdata", vec![0; CANARY_CELL_BYTES], SCN_READ | SCN_WRITE);
+    }
+    let stubs_rva = plan.next_rva();
+    let result = rewrite::apply(
+        image,
+        &sites,
+        (canary_cell_rva != 0).then_some(canary_cell_rva),
+        stubs_rva,
+    )?;
+    let slot_fixups = result
+        .slot_fixups
+        .iter()
+        .map(|offset| stubs_rva + offset)
+        .collect();
+    if !result.stubs.is_empty() {
+        plan.push(".ctls", result.stubs, SCN_READ | SCN_WRITE);
+    }
+    Ok(Rewritten {
+        stats: result.stats,
+        canary_cell_rva,
+        slot_fixups,
+    })
+}
+
+fn tls_info(index: usize, module: &Module, layout: &TlsLayout, rewritten: &Rewritten) -> TlsInfo {
+    let mut info = TlsInfo {
+        canary_cell_rva: rewritten.canary_cell_rva,
+        slot_fixups: rewritten.slot_fixups.clone(),
+        ..TlsInfo::default()
+    };
+    if let Some(block) = layout.module(index) {
+        info.init_rva = (RVA_BIAS + block.segment.vaddr) as u32;
+        info.file_size = block.segment.file_size as u32;
+        info.mem_size = block.segment.mem_size as u32;
+        info.align = block.segment.align as u32;
+        info.offset = block.tp_offset as i32;
+    }
+    if index == 0 {
+        info.total_size = layout.total_size as u32;
+        info.max_align = layout.max_align as u32;
+    }
+    debug_assert_eq!(module.info.tls.is_some(), layout.module(index).is_some());
+    info
 }
 
 fn missing_import() -> TranslateError {
@@ -129,6 +211,7 @@ fn module_info(
     module: &Module,
     patched: &Patched,
     imports: &ImportTables,
+    tls: TlsInfo,
 ) -> Result<ModuleInfo, TranslateError> {
     let rva = |vaddr: u64| (RVA_BIAS + vaddr) as u32;
     let elf = &module.info;
@@ -170,6 +253,7 @@ fn module_info(
         } else {
             Vec::new()
         },
+        tls,
     })
 }
 

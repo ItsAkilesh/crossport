@@ -7,9 +7,10 @@ use crate::elf_model::{RelocKind, Relocation};
 use crate::error::TranslateError;
 use crate::graph::ModuleGraph;
 use crate::pe_model::RVA_BIAS;
-use crate::resolve::{Resolver, Target};
+use crate::resolve::{Resolver, Target, TlsTarget};
 use crate::shim_abi::SHIM_DLL;
 use crate::startup::Binding;
+use crate::tls_layout::TlsLayout;
 
 use super::layout::write_u64;
 
@@ -43,6 +44,7 @@ pub(super) struct PatchContext<'a> {
     pub resolver: &'a Resolver<'a>,
     pub module: usize,
     pub image_base: u64,
+    pub tls: &'a TlsLayout,
 }
 
 pub(super) fn apply(
@@ -82,7 +84,22 @@ impl Patcher<'_, '_> {
             RelocKind::Relative { addend } => self.absolute(slot, 0, addend),
             RelocKind::Symbol { symbol, addend } => self.symbol(slot, symbol, addend),
             RelocKind::Copy { symbol } => self.copy(slot, symbol),
-            RelocKind::TlsModule { .. } | RelocKind::TlsOffset { .. } | RelocKind::TlsThreadOffset { .. } => Ok(()),
+            RelocKind::TlsModule { symbol } => {
+                let target = self.tls_target(symbol)?;
+                write_u64(self.image, slot, target.module as u64)
+            }
+            RelocKind::TlsOffset { symbol, addend } => {
+                let target = self.tls_target(symbol)?;
+                write_u64(self.image, slot, target.offset.wrapping_add(addend as u64))
+            }
+            RelocKind::TlsThreadOffset { symbol, addend } => {
+                let target = self.tls_target(symbol)?;
+                let block = self.context.tls.module(target.module).ok_or_else(|| {
+                    TranslateError::Elf("TLS relocation targets a module without a TLS segment".into())
+                })?;
+                let value = block.tp_offset.wrapping_add(target.offset as i64).wrapping_add(addend);
+                write_u64(self.image, slot, value as u64)
+            }
         }
     }
 
@@ -92,6 +109,14 @@ impl Patcher<'_, '_> {
         write_u64(self.image, slot, value)?;
         self.out.base_reloc_slots.push(rva32(slot)?);
         Ok(())
+    }
+
+    /// TLS relocations are resolved completely at translation time: static TLS
+    /// means every module's offset from the thread pointer is already known.
+    fn tls_target(&self, symbol: Option<usize>) -> Result<TlsTarget, TranslateError> {
+        let module = &self.context.graph.modules[self.context.module];
+        let definition = symbol.map(|index| &module.info.symbols[index]);
+        self.context.resolver.resolve_tls(self.context.module, definition)
     }
 
     fn target(&mut self, symbol: usize) -> Result<Target, TranslateError> {

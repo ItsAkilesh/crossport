@@ -9,9 +9,11 @@ use crate::naming::ModuleName;
 use crate::pe_writer;
 use crate::relink::relink_module;
 use crate::resolve::Resolver;
+use crate::rewrite::RewriteStats;
 use crate::shim_abi::START_SYMBOL;
 use crate::shim_exports::ShimExports;
 use crate::source::LibrarySource;
+use crate::tls_layout::TlsLayout;
 
 const EXECUTABLE_SUFFIX: &str = ".exe";
 
@@ -21,13 +23,25 @@ pub struct OutputFile {
     pub bytes: Vec<u8>,
 }
 
-/// Translates the executable and every library it needs. The executable is the first file returned.
+/// What the rewrite pass did to one module, for the CLI summary and coverage tracking.
+pub struct ModuleReport {
+    pub name: String,
+    pub rewrite: RewriteStats,
+}
+
+pub struct Translation {
+    /// The executable is first, then libraries in discovery order.
+    pub files: Vec<OutputFile>,
+    pub reports: Vec<ModuleReport>,
+}
+
+/// Translates the executable and every library it needs.
 pub fn translate(
     exe_name: ModuleName,
     exe_data: Vec<u8>,
     source: &dyn LibrarySource,
     shim: &ShimExports,
-) -> Result<Vec<OutputFile>, TranslateError> {
+) -> Result<Translation, TranslateError> {
     if !shim.provides(START_SYMBOL) {
         return Err(TranslateError::Unsupported(format!(
             "the shim does not export {START_SYMBOL}"
@@ -35,9 +49,11 @@ pub fn translate(
     }
     let graph = graph::load(exe_name, exe_data, source)?;
     let resolver = Resolver::new(&graph, shim);
+    let tls = TlsLayout::compute(&graph.modules)?;
     let mut files = Vec::with_capacity(graph.modules.len());
+    let mut reports = Vec::with_capacity(graph.modules.len());
     for (index, module) in graph.modules.iter().enumerate() {
-        let image = relink_module(&graph, &resolver, index)?;
+        let relinked = relink_module(&graph, &resolver, &tls, index)?;
         let file_name = if index == 0 {
             format!("{}{EXECUTABLE_SUFFIX}", module.name.as_str())
         } else {
@@ -45,8 +61,12 @@ pub fn translate(
         };
         files.push(OutputFile {
             file_name,
-            bytes: pe_writer::write(&image)?,
+            bytes: pe_writer::write(&relinked.image)?,
+        });
+        reports.push(ModuleReport {
+            name: module.name.as_str().to_string(),
+            rewrite: relinked.stats,
         });
     }
-    Ok(files)
+    Ok(Translation { files, reports })
 }

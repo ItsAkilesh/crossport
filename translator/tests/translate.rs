@@ -33,7 +33,9 @@ fn name(raw: &str) -> ModuleName {
 }
 
 fn translate_two_libs() -> Vec<OutputFile> {
-    translate(name("two_libs"), EXE.to_vec(), &fixtures(), &shim()).expect("translates")
+    translate(name("two_libs"), EXE.to_vec(), &fixtures(), &shim())
+        .expect("translates")
+        .files
 }
 
 fn find<'a>(files: &'a [OutputFile], file_name: &str) -> &'a [u8] {
@@ -214,8 +216,9 @@ fn translation_is_deterministic() {
 
 #[test]
 fn a_single_module_program_still_translates() {
-    let files =
-        translate(name("hello_dyn"), HELLO.to_vec(), &fixtures(), &shim()).expect("translates");
+    let files = translate(name("hello_dyn"), HELLO.to_vec(), &fixtures(), &shim())
+        .expect("translates")
+        .files;
     assert_eq!(files.len(), 1);
     assert_eq!(files[0].file_name, "hello_dyn.exe");
 }

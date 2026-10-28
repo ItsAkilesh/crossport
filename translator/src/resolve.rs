@@ -23,6 +23,13 @@ pub enum Target {
     Null,
 }
 
+/// Where a thread-local symbol lives: its module and its offset inside that module's TLS block.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TlsTarget {
+    pub module: usize,
+    pub offset: u64,
+}
+
 pub struct Resolver<'a> {
     graph: &'a ModuleGraph,
     shim: &'a ShimExports,
@@ -67,6 +74,31 @@ impl<'a> Resolver<'a> {
         }
         if self.shim.provides(&symbol.name) {
             return Ok(Target::Shim);
+        }
+        Err(self.unresolved(importer, symbol))
+    }
+
+    /// Resolves a TLS relocation. `None` means "the importing module itself".
+    /// Thread-local symbols follow the same scope order as ordinary ones.
+    pub fn resolve_tls(
+        &self,
+        importer: usize,
+        symbol: Option<&DynSymbol>,
+    ) -> Result<TlsTarget, TranslateError> {
+        let Some(symbol) = symbol else {
+            return Ok(TlsTarget { module: importer, offset: 0 });
+        };
+        if !symbol.is_tls {
+            return Err(TranslateError::Elf(format!("TLS relocation against non-TLS symbol {}", symbol.name)));
+        }
+        if let Some(address) = symbol.address().filter(|_| symbol.binding == SymbolBinding::Local) {
+            return Ok(TlsTarget { module: importer, offset: address });
+        }
+        for (module, candidate) in self.graph.modules.iter().enumerate() {
+            if let Some(&index) = candidate.tls_exports.get(&symbol.name) {
+                let offset = candidate.info.symbols[index].address().unwrap_or(0);
+                return Ok(TlsTarget { module, offset });
+            }
         }
         Err(self.unresolved(importer, symbol))
     }

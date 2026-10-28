@@ -22,4 +22,5 @@ pub mod shim_abi;
 pub mod shim_exports;
 pub mod source;
 pub mod startup;
+pub mod tls_layout;
 pub mod translate;

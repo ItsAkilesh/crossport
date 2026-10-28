@@ -12,7 +12,15 @@ use crate::naming::ModuleName;
 use crate::source::{LibrarySource, MAX_ELF_BYTES};
 
 /// Libraries the shim stands in for. They are never loaded from disk.
-pub const SHIM_PROVIDED_LIBRARIES: &[&str] = &["libc.so.6"];
+pub const SHIM_PROVIDED_LIBRARIES: &[&str] = &[
+    "libc.so.6",
+    // `__tls_get_addr` lives in the dynamic loader on Linux, so TLS users depend on it.
+    "ld-linux-x86-64.so.2",
+    // Folded into libc since glibc 2.34, still named by older toolchains.
+    "libpthread.so.0",
+    "libdl.so.2",
+    "librt.so.1",
+];
 pub const MAX_MODULES: usize = 256;
 /// Total bytes of ELF input across all modules.
 const MAX_TOTAL_BYTES: u64 = 2 * MAX_ELF_BYTES;
@@ -23,15 +31,20 @@ pub struct Module {
     pub data: Vec<u8>,
     /// Maps an exported symbol name to its index in `info.symbols`.
     pub exports: HashMap<String, usize>,
+    /// Same for exported thread-local symbols, whose values are TLS offsets, not addresses.
+    pub tls_exports: HashMap<String, usize>,
 }
 
 impl Module {
     fn new(name: ModuleName, data: Vec<u8>) -> Result<Self, TranslateError> {
         let info = analyze(&data)?;
         let mut exports = HashMap::new();
+        let mut tls_exports = HashMap::new();
         for (index, symbol) in info.symbols.iter().enumerate() {
             if symbol.is_exported() {
                 exports.entry(symbol.name.clone()).or_insert(index);
+            } else if symbol.is_tls_exported() {
+                tls_exports.entry(symbol.name.clone()).or_insert(index);
             }
         }
         Ok(Self {
@@ -39,6 +52,7 @@ impl Module {
             info,
             data,
             exports,
+            tls_exports,
         })
     }
 }

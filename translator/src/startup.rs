@@ -49,6 +49,27 @@ pub struct ModuleInfo {
     pub copies: Vec<CopyRecord>,
     /// DLL file names the executable's startup must load, dependencies first.
     pub dependencies: Vec<String>,
+    pub tls: TlsInfo,
+}
+
+/// Thread-local storage data for one module. All zero when the module has none.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct TlsInfo {
+    /// RVA of the initial-data template, `file_size` bytes of it.
+    pub init_rva: u32,
+    pub file_size: u32,
+    pub mem_size: u32,
+    pub align: u32,
+    /// Start of the module's block relative to the thread pointer (negative).
+    pub offset: i32,
+    /// RVA of the module's stack-canary cell, or zero.
+    pub canary_cell_rva: u32,
+    /// Executable only: bytes of static TLS below the thread pointer, over all modules.
+    pub total_size: u32,
+    /// Executable only: alignment of the thread pointer.
+    pub max_align: u32,
+    /// RVAs of 4-byte displacements the shim patches with the Windows TLS slot offset.
+    pub slot_fixups: Vec<u32>,
 }
 
 pub struct StartupSection {
@@ -103,8 +124,8 @@ fn push_record(out: &mut Vec<u8>, first: u32, second: u32, value: i64) {
     out.extend_from_slice(&value.to_le_bytes());
 }
 
-/// Layout: 14-field header, iat bindings, executable bindings, copies, the
-/// dependency name RVA table, then the dependency name strings.
+/// Layout: 24-field header, iat bindings, executable bindings, copies, TLS slot
+/// fixups, the dependency name RVA table, then the dependency name strings.
 fn encode_info(out: &mut Vec<u8>, info: &ModuleInfo, info_rva: u32) -> Result<(), TranslateError> {
     if info.dependencies.len() > MAX_LISTED_MODULES {
         return Err(TranslateError::LimitExceeded(format!(
@@ -112,7 +133,9 @@ fn encode_info(out: &mut Vec<u8>, info: &ModuleInfo, info_rva: u32) -> Result<()
         )));
     }
     let record_count = info.iat_bindings.len() + info.exe_bindings.len() + info.copies.len();
-    let table_rva = info_rva + (INFO_HEADER_BYTES + RECORD_BYTES * record_count) as u32;
+    let records_bytes = RECORD_BYTES * record_count + 4 * info.tls.slot_fixups.len();
+    let table_rva = info_rva + (INFO_HEADER_BYTES + records_bytes) as u32;
+    let tls = &info.tls;
     let header = [
         INFO_MAGIC,
         INFO_VERSION,
@@ -132,6 +155,16 @@ fn encode_info(out: &mut Vec<u8>, info: &ModuleInfo, info_rva: u32) -> Result<()
         } else {
             table_rva
         },
+        tls.init_rva,
+        tls.file_size,
+        tls.mem_size,
+        tls.align,
+        tls.offset as u32,
+        tls.canary_cell_rva,
+        tls.slot_fixups.len() as u32,
+        tls.total_size,
+        tls.max_align,
+        0,
     ];
     for field in header {
         push_u32(out, field);
@@ -141,6 +174,9 @@ fn encode_info(out: &mut Vec<u8>, info: &ModuleInfo, info_rva: u32) -> Result<()
     }
     for copy in &info.copies {
         push_record(out, copy.dest_rva, copy.iat_rva, copy.size as i64);
+    }
+    for fixup in &tls.slot_fixups {
+        push_u32(out, *fixup);
     }
     encode_dependencies(out, &info.dependencies, table_rva);
     Ok(())
@@ -194,6 +230,7 @@ mod tests {
                 "libmath.so.1.dll".to_string(),
                 "libgreet.so.1.dll".to_string(),
             ],
+            tls: TlsInfo::default(),
         }
     }
 

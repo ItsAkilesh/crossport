@@ -66,14 +66,27 @@ fn run_translation(
         .and_then(|s| s.to_str())
         .unwrap_or(DEFAULT_PROGRAM_NAME);
     let exports = ShimExports::from_dll(&read_file(shim)?)?;
-    let files = translate::translate(
+    let translation = translate::translate(
         ModuleName::sanitized(stem)?,
         read_file(elf)?,
         &DirectorySource::new(lib_dirs),
         &exports,
     )?;
-    let executable = bundle::write_bundle(&files, shim, out)?;
-    println!("wrote {} ({} modules)", executable.display(), files.len());
+    let executable = bundle::write_bundle(&translation.files, shim, out)?;
+    println!(
+        "wrote {} ({} modules)",
+        executable.display(),
+        translation.files.len()
+    );
+    for report in &translation.reports {
+        let stats = report.rewrite;
+        if stats.canary_sites + stats.stub_sites > 0 {
+            println!(
+                "  {}: rewrote {} canary and {} thread-local access sites",
+                report.name, stats.canary_sites, stats.stub_sites
+            );
+        }
+    }
     Ok(())
 }
 
