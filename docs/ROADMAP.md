@@ -25,7 +25,7 @@
 - Relocations, GOT binding, `.init_array` and `.fini_array`.
 - **Exit criterion:** a program using two bundled libraries passes.
 
-## Milestone 3: TLS and threads
+## Milestone 3: TLS and threads (done)
 
 - FS-relative TLS rewriting.
 - pthreads on Windows threads.

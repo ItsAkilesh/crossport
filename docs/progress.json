@@ -60,26 +60,26 @@
     {
       "id": "M3",
       "title": "TLS and threads",
-      "status": "next",
+      "status": "done",
       "tasks": [
         {
           "title": "FS-relative TLS rewriting",
-          "done": false
+          "done": true
         },
         {
           "title": "pthreads on Windows threads",
-          "done": false
+          "done": true
         },
         {
           "title": "Multithreaded TLS test suite passes",
-          "done": false
+          "done": true
         }
       ]
     },
     {
       "id": "M4",
       "title": "CLI corpus",
-      "status": "planned",
+      "status": "next",
       "tasks": [
         {
           "title": "Corpus of non-JIT CLI AppImages",

@@ -27,11 +27,11 @@
 [![CI](https://github.com/ItsAkilesh/crossport/actions/workflows/ci.yml/badge.svg)](https://github.com/ItsAkilesh/crossport/actions/workflows/ci.yml)
 [![Rust](https://img.shields.io/badge/tooling-rust-000000?logo=rust&logoColor=white)](https://www.rust-lang.org)
 [![Platforms](https://img.shields.io/badge/targets-linux%20%E2%86%92%20windows-0E7490)](#the-idea)
-[![Milestones](https://img.shields.io/badge/milestones-3%20of%207-1A7F37)](#what-you-get)
+[![Milestones](https://img.shields.io/badge/milestones-4%20of%207-1A7F37)](#what-you-get)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 <p align="center">
-  <img src="docs/progress.svg" alt="Crossport progress: 3 of 7 milestones done" width="880">
+  <img src="docs/progress.svg" alt="Crossport progress: 4 of 7 milestones done" width="880">
 </p>
 
 <sub>Progress is generated from [docs/progress.json](docs/progress.json) by `python tools/gen_progress.py`.
@@ -102,7 +102,7 @@ lives in [docs/ROADMAP.md](docs/ROADMAP.md).
 - [x] **Milestone 0:** verification harness (Windows CI and a Linux-versus-Windows differential test)
 - [x] **Milestone 1:** translate a dynamically linked "hello world"
 - [x] **Milestone 2:** shared libraries relinked into DLLs
-- [ ] **Milestone 3:** thread-local storage and threads
+- [x] **Milestone 3:** thread-local storage and threads
 - [ ] **Milestone 4:** a corpus of command-line AppImages
 - [ ] **Milestone 5:** Vulkan rendering in a window
 - [ ] **Milestone 6:** real GTK and Qt applications
@@ -136,11 +136,12 @@ starting with command-line tools, then Vulkan and GUI applications.
 
 ## Status
 
-Early. Milestones 0, 1 and 2 are done. A Linux executable and the shared libraries it bundles are
+Early. Milestones 0 to 3 are done. A Linux executable and the shared libraries it bundles are
 translated into a native Windows `.exe`, one DLL per library and a small shim DLL, and the result
 passes a byte-for-byte differential test against the original in CI, including constructor and
-destructor order, cross-library calls, shared data and function-pointer tables. Threads, TLS and
-the rest of libc are still ahead.
+destructor order, cross-library calls, shared data, function-pointer tables, all four ELF
+thread-local storage models, stack canaries and real multithreading. The rest of libc, the AppImage
+unpacker and graphics are still ahead.
 
 The verification harness came first so every step has fast, objective feedback: a `difftest` runner
 records a program's exit code, stdout and stderr, and CI compares the Linux run against the Windows
@@ -196,6 +197,7 @@ translator/target/release/crossport translate build/elf/two_libs/two_libs --shim
 - [Rust](https://www.rust-lang.org) for the translator and tooling, with [object](https://crates.io/crates/object) for reading ELF and [serde](https://serde.rs) for result files
 - [GitHub Actions](https://docs.github.com/actions) for the Linux and Windows runners
 - C (`gcc` / mingw-w64) for the test corpus and the libc shim
+- [iced-x86](https://crates.io/crates/iced-x86) to decode and re-encode the instructions that touch thread-local storage
 
 ## Thanks
 
