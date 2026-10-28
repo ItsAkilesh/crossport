@@ -1,0 +1,72 @@
+{
+  "milestones": [
+    {
+      "id": "M0",
+      "title": "Verification harness",
+      "status": "done",
+      "tasks": [
+        { "title": "Windows CI runner executes test binaries", "done": true },
+        { "title": "Differential runner compares Linux and Windows", "done": true },
+        { "title": "Native hello passes the differential test", "done": true }
+      ]
+    },
+    {
+      "id": "M1",
+      "title": "Hello world translation",
+      "status": "done",
+      "tasks": [
+        { "title": "Translate a program that only calls puts", "done": true },
+        { "title": "Minimal shim: puts, startup and exit", "done": true },
+        { "title": "Translated binary passes its differential test", "done": true }
+      ]
+    },
+    {
+      "id": "M2",
+      "title": "Shared libraries",
+      "status": "next",
+      "tasks": [
+        { "title": "Multiple .so files relinked into DLLs", "done": false },
+        { "title": "Relocations, GOT binding, init and fini arrays", "done": false },
+        { "title": "Program with two bundled libraries passes", "done": false }
+      ]
+    },
+    {
+      "id": "M3",
+      "title": "TLS and threads",
+      "status": "planned",
+      "tasks": [
+        { "title": "FS-relative TLS rewriting", "done": false },
+        { "title": "pthreads on Windows threads", "done": false },
+        { "title": "Multithreaded TLS test suite passes", "done": false }
+      ]
+    },
+    {
+      "id": "M4",
+      "title": "CLI corpus",
+      "status": "planned",
+      "tasks": [
+        { "title": "Corpus of non-JIT CLI AppImages", "done": false },
+        { "title": "Shim coverage prioritized by usage", "done": false },
+        { "title": "Target pass rate reached", "done": false }
+      ]
+    },
+    {
+      "id": "M5",
+      "title": "Vulkan",
+      "status": "planned",
+      "tasks": [
+        { "title": "Vulkan passthrough with a minimal window", "done": false },
+        { "title": "Vulkan sample renders correctly", "done": false }
+      ]
+    },
+    {
+      "id": "M6",
+      "title": "GUI",
+      "status": "planned",
+      "tasks": [
+        { "title": "X11 and Wayland clients on Win32 windowing", "done": false },
+        { "title": "Real GTK or Qt AppImage runs", "done": false }
+      ]
+    }
+  ]
+}

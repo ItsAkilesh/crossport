@@ -27,8 +27,15 @@
 [![CI](https://github.com/ItsAkilesh/crossport/actions/workflows/ci.yml/badge.svg)](https://github.com/ItsAkilesh/crossport/actions/workflows/ci.yml)
 [![Rust](https://img.shields.io/badge/tooling-rust-000000?logo=rust&logoColor=white)](https://www.rust-lang.org)
 [![Platforms](https://img.shields.io/badge/targets-linux%20%E2%86%92%20windows-0E7490)](#the-idea)
-[![Status](https://img.shields.io/badge/status-early%20design-F59E0B)](#status)
+[![Milestones](https://img.shields.io/badge/milestones-2%20of%207-1A7F37)](#what-you-get)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+<p align="center">
+  <img src="docs/progress.svg" alt="Crossport progress: 2 of 7 milestones done" width="880">
+</p>
+
+<sub>Progress is generated from [docs/progress.json](docs/progress.json) by `python tools/gen_progress.py`.
+Each cell is one roadmap task; the full list is in [docs/ROADMAP.md](docs/ROADMAP.md).</sub>
 
 Crossport takes an existing Linux AppImage and turns it into a native Windows application by
 translating the executable format and the operating system interface, not the machine code. The app
