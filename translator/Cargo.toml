@@ -1,0 +1,25 @@
+# File: translator/Cargo.toml
+# Purpose: Manifest for the Crossport translator (ELF analysis and ELF-to-PE relinking)
+# Author: Akilesh
+# Date: 2026-10-28
+
+[package]
+name = "crossport-translator"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[lib]
+name = "crossport_translator"
+path = "src/lib.rs"
+
+[[bin]]
+name = "crossport"
+path = "src/main.rs"
+
+[dependencies]
+object = { version = "=0.40.0", default-features = false, features = ["read_core", "elf", "std"] }
+
+[dev-dependencies]
+object = { version = "=0.40.0", default-features = false, features = ["read", "std"] }
