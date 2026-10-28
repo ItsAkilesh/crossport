@@ -283,3 +283,110 @@ fn mutated_executables_never_panic_the_translator() {
         let _ = translate(name("two_libs"), mutated, &fixtures(), &shim());
     }
 }
+
+const TLS_EXE: &[u8] = include_bytes!("fixtures/tls_basic/tls_basic");
+const SHIM_START_INFO_HEADER: &str = include_str!("../../shim/startinfo.h");
+
+fn tls_fixtures() -> DirectorySource {
+    DirectorySource::new(vec![
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tls_basic")
+    ])
+}
+
+fn translate_tls_basic() -> crossport_translator::translate::Translation {
+    translate(
+        name("tls_basic"),
+        TLS_EXE.to_vec(),
+        &tls_fixtures(),
+        &tls_shim(),
+    )
+    .expect("translates")
+}
+
+fn tls_shim() -> ShimExports {
+    ShimExports::from_names(
+        [
+            "puts",
+            "__libc_start_main",
+            "crossport_start",
+            "__tls_get_addr",
+            "__stack_chk_fail",
+        ]
+        .map(String::from),
+    )
+}
+
+fn read_i64(bytes: &[u8], rva: usize) -> i64 {
+    i64::from_le_bytes(bytes[rva..rva + 8].try_into().expect("8 bytes"))
+}
+
+#[test]
+fn tls_programs_report_what_was_rewritten() {
+    let reports = translate_tls_basic().reports;
+    assert_eq!(
+        (
+            reports[0].rewrite.canary_sites,
+            reports[0].rewrite.stub_sites
+        ),
+        (4, 9)
+    );
+    assert_eq!(
+        (
+            reports[1].rewrite.canary_sites,
+            reports[1].rewrite.stub_sites
+        ),
+        (8, 0)
+    );
+}
+
+#[test]
+fn stub_and_canary_sections_exist_and_the_stubs_are_not_executable_until_the_shim_seals_them() {
+    let files = translate_tls_basic().files;
+    let pe = PeFile64::parse(&*files[0].bytes).expect("parses");
+    let stubs = pe.section_by_name(".ctls").expect("stub section");
+    assert!(pe.section_by_name(".cdata").is_some());
+    let flags = match stubs.flags() {
+        object::SectionFlags::Coff { characteristics } => characteristics.0,
+        other => panic!("unexpected flags {other:?}"),
+    };
+    assert_eq!(flags & 0x2000_0000, 0, "loaded without the execute bit");
+    assert_ne!(flags & 0x8000_0000, 0, "writable so the shim can patch it");
+}
+
+#[test]
+fn tls_relocations_are_resolved_to_exact_constants_at_translation_time() {
+    let files = translate_tls_basic().files;
+    // exe: .tdata+.tbss is 0x70 bytes, so libtls (4+12 bytes, align 4) starts at -0x80.
+    // R_X86_64_TPOFF64 for lib_exported (symbol offset 0xc) sits at vaddr 0x3fe8.
+    assert_eq!(read_i64(&files[0].bytes, 0x1000 + 0x3fe8), -0x80 + 0xc);
+    // libtls: DTPMOD64 (self) at 0x3fb0, and the lib_counter pair at 0x3fd0/0x3fd8.
+    let lib = &files[1].bytes;
+    assert_eq!(read_i64(lib, 0x1000 + 0x3fb0), -0x80);
+    assert_eq!(read_i64(lib, 0x1000 + 0x3fd0), -0x80);
+    assert_eq!(read_i64(lib, 0x1000 + 0x3fd8), 8);
+}
+
+#[test]
+fn thread_local_symbols_are_not_exported_as_addresses() {
+    let files = translate_tls_basic().files;
+    let exported = exports_of(&files[1].bytes);
+    assert!(exported.contains(&"lib_get".to_string()));
+    assert!(!exported.contains(&"lib_counter".to_string()));
+    assert!(!exported.contains(&"lib_exported".to_string()));
+}
+
+#[test]
+fn the_translator_and_the_c_shim_agree_on_the_start_info_layout() {
+    use crossport_translator::shim_abi::{INFO_HEADER_BYTES, INFO_VERSION};
+    assert!(SHIM_START_INFO_HEADER.contains(&format!("sizeof(StartInfo) == {INFO_HEADER_BYTES}")));
+    assert!(SHIM_START_INFO_HEADER.contains(&format!("#define INFO_VERSION {INFO_VERSION}u")));
+}
+
+#[test]
+fn mutated_thread_local_programs_never_panic_the_translator() {
+    for position in (0..TLS_EXE.len()).step_by(13) {
+        let mut mutated = TLS_EXE.to_vec();
+        mutated[position] ^= 0xFF;
+        let _ = translate(name("tls_basic"), mutated, &tls_fixtures(), &tls_shim());
+    }
+}

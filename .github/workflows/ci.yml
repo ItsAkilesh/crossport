@@ -15,8 +15,8 @@ permissions:
 
 env:
   NATIVE_CASES: hello
-  TRANSLATED_CASES: hello_dyn two_libs
-  LINUX_ONLY_CASES: tls_basic threads
+  TRANSLATED_CASES: hello_dyn two_libs tls_basic
+  LINUX_ONLY_CASES: threads
 
 jobs:
   linux:

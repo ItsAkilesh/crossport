@@ -58,11 +58,16 @@ pub fn apply(
     canary_cell_rva: Option<u32>,
     stubs_rva: u32,
 ) -> Result<Rewrite, TranslateError> {
-    let mut rewrite = Rewrite { stubs: Vec::new(), slot_fixups: Vec::new(), stats: RewriteStats::default() };
+    let mut rewrite = Rewrite {
+        stubs: Vec::new(),
+        slot_fixups: Vec::new(),
+        stats: RewriteStats::default(),
+    };
     for site in sites {
         if is_canary(site) {
-            let cell = canary_cell_rva
-                .ok_or_else(|| TranslateError::Elf("internal: canary site without a canary cell".into()))?;
+            let cell = canary_cell_rva.ok_or_else(|| {
+                TranslateError::Elf("internal: canary site without a canary cell".into())
+            })?;
             patch_canary(image, site, cell)?;
             rewrite.stats.canary_sites += 1;
         } else {
@@ -91,12 +96,18 @@ fn patch_canary(image: &mut [u8], site: &Site, cell_rva: u32) -> Result<(), Tran
     modified.set_memory_displ_size(4);
     let mut encoder = Encoder::new(64);
     encoder.encode(&modified, site.rva).map_err(|error| {
-        TranslateError::Unsupported(format!("canary access at rva {:#x} cannot be re-encoded ({error})", site.rva))
+        TranslateError::Unsupported(format!(
+            "canary access at rva {:#x} cannot be re-encoded ({error})",
+            site.rva
+        ))
     })?;
     let encoded = encoder.take_buffer();
     let bytes = site_bytes(image, site)?;
     if encoded.len() > bytes.len() {
-        return Err(TranslateError::Unsupported(format!("canary access at rva {:#x} grew when re-encoded", site.rva)));
+        return Err(TranslateError::Unsupported(format!(
+            "canary access at rva {:#x} grew when re-encoded",
+            site.rva
+        )));
     }
     bytes[..encoded.len()].copy_from_slice(&encoded);
     bytes[encoded.len()..].fill(NOP);
@@ -118,9 +129,16 @@ fn patch_with_stub(
     }
     let stub_offset = align_up(rewrite.stubs.len() as u64, STUB_ALIGNMENT);
     let stub_rva = u64::from(stubs_rva) + stub_offset;
-    let built = stub::build(&site.instruction, site.rva, stub_rva, site.rva + length as u64)?;
+    let built = stub::build(
+        &site.instruction,
+        site.rva,
+        stub_rva,
+        site.rva + length as u64,
+    )?;
     rewrite.stubs.resize(stub_offset as usize, INT3);
-    rewrite.slot_fixups.push(stub_offset as u32 + built.fixup_offset);
+    rewrite
+        .slot_fixups
+        .push(stub_offset as u32 + built.fixup_offset);
     rewrite.stubs.extend_from_slice(&built.bytes);
 
     let displacement = i32::try_from(stub_rva as i64 - (site.rva as i64 + JMP_LEN as i64))
@@ -150,10 +168,16 @@ mod tests {
     const STUBS_RVA: u32 = 0xA000;
 
     fn image_of(data: &[u8], info: &ElfInfo) -> Vec<u8> {
-        let end = info.segments.iter().map(|s| s.vaddr + s.mem_size).max().unwrap_or(0);
+        let end = info
+            .segments
+            .iter()
+            .map(|s| s.vaddr + s.mem_size)
+            .max()
+            .unwrap_or(0);
         let mut image = vec![0u8; (RVA_BIAS + end) as usize + 0x1000];
         for segment in &info.segments {
-            let source = &data[segment.file_offset as usize..(segment.file_offset + segment.file_size) as usize];
+            let source = &data
+                [segment.file_offset as usize..(segment.file_offset + segment.file_size) as usize];
             let at = (RVA_BIAS + segment.vaddr) as usize;
             image[at..at + source.len()].copy_from_slice(source);
         }
@@ -171,8 +195,14 @@ mod tests {
     #[test]
     fn counts_match_the_known_instruction_mix() {
         let (_, result) = rewritten(TLS_BASIC);
-        assert_eq!(result.stats.canary_sites, 4, "two functions, prologue and epilogue each");
-        assert_eq!(result.stats.stub_sites, 9, "local-exec, initial-exec and thread-pointer accesses");
+        assert_eq!(
+            result.stats.canary_sites, 4,
+            "two functions, prologue and epilogue each"
+        );
+        assert_eq!(
+            result.stats.stub_sites, 9,
+            "local-exec, initial-exec and thread-pointer accesses"
+        );
         assert_eq!(result.slot_fixups.len(), result.stats.stub_sites);
     }
 
@@ -180,7 +210,8 @@ mod tests {
     fn a_canary_read_becomes_a_rip_relative_load_of_the_cell() {
         let (image, _) = rewritten(TLS_BASIC);
         let at = (RVA_BIAS + 0x10ad) as usize;
-        let instruction = Decoder::with_ip(64, &image[at..at + 9], at as u64, DecoderOptions::NONE).decode();
+        let instruction =
+            Decoder::with_ip(64, &image[at..at + 9], at as u64, DecoderOptions::NONE).decode();
         assert!(instruction.is_ip_rel_memory_operand());
         assert_eq!(instruction.ip_rel_memory_address(), u64::from(CELL_RVA));
         assert_eq!(instruction.segment_prefix(), Register::None);
@@ -193,7 +224,10 @@ mod tests {
         assert_eq!(image[at], JMP_REL32);
         let displacement = i32::from_le_bytes(image[at + 1..at + 5].try_into().expect("4 bytes"));
         let target = (at as i64 + 5 + i64::from(displacement)) as u64;
-        assert!(target >= u64::from(STUBS_RVA) && target < u64::from(STUBS_RVA) + result.stubs.len() as u64);
+        assert!(
+            target >= u64::from(STUBS_RVA)
+                && target < u64::from(STUBS_RVA) + result.stubs.len() as u64
+        );
     }
 
     #[test]

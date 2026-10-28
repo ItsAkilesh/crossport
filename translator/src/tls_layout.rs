@@ -46,11 +46,20 @@ impl TlsLayout {
             max_align = max_align.max(segment.align);
             offset = align_up(offset + segment.mem_size, segment.align);
             if offset > MAX_TOTAL_BYTES {
-                return Err(TranslateError::LimitExceeded("static TLS is larger than 64 MiB".into()));
+                return Err(TranslateError::LimitExceeded(
+                    "static TLS is larger than 64 MiB".into(),
+                ));
             }
-            layouts.push(Some(ModuleTls { segment, tp_offset: -(offset as i64) }));
+            layouts.push(Some(ModuleTls {
+                segment,
+                tp_offset: -(offset as i64),
+            }));
         }
-        Ok(Self { modules: layouts, total_size: align_up(offset, max_align), max_align })
+        Ok(Self {
+            modules: layouts,
+            total_size: align_up(offset, max_align),
+            max_align,
+        })
     }
 
     pub fn module(&self, index: usize) -> Option<&ModuleTls> {
@@ -67,9 +76,16 @@ mod tests {
     use std::path::PathBuf;
 
     fn graph(case: &str, exe: &str) -> crate::graph::ModuleGraph {
-        let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures").join(case);
+        let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures")
+            .join(case);
         let bytes = std::fs::read(dir.join(exe)).expect("fixture exists");
-        load(ModuleName::parse(exe).expect("valid"), bytes, &DirectorySource::new(vec![dir])).expect("loads")
+        load(
+            ModuleName::parse(exe).expect("valid"),
+            bytes,
+            &DirectorySource::new(vec![dir]),
+        )
+        .expect("loads")
     }
 
     #[test]
@@ -77,7 +93,10 @@ mod tests {
         let graph = graph("tls_basic", "tls_basic");
         let layout = TlsLayout::compute(&graph.modules).expect("lays out");
         let exe = layout.module(0).expect("executable has TLS");
-        assert_eq!(exe.tp_offset, -0x70, "%fs:0xffffffffffffff90 in the real binary");
+        assert_eq!(
+            exe.tp_offset, -0x70,
+            "%fs:0xffffffffffffff90 in the real binary"
+        );
         assert!(layout.module(1).is_some(), "libtls has TLS");
     }
 
@@ -106,6 +125,10 @@ mod tests {
     fn single_threaded_exe_offset_for_the_threads_case() {
         let graph = graph("threads", "threads");
         let layout = TlsLayout::compute(&graph.modules).expect("lays out");
-        assert_eq!(layout.module(0).expect("exe").tp_offset, -8, "%fs:0xfffffffffffffff8");
+        assert_eq!(
+            layout.module(0).expect("exe").tp_offset,
+            -8,
+            "%fs:0xfffffffffffffff8"
+        );
     }
 }

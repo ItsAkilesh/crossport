@@ -129,6 +129,8 @@ struct Rewritten {
     canary_cell_rva: u32,
     /// RVAs of the 4-byte displacements the shim patches with the Windows TLS slot.
     slot_fixups: Vec<u32>,
+    stubs_rva: u32,
+    stubs_size: u32,
 }
 
 /// Rewrites the module's FS-relative instructions and reserves the `.cdata`
@@ -156,6 +158,7 @@ fn rewrite_fs_accesses(
         .iter()
         .map(|offset| stubs_rva + offset)
         .collect();
+    let stubs_size = result.stubs.len() as u32;
     if !result.stubs.is_empty() {
         plan.push(".ctls", result.stubs, SCN_READ | SCN_WRITE);
     }
@@ -163,6 +166,8 @@ fn rewrite_fs_accesses(
         stats: result.stats,
         canary_cell_rva,
         slot_fixups,
+        stubs_rva: if stubs_size == 0 { 0 } else { stubs_rva },
+        stubs_size,
     })
 }
 
@@ -170,6 +175,8 @@ fn tls_info(index: usize, module: &Module, layout: &TlsLayout, rewritten: &Rewri
     let mut info = TlsInfo {
         canary_cell_rva: rewritten.canary_cell_rva,
         slot_fixups: rewritten.slot_fixups.clone(),
+        stubs_rva: rewritten.stubs_rva,
+        stubs_size: rewritten.stubs_size,
         ..TlsInfo::default()
     };
     if let Some(block) = layout.module(index) {

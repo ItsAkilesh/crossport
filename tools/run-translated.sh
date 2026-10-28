@@ -34,7 +34,7 @@ rm -rf "$bundle_dir"
 
 cargo build --release --locked --manifest-path "$root/tools/difftest/Cargo.toml"
 cargo build --release --locked --manifest-path "$root/translator/Cargo.toml"
-gcc -O2 -Wall -Wextra -Werror -fno-builtin -shared -o "$shim_dir/crossport_libc.dll" "$root/shim/crossport_libc.c"
+gcc -O2 -Wall -Wextra -Werror -fno-builtin -shared -o "$shim_dir/crossport_libc.dll" "$root"/shim/*.c -lbcrypt
 
 "$root/translator/target/release/crossport.exe" translate "$elf" \
   --shim "$shim_dir/crossport_libc.dll" --lib-dir "$elf_dir" --out "$bundle_dir"

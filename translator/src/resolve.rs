@@ -86,13 +86,25 @@ impl<'a> Resolver<'a> {
         symbol: Option<&DynSymbol>,
     ) -> Result<TlsTarget, TranslateError> {
         let Some(symbol) = symbol else {
-            return Ok(TlsTarget { module: importer, offset: 0 });
+            return Ok(TlsTarget {
+                module: importer,
+                offset: 0,
+            });
         };
         if !symbol.is_tls {
-            return Err(TranslateError::Elf(format!("TLS relocation against non-TLS symbol {}", symbol.name)));
+            return Err(TranslateError::Elf(format!(
+                "TLS relocation against non-TLS symbol {}",
+                symbol.name
+            )));
         }
-        if let Some(address) = symbol.address().filter(|_| symbol.binding == SymbolBinding::Local) {
-            return Ok(TlsTarget { module: importer, offset: address });
+        if let Some(address) = symbol
+            .address()
+            .filter(|_| symbol.binding == SymbolBinding::Local)
+        {
+            return Ok(TlsTarget {
+                module: importer,
+                offset: address,
+            });
         }
         for (module, candidate) in self.graph.modules.iter().enumerate() {
             if let Some(&index) = candidate.tls_exports.get(&symbol.name) {

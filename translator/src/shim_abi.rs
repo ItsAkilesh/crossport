@@ -14,8 +14,8 @@ pub const INFO_SYMBOL: &str = "__crossport_info";
 pub const INFO_MAGIC: u32 = 0x5452_5043;
 pub const INFO_VERSION: u32 = 3;
 
-/// Fixed header: 24 little-endian u32 fields, in the order of `startup::encode_info`.
-pub const INFO_HEADER_BYTES: usize = 96;
+/// Fixed header: 26 little-endian u32 fields, in the order of `startup::encode_info`.
+pub const INFO_HEADER_BYTES: usize = 104;
 /// Size of every binding and copy record (two u32 values and one 64-bit value).
 pub const RECORD_BYTES: usize = 16;
 /// Largest number of dependency modules one executable may list.

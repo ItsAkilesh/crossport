@@ -3,9 +3,7 @@
 // Author: Akilesh
 // Date: 2026-10-28
 
-use iced_x86::{
-    Code, Encoder, Instruction, InstructionInfoFactory, MemoryOperand, Register,
-};
+use iced_x86::{Code, Encoder, Instruction, InstructionInfoFactory, MemoryOperand, Register};
 
 use crate::error::TranslateError;
 
@@ -41,14 +39,26 @@ fn encode_error(rva: u64, error: iced_x86::IcedError) -> TranslateError {
 }
 
 fn gs_slot(displacement: i64) -> MemoryOperand {
-    MemoryOperand::new(Register::None, Register::None, 1, displacement, 4, false, Register::GS)
+    MemoryOperand::new(
+        Register::None,
+        Register::None,
+        1,
+        displacement,
+        4,
+        false,
+        Register::GS,
+    )
 }
 
 /// A scratch register the instruction does not read, write or address with.
 fn pick_scratch(instruction: &Instruction, rva: u64) -> Result<Register, TranslateError> {
     let mut factory = InstructionInfoFactory::new();
     let info = factory.info(instruction);
-    let used: Vec<Register> = info.used_registers().iter().map(|u| u.register().full_register()).collect();
+    let used: Vec<Register> = info
+        .used_registers()
+        .iter()
+        .map(|u| u.register().full_register())
+        .collect();
     SCRATCH_CANDIDATES
         .into_iter()
         .find(|candidate| !used.contains(candidate))
@@ -63,9 +73,13 @@ fn check_addressing(instruction: &Instruction, rva: u64) -> Result<(), Translate
         return Err(unsupported(rva, "vector-indexed (gather/scatter) operand"));
     }
     for register in [instruction.memory_base(), instruction.memory_index()] {
-        let is_usable = register == Register::None || (register.is_gpr64() && register != Register::RSP);
+        let is_usable =
+            register == Register::None || (register.is_gpr64() && register != Register::RSP);
         if !is_usable {
-            return Err(unsupported(rva, "address register is not a usable 64-bit register"));
+            return Err(unsupported(
+                rva,
+                "address register is not a usable 64-bit register",
+            ));
         }
     }
     let displacement = instruction.memory_displacement64() as i64;
@@ -93,7 +107,11 @@ fn retarget(instruction: &Instruction, scratch: Register, has_base_and_index: bo
     }
     let displacement = instruction.memory_displacement64() as i64;
     modified.set_memory_displacement64(displacement as u64);
-    modified.set_memory_displ_size(if i8::try_from(displacement).is_ok() { 1 } else { 4 });
+    modified.set_memory_displ_size(if i8::try_from(displacement).is_ok() {
+        1
+    } else {
+        4
+    });
     modified
 }
 
@@ -111,19 +129,27 @@ pub(super) fn build(
     let (base, index) = (instruction.memory_base(), instruction.memory_index());
     let has_base_and_index = base != Register::None && index != Register::None;
     let mut steps = vec![
-        Instruction::with2(Code::Mov_rm64_r64, gs_slot(SAVE_SLOT), scratch).map_err(|e| encode_error(rva, e))?,
+        Instruction::with2(Code::Mov_rm64_r64, gs_slot(SAVE_SLOT), scratch)
+            .map_err(|e| encode_error(rva, e))?,
         Instruction::with2(Code::Mov_r64_rm64, scratch, gs_slot(TP_SLOT_PLACEHOLDER))
             .map_err(|e| encode_error(rva, e))?,
     ];
     if has_base_and_index {
         let address = MemoryOperand::with_base_index(scratch, base);
-        steps.push(Instruction::with2(Code::Lea_r64_m, scratch, address).map_err(|e| encode_error(rva, e))?);
+        steps.push(
+            Instruction::with2(Code::Lea_r64_m, scratch, address)
+                .map_err(|e| encode_error(rva, e))?,
+        );
     }
     steps.push(retarget(instruction, scratch, has_base_and_index));
     steps.push(
-        Instruction::with2(Code::Mov_r64_rm64, scratch, gs_slot(SAVE_SLOT)).map_err(|e| encode_error(rva, e))?,
+        Instruction::with2(Code::Mov_r64_rm64, scratch, gs_slot(SAVE_SLOT))
+            .map_err(|e| encode_error(rva, e))?,
     );
-    steps.push(Instruction::with_branch(Code::Jmp_rel32_64, return_rva).map_err(|e| encode_error(rva, e))?);
+    steps.push(
+        Instruction::with_branch(Code::Jmp_rel32_64, return_rva)
+            .map_err(|e| encode_error(rva, e))?,
+    );
     encode(&steps, rva, stub_rva)
 }
 
@@ -140,8 +166,12 @@ fn encode(steps: &[Instruction], rva: u64, stub_rva: u64) -> Result<BuiltStub, T
         }
         bytes.extend_from_slice(&encoder.take_buffer());
     }
-    let fixup_offset = fixup_offset.ok_or_else(|| unsupported(rva, "internal: no slot displacement"))?;
-    Ok(BuiltStub { bytes, fixup_offset: fixup_offset as u32 })
+    let fixup_offset =
+        fixup_offset.ok_or_else(|| unsupported(rva, "internal: no slot displacement"))?;
+    Ok(BuiltStub {
+        bytes,
+        fixup_offset: fixup_offset as u32,
+    })
 }
 
 #[cfg(test)]
@@ -228,6 +258,9 @@ mod tests {
     fn rsp_relative_operands_are_refused() {
         // mov %fs:(%rsp),%rax
         let site = decode(&[0x64, 0x48, 0x8b, 0x04, 0x24], 0x2000);
-        assert!(matches!(build(&site, 0x2000, 0x9000, 0x2005), Err(TranslateError::Unsupported(_))));
+        assert!(matches!(
+            build(&site, 0x2000, 0x9000, 0x2005),
+            Err(TranslateError::Unsupported(_))
+        ));
     }
 }

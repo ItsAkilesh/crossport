@@ -85,8 +85,16 @@ impl Patcher<'_, '_> {
             RelocKind::Symbol { symbol, addend } => self.symbol(slot, symbol, addend),
             RelocKind::Copy { symbol } => self.copy(slot, symbol),
             RelocKind::TlsModule { symbol } => {
+                // The module id is opaque to compiled code, which only hands the
+                // (module, offset) pair to __tls_get_addr. We use the module's block
+                // offset from the thread pointer, so the shim needs no lookup table.
                 let target = self.tls_target(symbol)?;
-                write_u64(self.image, slot, target.module as u64)
+                let block = self.context.tls.module(target.module).ok_or_else(|| {
+                    TranslateError::Elf(
+                        "TLS relocation targets a module without a TLS segment".into(),
+                    )
+                })?;
+                write_u64(self.image, slot, block.tp_offset as u64)
             }
             RelocKind::TlsOffset { symbol, addend } => {
                 let target = self.tls_target(symbol)?;
@@ -95,9 +103,14 @@ impl Patcher<'_, '_> {
             RelocKind::TlsThreadOffset { symbol, addend } => {
                 let target = self.tls_target(symbol)?;
                 let block = self.context.tls.module(target.module).ok_or_else(|| {
-                    TranslateError::Elf("TLS relocation targets a module without a TLS segment".into())
+                    TranslateError::Elf(
+                        "TLS relocation targets a module without a TLS segment".into(),
+                    )
                 })?;
-                let value = block.tp_offset.wrapping_add(target.offset as i64).wrapping_add(addend);
+                let value = block
+                    .tp_offset
+                    .wrapping_add(target.offset as i64)
+                    .wrapping_add(addend);
                 write_u64(self.image, slot, value as u64)
             }
         }
@@ -116,7 +129,9 @@ impl Patcher<'_, '_> {
     fn tls_target(&self, symbol: Option<usize>) -> Result<TlsTarget, TranslateError> {
         let module = &self.context.graph.modules[self.context.module];
         let definition = symbol.map(|index| &module.info.symbols[index]);
-        self.context.resolver.resolve_tls(self.context.module, definition)
+        self.context
+            .resolver
+            .resolve_tls(self.context.module, definition)
     }
 
     fn target(&mut self, symbol: usize) -> Result<Target, TranslateError> {

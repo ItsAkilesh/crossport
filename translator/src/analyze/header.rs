@@ -52,7 +52,9 @@ pub(super) fn tls_segment(
             && segment.mem_size <= MAX_TLS_BYTES
             && segment.vaddr.checked_add(segment.file_size).is_some();
         if !is_valid || found.replace(segment).is_some() {
-            return Err(TranslateError::Elf("invalid or duplicate PT_TLS segment".into()));
+            return Err(TranslateError::Elf(
+                "invalid or duplicate PT_TLS segment".into(),
+            ));
         }
     }
     Ok(found)

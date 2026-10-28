@@ -37,7 +37,11 @@ struct Reader<'a> {
 
 impl<'a> Reader<'a> {
     fn new(bytes: &'a [u8], vaddr: u64) -> Self {
-        Self { bytes, position: 0, vaddr }
+        Self {
+            bytes,
+            position: 0,
+            vaddr,
+        }
     }
 
     fn current_vaddr(&self) -> u64 {
@@ -45,8 +49,14 @@ impl<'a> Reader<'a> {
     }
 
     fn take(&mut self, count: usize) -> Result<&'a [u8], TranslateError> {
-        let end = self.position.checked_add(count).ok_or_else(|| bad("length overflow"))?;
-        let slice = self.bytes.get(self.position..end).ok_or_else(|| bad("truncated entry"))?;
+        let end = self
+            .position
+            .checked_add(count)
+            .ok_or_else(|| bad("length overflow"))?;
+        let slice = self
+            .bytes
+            .get(self.position..end)
+            .ok_or_else(|| bad("truncated entry"))?;
         self.position = end;
         Ok(slice)
     }
@@ -92,12 +102,18 @@ impl<'a> Reader<'a> {
     fn encoded(&mut self, encoding: u8) -> Result<u64, TranslateError> {
         let field_vaddr = self.current_vaddr();
         let raw = match encoding & FORMAT_MASK {
-            0x00 | 0x04 | 0x0c => i64::from_le_bytes(self.take(8)?.try_into().map_err(|_| bad("short read"))?),
+            0x00 | 0x04 | 0x0c => {
+                i64::from_le_bytes(self.take(8)?.try_into().map_err(|_| bad("short read"))?)
+            }
             0x01 => self.uleb()? as i64,
-            0x02 => i64::from(u16::from_le_bytes(self.take(2)?.try_into().map_err(|_| bad("short read"))?)),
+            0x02 => i64::from(u16::from_le_bytes(
+                self.take(2)?.try_into().map_err(|_| bad("short read"))?,
+            )),
             0x03 => i64::from(self.u32()?),
             0x09 => self.sleb()?,
-            0x0a => i64::from(i16::from_le_bytes(self.take(2)?.try_into().map_err(|_| bad("short read"))?)),
+            0x0a => i64::from(i16::from_le_bytes(
+                self.take(2)?.try_into().map_err(|_| bad("short read"))?,
+            )),
             0x0b => i64::from(self.u32()? as i32),
             _ => return Err(bad("unsupported pointer format")),
         };
@@ -115,7 +131,10 @@ pub(super) fn read(
     phdrs: &[Phdr],
     endian: Endianness,
 ) -> Result<Vec<CodeRange>, TranslateError> {
-    let Some(header) = phdrs.iter().find(|ph| ph.p_type(endian) == elf::PT_GNU_EH_FRAME) else {
+    let Some(header) = phdrs
+        .iter()
+        .find(|ph| ph.p_type(endian) == elf::PT_GNU_EH_FRAME)
+    else {
         return Ok(Vec::new());
     };
     let header_vaddr = header.p_vaddr(endian);
@@ -138,13 +157,19 @@ pub(super) fn read(
 }
 
 /// Walks the CIE and FDE records sequentially until the zero terminator.
-fn read_frames(data: &[u8], map: &AddressMap<'_>, frames_vaddr: u64) -> Result<Vec<CodeRange>, TranslateError> {
+fn read_frames(
+    data: &[u8],
+    map: &AddressMap<'_>,
+    frames_vaddr: u64,
+) -> Result<Vec<CodeRange>, TranslateError> {
     let mut ranges = Vec::new();
     let mut cie_encodings: HashMap<u64, u8> = HashMap::new();
     let mut vaddr = frames_vaddr;
     for _ in 0..MAX_ENTRIES {
         let length_offset = map.file_offset(vaddr, 4)?;
-        let length_bytes = data.read_bytes_at(length_offset, 4).map_err(|()| bad("entry is outside the file"))?;
+        let length_bytes = data
+            .read_bytes_at(length_offset, 4)
+            .map_err(|()| bad("entry is outside the file"))?;
         let length = u32::from_le_bytes(length_bytes.try_into().map_err(|_| bad("short read"))?);
         if length == 0 {
             return Ok(ranges);
@@ -154,7 +179,9 @@ fn read_frames(data: &[u8], map: &AddressMap<'_>, frames_vaddr: u64) -> Result<V
         }
         let total = add(u64::from(length), 4)?;
         let offset = map.file_offset(vaddr, total)?;
-        let entry = data.read_bytes_at(offset, total).map_err(|()| bad("entry is outside the file"))?;
+        let entry = data
+            .read_bytes_at(offset, total)
+            .map_err(|()| bad("entry is outside the file"))?;
         let mut reader = Reader::new(entry, vaddr);
         reader.take(4)?;
         let id_vaddr = reader.current_vaddr();
@@ -163,7 +190,9 @@ fn read_frames(data: &[u8], map: &AddressMap<'_>, frames_vaddr: u64) -> Result<V
             let encoding = parse_cie(&mut reader)?;
             cie_encodings.insert(vaddr, encoding);
         } else {
-            let cie_vaddr = id_vaddr.checked_sub(u64::from(id)).ok_or_else(|| bad("bad CIE pointer"))?;
+            let cie_vaddr = id_vaddr
+                .checked_sub(u64::from(id))
+                .ok_or_else(|| bad("bad CIE pointer"))?;
             let encoding = match cie_encodings.get(&cie_vaddr) {
                 Some(&encoding) => encoding,
                 None => parse_cie_at(data, map, cie_vaddr)?,
@@ -172,16 +201,22 @@ fn read_frames(data: &[u8], map: &AddressMap<'_>, frames_vaddr: u64) -> Result<V
         }
         vaddr = add(vaddr, total)?;
     }
-    Err(TranslateError::LimitExceeded("too many .eh_frame entries".into()))
+    Err(TranslateError::LimitExceeded(
+        "too many .eh_frame entries".into(),
+    ))
 }
 
 fn parse_cie_at(data: &[u8], map: &AddressMap<'_>, vaddr: u64) -> Result<u8, TranslateError> {
     let offset = map.file_offset(vaddr, 8)?;
-    let head = data.read_bytes_at(offset, 8).map_err(|()| bad("CIE is outside the file"))?;
+    let head = data
+        .read_bytes_at(offset, 8)
+        .map_err(|()| bad("CIE is outside the file"))?;
     let length = u32::from_le_bytes(head[0..4].try_into().map_err(|_| bad("short read"))?);
     let total = add(u64::from(length), 4)?;
     let entry_offset = map.file_offset(vaddr, total)?;
-    let entry = data.read_bytes_at(entry_offset, total).map_err(|()| bad("CIE is outside the file"))?;
+    let entry = data
+        .read_bytes_at(entry_offset, total)
+        .map_err(|()| bad("CIE is outside the file"))?;
     let mut reader = Reader::new(entry, vaddr);
     reader.take(8)?;
     parse_cie(&mut reader)
@@ -248,10 +283,15 @@ mod tests {
     #[test]
     fn executable_functions_cover_known_canary_sites() {
         let info = analyze(TLS_BASIC).expect("parses");
-        assert!(info.code_ranges.len() >= 4, "main, print_number and friends");
+        assert!(
+            info.code_ranges.len() >= 4,
+            "main, print_number and friends"
+        );
         for site in [0x10adu64, 0x1251, 0x1378, 0x1437] {
             assert!(
-                info.code_ranges.iter().any(|r| site >= r.start && site < r.start + r.len),
+                info.code_ranges
+                    .iter()
+                    .any(|r| site >= r.start && site < r.start + r.len),
                 "{site:#x} lies in a function"
             );
         }
@@ -260,12 +300,18 @@ mod tests {
     #[test]
     fn ranges_never_cover_the_elf_header_or_data() {
         let info = analyze(LIBTLS).expect("parses");
-        assert!(info.code_ranges.iter().all(|r| r.start >= 0x1000 && r.len > 0));
+        assert!(info
+            .code_ranges
+            .iter()
+            .all(|r| r.start >= 0x1000 && r.len > 0));
     }
 
     #[test]
     fn libraries_report_ranges_too() {
         let info = analyze(LIBTLS).expect("parses");
-        assert!(info.code_ranges.iter().any(|r| 0x1124 >= r.start && 0x1124 < r.start + r.len));
+        assert!(info
+            .code_ranges
+            .iter()
+            .any(|r| 0x1124 >= r.start && 0x1124 < r.start + r.len));
     }
 }

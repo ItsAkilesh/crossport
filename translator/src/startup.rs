@@ -70,6 +70,9 @@ pub struct TlsInfo {
     pub max_align: u32,
     /// RVAs of 4-byte displacements the shim patches with the Windows TLS slot offset.
     pub slot_fixups: Vec<u32>,
+    /// The stub section: made executable (and read-only) by the shim once patched.
+    pub stubs_rva: u32,
+    pub stubs_size: u32,
 }
 
 pub struct StartupSection {
@@ -124,7 +127,7 @@ fn push_record(out: &mut Vec<u8>, first: u32, second: u32, value: i64) {
     out.extend_from_slice(&value.to_le_bytes());
 }
 
-/// Layout: 24-field header, iat bindings, executable bindings, copies, TLS slot
+/// Layout: 26-field header, iat bindings, executable bindings, copies, TLS slot
 /// fixups, the dependency name RVA table, then the dependency name strings.
 fn encode_info(out: &mut Vec<u8>, info: &ModuleInfo, info_rva: u32) -> Result<(), TranslateError> {
     if info.dependencies.len() > MAX_LISTED_MODULES {
@@ -164,6 +167,8 @@ fn encode_info(out: &mut Vec<u8>, info: &ModuleInfo, info_rva: u32) -> Result<()
         tls.slot_fixups.len() as u32,
         tls.total_size,
         tls.max_align,
+        tls.stubs_rva,
+        tls.stubs_size,
         0,
     ];
     for field in header {

@@ -43,7 +43,10 @@ fn code_ranges(info: &ElfInfo) -> Vec<CodeRange> {
     info.segments
         .iter()
         .filter(|segment| segment.flags.is_executable)
-        .map(|segment| CodeRange { start: segment.vaddr, len: segment.file_size })
+        .map(|segment| CodeRange {
+            start: segment.vaddr,
+            len: segment.file_size,
+        })
         .collect()
 }
 
@@ -60,7 +63,10 @@ fn collect(bytes: &[u8], ip: u64, sites: &mut BTreeMap<u64, Site>) {
             continue;
         }
         if uses_fs_memory(&instruction) {
-            sites.entry(instruction.ip()).or_insert(Site { rva: instruction.ip(), instruction });
+            sites.entry(instruction.ip()).or_insert(Site {
+                rva: instruction.ip(),
+                instruction,
+            });
         }
     }
 }
@@ -78,10 +84,16 @@ mod tests {
     const TLS_BASIC: &[u8] = include_bytes!("../../tests/fixtures/tls_basic/tls_basic");
 
     fn image_of(data: &[u8], info: &ElfInfo) -> Vec<u8> {
-        let end = info.segments.iter().map(|s| s.vaddr + s.mem_size).max().unwrap_or(0);
+        let end = info
+            .segments
+            .iter()
+            .map(|s| s.vaddr + s.mem_size)
+            .max()
+            .unwrap_or(0);
         let mut image = vec![0u8; (RVA_BIAS + end) as usize + 0x1000];
         for segment in &info.segments {
-            let source = &data[segment.file_offset as usize..(segment.file_offset + segment.file_size) as usize];
+            let source = &data
+                [segment.file_offset as usize..(segment.file_offset + segment.file_size) as usize];
             let at = (RVA_BIAS + segment.vaddr) as usize;
             image[at..at + source.len()].copy_from_slice(source);
         }
@@ -93,8 +105,14 @@ mod tests {
         let info = analyze(TLS_BASIC).expect("parses");
         let sites = find_sites(&image_of(TLS_BASIC, &info), &info).expect("scans");
         let vaddrs: Vec<u64> = sites.iter().map(|s| s.rva - RVA_BIAS).collect();
-        for expected in [0x10adu64, 0x10c0, 0x10e0, 0x110a, 0x112c, 0x1155, 0x11a5, 0x11af, 0x1251, 0x1378, 0x1437] {
-            assert!(vaddrs.contains(&expected), "{expected:#x} missing from {vaddrs:x?}");
+        for expected in [
+            0x10adu64, 0x10c0, 0x10e0, 0x110a, 0x112c, 0x1155, 0x11a5, 0x11af, 0x1251, 0x1378,
+            0x1437,
+        ] {
+            assert!(
+                vaddrs.contains(&expected),
+                "{expected:#x} missing from {vaddrs:x?}"
+            );
         }
     }
 
@@ -108,7 +126,10 @@ mod tests {
     #[test]
     fn a_range_outside_the_image_is_an_error() {
         let mut info = analyze(TLS_BASIC).expect("parses");
-        info.code_ranges.push(CodeRange { start: 0x100_0000, len: 16 });
+        info.code_ranges.push(CodeRange {
+            start: 0x100_0000,
+            len: 16,
+        });
         assert!(find_sites(&image_of(TLS_BASIC, &info), &info).is_err());
     }
 }
