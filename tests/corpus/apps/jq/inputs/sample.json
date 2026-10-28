@@ -1,0 +1,1 @@
+{"users":[{"name":"Ada","age":36,"team":"math"},{"name":"Grace","age":45,"team":"navy"},{"name":"Linus","age":54,"team":"kernel"},{"name":"Margaret","age":40,"team":"math"}],"numbers":[1,2.5,-3,1e3],"text":"hello world foo","nested":{"a":{"b":[1,2,{"c":null}]}},"unicode":"héllo € 😀"}

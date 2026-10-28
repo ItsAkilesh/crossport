@@ -17,6 +17,7 @@ env:
   NATIVE_CASES: hello
   TRANSLATED_CASES: hello_dyn two_libs tls_basic threads
   ABORT_CASES: canary_smash
+  APPS: lua sqlite3 jq
 
 jobs:
   linux:
@@ -35,11 +36,26 @@ jobs:
           cargo test --locked --manifest-path tools/difftest/Cargo.toml
           cargo test --locked --manifest-path translator/Cargo.toml
           python3 -m unittest discover -s tools -p "test_*.py"
+          (cd tools/corpus && python3 -m unittest discover -p "test_*.py")
       - name: Build and run corpus cases
         run: |
           for corpus_case in $NATIVE_CASES $TRANSLATED_CASES $ABORT_CASES; do
             tools/run-case.sh "$corpus_case" linux
           done
+      - name: Install SquashFS tools
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq squashfs-tools
+      - name: Package the corpus apps and record their Linux results
+        run: |
+          for app in $APPS; do
+            tools/corpus/linux_baseline.sh "$app"
+          done
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: apps-linux
+          path: |
+            build/corpus/images/*.AppImage
+            results/apps/*-linux.json
+          if-no-files-found: error
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: result-linux
@@ -85,11 +101,27 @@ jobs:
           for corpus_case in $ABORT_CASES; do
             python3 tools/check_abort.py "results/$corpus_case-windows.json" "stack smashing detected"
           done
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: apps-linux
+          path: .
+      - name: Unpack, translate and run the corpus apps on Windows
+        run: |
+          for app in $APPS; do
+            tools/corpus/translate_and_run.sh "$app"
+          done
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: result-windows
           path: results/*.json
           if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: apps-windows
+          path: |
+            results/apps/*-windows.json
+            results/apps/*-translate-error.txt
+          if-no-files-found: ignore
 
   differential:
     needs: [linux, windows]
@@ -104,6 +136,14 @@ jobs:
           merge-multiple: true
       - name: Build difftest
         run: cargo build --release --locked --manifest-path tools/difftest/Cargo.toml
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: apps-*
+          path: .
+          merge-multiple: true
+      - name: Compare the corpus apps and enforce the pass-rate ratchet
+        run: |
+          python3 tools/corpus/compare_results.py --results results/apps --apps $APPS             --difftest tools/difftest/target/release/difftest             --baseline tests/corpus/baseline.json --summary results/apps-summary.json
       - name: Compare Linux and Windows results
         run: |
           for corpus_case in $NATIVE_CASES $TRANSLATED_CASES; do

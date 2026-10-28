@@ -1,0 +1,23 @@
+{
+  "name": "sqlite3",
+  "version": "3.46.1",
+  "binary": "sqlite3",
+  "source": {
+    "url": "https://www.sqlite.org/2024/sqlite-autoconf-3460100.tar.gz",
+    "sha256": "67d3fe6d268e6eaddcae3727fce58fcc8e9c53869bdd07a0c61e38ddf2965071"
+  },
+  "tests": [
+    { "id": "version", "args": ["-version"] },
+    { "id": "expressions", "args": [":memory:", "select 1+1, 'a'||'b', 3.5*2, abs(-4), upper('x'), 7/2, 7.0/2, 1e100, typeof(1.0);"] },
+    { "id": "tables", "args": [":memory:"], "stdin": "inputs/tables.sql" },
+    { "id": "aggregates", "args": ["-header", "-column", ":memory:"], "stdin": "inputs/aggregates.sql" },
+    { "id": "json-functions", "args": [":memory:", "select json_extract('{\"a\":[1,2,{\"b\":3}]}', '$.a[2].b'), json_array(1,'x',null), json_object('k', 1.5);"] },
+    { "id": "dates", "args": [":memory:", "select date('2000-01-31','+1 month'), strftime('%s','2000-01-01'), julianday('2000-01-01'), datetime(86400, 'unixepoch');"] },
+    { "id": "unicode", "args": [":memory:", "select length('héllo'), hex('é'), upper('straße'), unicode('€');"] },
+    { "id": "syntax-error", "args": [":memory:", "selec 1;"] },
+    { "id": "database-file", "args": ["test.db"], "stdin": "inputs/dbfile.sql" },
+    { "id": "recursive-cte", "args": [":memory:", "with recursive c(x) as (select 1 union all select x+1 from c where x < 20000) select count(*), sum(x), avg(x) from c;"] },
+    { "id": "schema-and-dump", "args": [":memory:"], "stdin": "inputs/dump.sql" },
+    { "id": "csv-output", "args": ["-csv", "-header", ":memory:", "select 1 as a, 'x,y' as b, 2.5 as c union all select 2, 'q\"r', null;"] }
+  ]
+}

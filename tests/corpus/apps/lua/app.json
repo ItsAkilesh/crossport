@@ -1,0 +1,29 @@
+{
+  "name": "lua",
+  "version": "5.4.7",
+  "binary": "lua",
+  "source": {
+    "url": "https://www.lua.org/ftp/lua-5.4.7.tar.gz",
+    "sha256": "9fbf5e28ef86c69858f6d3d34eccc32e911c1a28b4120ff3e84aaa70cfbf1e30"
+  },
+  "tests": [
+    { "id": "version", "args": ["-v"] },
+    { "id": "arithmetic", "args": ["-e", "print(1+1, 7//2, 7%3, 2^10, 10/4, 3|5, 7~2, 1<<62)"] },
+    { "id": "float-format", "args": ["-e", "print(0.1+0.2, 1e15, 1e100, -0.0, 1/3, math.pi, 2^63, 100/3)"] },
+    { "id": "libm", "args": ["-e", "print(math.sqrt(2), math.sin(1), math.cos(1), math.exp(1), math.log(10), math.floor(-2.5), math.fmod(7,3), math.atan(1,2), 2^0.5, 10^-3)"] },
+    { "id": "strings", "args": ["strings.lua"], "files": { "strings.lua": "inputs/strings.lua" } },
+    { "id": "tables-sort", "args": ["sort.lua"], "files": { "sort.lua": "inputs/sort.lua" } },
+    { "id": "coroutines", "args": ["coroutines.lua"], "files": { "coroutines.lua": "inputs/coroutines.lua" } },
+    { "id": "file-io", "args": ["fileio.lua"], "files": { "fileio.lua": "inputs/fileio.lua" } },
+    { "id": "stdin-lines", "args": ["stdin.lua"], "files": { "stdin.lua": "inputs/stdin.lua" }, "stdin": "inputs/lines.txt" },
+    { "id": "script-from-stdin", "args": ["-"], "stdin": "inputs/stdin-script.lua" },
+    { "id": "dates", "args": ["-e", "print(os.date('!%Y-%m-%d %H:%M:%S', 86400*365), os.time{year=2000,month=1,day=1,hour=0}, os.date('!%A %B %j', 0))"] },
+    { "id": "environment", "args": ["-e", "print(os.getenv('LC_ALL'), os.getenv('TZ'), os.getenv('CROSSPORT_NOPE'))"] },
+    { "id": "runtime-error", "args": ["-e", "local function f() error('boom') end f()"] },
+    { "id": "syntax-error", "args": ["-e", "x = = 1"] },
+    { "id": "exit-code", "args": ["-e", "io.write('bye'); os.exit(3)"] },
+    { "id": "conversions", "args": ["-e", "print(tonumber('0x10'), tonumber('  12  '), tonumber('1e2'), tostring(2^63), math.tointeger(3.0), string.format('%d', 3.0), #tostring(12345.678))"] },
+    { "id": "utf8", "args": ["-e", "print(utf8.char(228, 8364, 128512), utf8.len('h\\u{e4}llo'))"] },
+    { "id": "memory-heavy", "args": ["-e", "local t = {} for i = 1, 200000 do t[i] = tostring(i) end print(#t, #table.concat(t))"] }
+  ]
+}
