@@ -1,4 +1,4 @@
-<!-- File: mark.svg | Purpose: Crossport logo mark (a Linux plug crossing into a Windows socket) | Author: Akilesh | Date: 2026-10-28 -->
+<!-- File: mark.svg | Purpose: Crossport logo mark (a Linux plug sliding into a Windows socket) | Author: Akilesh | Date: 2026-10-28 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Crossport">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
@@ -7,10 +7,10 @@
     </linearGradient>
   </defs>
   <rect width="128" height="128" rx="28" fill="url(#bg)"/>
-  <rect x="14" y="40" width="30" height="48" rx="9" fill="#FBBF24"/>
-  <rect x="21" y="52" width="10" height="6" rx="3" fill="#0B1F3A"/>
-  <rect x="21" y="70" width="10" height="6" rx="3" fill="#0B1F3A"/>
-  <path d="M84 40 H105 A9 9 0 0 1 114 49 V79 A9 9 0 0 1 105 88 H84 V74 H96 V54 H84 Z" fill="#7DD3FC"/>
-  <path d="M40 64 H92" stroke="#F8FAFC" stroke-width="7" stroke-linecap="round" fill="none"/>
-  <path d="M80 50 L94 64 L80 78" stroke="#F8FAFC" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <rect x="64" y="34" width="50" height="60" rx="11" fill="#7DD3FC"/>
+  <rect x="64" y="50" width="30" height="9" rx="4.5" fill="#0B1F3A"/>
+  <rect x="64" y="69" width="30" height="9" rx="4.5" fill="#0B1F3A"/>
+  <rect x="14" y="34" width="38" height="60" rx="11" fill="#FBBF24"/>
+  <rect x="48" y="50" width="38" height="9" rx="4.5" fill="#FDE68A"/>
+  <rect x="48" y="69" width="38" height="9" rx="4.5" fill="#FDE68A"/>
 </svg>
