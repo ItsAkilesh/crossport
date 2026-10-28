@@ -11,8 +11,9 @@
 #define OVERFLOW_BYTES 128
 #define FILL_BYTE 0x41
 
-/* The volatile cursor stops the compiler from seeing (and removing) the overflow. */
-static void smash(void)
+/* The volatile cursor stops the compiler from seeing (and removing) the overflow, and noinline
+ * keeps this frame separate so its own canary check fires before control returns to main. */
+static __attribute__((noinline)) void smash(void)
 {
     char buffer[BUFFER_SIZE];
     volatile char *cursor = buffer;
