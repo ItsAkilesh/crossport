@@ -92,7 +92,7 @@ See [docs/DESIGN.md](docs/DESIGN.md) for the technical design.
 Crossport is built in milestones, each with an exit criterion that a test can check. The full list
 lives in [docs/ROADMAP.md](docs/ROADMAP.md).
 
-- [ ] **Milestone 0:** verification harness (Windows CI and a Linux-versus-Windows differential test). *In progress.*
+- [x] **Milestone 0:** verification harness (Windows CI and a Linux-versus-Windows differential test)
 - [ ] **Milestone 1:** translate a dynamically linked "hello world"
 - [ ] **Milestone 2:** shared libraries relinked into DLLs
 - [ ] **Milestone 3:** thread-local storage and threads
@@ -129,8 +129,8 @@ starting with command-line tools, then Vulkan and GUI applications.
 
 ## Status
 
-Early design. There is no working translator yet. What exists is the verification harness
-(Milestone 0), built first so that every later step has fast, objective feedback: a `difftest`
+Early design. There is no working translator yet. Milestone 0 is done: the verification harness
+exists and passes in CI, built first so that every later step has fast, objective feedback: a `difftest`
 runner records a program's exit code, stdout and stderr, and CI compares the Linux build against the
 Windows build byte for byte.
 
