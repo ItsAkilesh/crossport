@@ -15,8 +15,8 @@ permissions:
 
 env:
   NATIVE_CASES: hello
-  TRANSLATED_CASES: hello_dyn two_libs tls_basic
-  LINUX_ONLY_CASES: threads
+  TRANSLATED_CASES: hello_dyn two_libs tls_basic threads
+  ABORT_CASES: canary_smash
 
 jobs:
   linux:
@@ -37,7 +37,7 @@ jobs:
           python3 -m unittest discover -s tools -p "test_*.py"
       - name: Build and run corpus cases
         run: |
-          for corpus_case in $NATIVE_CASES $TRANSLATED_CASES $LINUX_ONLY_CASES; do
+          for corpus_case in $NATIVE_CASES $TRANSLATED_CASES $ABORT_CASES; do
             tools/run-case.sh "$corpus_case" linux
           done
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -75,8 +75,15 @@ jobs:
           path: build/elf
       - name: Translate the Linux ELF files and run them on Windows
         run: |
-          for corpus_case in $TRANSLATED_CASES; do
+          for corpus_case in $TRANSLATED_CASES $ABORT_CASES; do
             tools/run-translated.sh "$corpus_case"
+          done
+      - name: Stress the threaded program for races
+        run: tools/stress.sh threads 200
+      - name: A smashed stack must abort, not return
+        run: |
+          for corpus_case in $ABORT_CASES; do
+            python3 tools/check_abort.py "results/$corpus_case-windows.json" "stack smashing detected"
           done
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:

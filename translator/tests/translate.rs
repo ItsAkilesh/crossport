@@ -390,3 +390,107 @@ fn mutated_thread_local_programs_never_panic_the_translator() {
         let _ = translate(name("tls_basic"), mutated, &tls_fixtures(), &tls_shim());
     }
 }
+
+const THREADS_EXE: &[u8] = include_bytes!("fixtures/threads/threads");
+
+fn threads_fixtures() -> DirectorySource {
+    DirectorySource::new(vec![
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/threads")
+    ])
+}
+
+fn pthread_shim() -> ShimExports {
+    ShimExports::from_names(
+        [
+            "puts",
+            "__libc_start_main",
+            "crossport_start",
+            "__tls_get_addr",
+            "__stack_chk_fail",
+            "pthread_create",
+            "pthread_join",
+            "pthread_mutex_lock",
+            "pthread_mutex_unlock",
+        ]
+        .map(String::from),
+    )
+}
+
+#[test]
+fn a_threaded_program_translates_and_imports_the_pthread_calls_from_the_shim() {
+    let translation = translate(
+        name("threads"),
+        THREADS_EXE.to_vec(),
+        &threads_fixtures(),
+        &pthread_shim(),
+    )
+    .expect("translates");
+    let shim_imports: Vec<String> = imports_of(&translation.files[0].bytes)
+        .into_iter()
+        .filter(|(dll, _)| dll == "crossport_libc.dll")
+        .map(|(_, symbol)| symbol)
+        .collect();
+    for symbol in [
+        "pthread_create",
+        "pthread_join",
+        "pthread_mutex_lock",
+        "pthread_mutex_unlock",
+    ] {
+        assert!(
+            shim_imports.contains(&symbol.to_string()),
+            "{symbol} is imported from the shim"
+        );
+    }
+}
+
+#[test]
+fn the_threaded_program_has_local_exec_accesses_and_the_library_only_canaries() {
+    let reports = translate(
+        name("threads"),
+        THREADS_EXE.to_vec(),
+        &threads_fixtures(),
+        &pthread_shim(),
+    )
+    .expect("translates")
+    .reports;
+    assert_eq!(
+        (
+            reports[0].rewrite.canary_sites,
+            reports[0].rewrite.stub_sites
+        ),
+        (6, 4)
+    );
+    assert_eq!(
+        (
+            reports[1].rewrite.canary_sites,
+            reports[1].rewrite.stub_sites
+        ),
+        (2, 0)
+    );
+}
+
+#[test]
+fn a_shim_missing_a_pthread_function_fails_at_translation_time() {
+    let without_join = ShimExports::from_names(
+        [
+            "puts",
+            "__libc_start_main",
+            "crossport_start",
+            "__tls_get_addr",
+            "__stack_chk_fail",
+            "pthread_create",
+            "pthread_mutex_lock",
+            "pthread_mutex_unlock",
+        ]
+        .map(String::from),
+    );
+    let result = translate(
+        name("threads"),
+        THREADS_EXE.to_vec(),
+        &threads_fixtures(),
+        &without_join,
+    );
+    assert!(
+        matches!(result, Err(TranslateError::UnresolvedSymbol { symbol, .. }) if symbol == "pthread_join")
+    );
+}

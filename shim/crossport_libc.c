@@ -12,6 +12,7 @@
 
 #include "internal.h"
 #include "startinfo.h"
+#include "threads.h"
 #include "tls.h"
 
 #define INITIAL_STACK_SLOTS 8
@@ -157,6 +158,7 @@ EXPORT void crossport_start(const StartInfo *info)
     g_executable_base = (uint8_t *)GetModuleHandleW(NULL);
     load_modules(info);
     tls_init(g_modules, g_module_count);
+    threads_init_main();
     for (size_t i = 0; i < g_module_count; i++) {
         bind_module(&g_modules[i]);
     }

@@ -27,4 +27,15 @@ void tls_detach_thread(void);
 /* The calling thread's thread pointer, or NULL if it has no TLS block. */
 uint8_t *tls_thread_pointer(void);
 
+/* Private words in the thread control block, for the pthread layer. */
+#define TCB_THREAD_OFFSET 0x88u /* the thread's pthread_t object */
+#define TCB_KEYS_OFFSET 0x90u   /* array of pthread_key values */
+#define TCB_ERRNO_OFFSET 0x98u  /* this thread's errno */
+
+/* Address of a private TCB word of the calling thread. The thread must have a TLS block. */
+static inline void **tls_tcb_word(uint32_t offset)
+{
+    return (void **)(tls_thread_pointer() + offset);
+}
+
 #endif
