@@ -1,5 +1,5 @@
 /*
- * File: tests/corpus/canary_smash/main.c
+ * File: tests/corpus/canary_smash/canary_smash.c
  * Purpose: Overflows a stack buffer on purpose; with a working stack protector the process must abort, not return
  * Author: Akilesh
  * Date: 2026-10-28
