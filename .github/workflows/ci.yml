@@ -16,6 +16,7 @@ permissions:
 env:
   NATIVE_CASES: hello
   TRANSLATED_CASES: hello_dyn two_libs
+  LINUX_ONLY_CASES: tls_basic threads
 
 jobs:
   linux:
@@ -36,7 +37,7 @@ jobs:
           python3 -m unittest discover -s tools -p "test_*.py"
       - name: Build and run corpus cases
         run: |
-          for corpus_case in $NATIVE_CASES $TRANSLATED_CASES; do
+          for corpus_case in $NATIVE_CASES $TRANSLATED_CASES $LINUX_ONLY_CASES; do
             tools/run-case.sh "$corpus_case" linux
           done
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
