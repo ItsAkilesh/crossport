@@ -7,13 +7,13 @@
 
 # Crossport Roadmap
 
-## Milestone 0: Verification harness
+## Milestone 0: Verification harness (done)
 
 - Windows CI runner executes test binaries.
 - Differential test runner compares Linux and Windows output.
 - **Exit criterion:** a natively compiled Windows "hello world" passes a differential test against its Linux build.
 
-## Milestone 1: Hello world translation
+## Milestone 1: Hello world translation (done)
 
 - Translate a dynamically linked C program that only calls `puts`.
 - Minimal shim providing `puts` and process startup and exit.

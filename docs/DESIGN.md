@@ -51,6 +51,15 @@ ELF uses a flat global symbol namespace with interposition, while PE binds each 
 
 Emit the translated `.exe` and DLLs, the shim DLLs, and the AppDir data files into a Windows bundle.
 
+### 2.6 Milestone 1 implementation notes
+
+- **Layout:** each `PT_LOAD` segment becomes one PE section at `RVA = vaddr + 0x1000`. The uniform shift leaves room for the PE headers and keeps every RIP-relative reference inside the program valid. Section alignment and file alignment are both 0x1000, so a section's file offset equals its RVA.
+- **Relocations:** `R_X86_64_RELATIVE` slots are filled with `image base + bias + addend` and get a `DIR64` base relocation, so the Windows loader can move the image.
+- **Imports:** every strongly imported symbol is imported from `crossport_libc.dll`. The GOT is not the IAT. The shim copies each loader-filled IAT entry into its GOT slot before the ELF code runs, which keeps the ELF code unchanged.
+- **Weak imports** (`__gmon_start__`, `_ITM_*`, `__cxa_finalize`) resolve to null, so the C runtime's "is it present?" checks behave as they do on a static link.
+- **Entry:** the PE entry is a 13-byte stub that passes a start-info table to `crossport_start`. That function binds the GOT, builds the initial stack the Linux kernel would (argc, argv, envp, auxv), and jumps to the ELF `_start`. `__libc_start_main` runs `DT_INIT`, `DT_INIT_ARRAY`, `main`, then `DT_FINI_ARRAY` and `DT_FINI` on exit.
+- **Corpus build flags:** `-fno-stack-protector` (the canary reads `%fs:0x28`, which needs the TLS work of Milestone 3), `-mno-red-zone`, `-fcf-protection=none` and `-fno-plt`.
+
 ## 3. Shim ABI
 
 Translated code keeps Linux conventions internally. Only the boundary into shims needs care.
