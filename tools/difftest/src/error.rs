@@ -16,12 +16,14 @@ pub enum DifftestError {
         context: String,
         source: serde_json::Error,
     },
+    /// A safety limit (output size, file count) was exceeded.
+    Limit(String),
 }
 
 impl fmt::Display for DifftestError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Usage(message) => write!(f, "{message}"),
+            Self::Usage(message) | Self::Limit(message) => write!(f, "{message}"),
             Self::Io { context, source } => write!(f, "{context}: {source}"),
             Self::Json { context, source } => write!(f, "{context}: {source}"),
         }

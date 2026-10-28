@@ -3,17 +3,12 @@
 // Author: Akilesh
 // Date: 2026-10-28
 
-mod cli;
-mod compare;
-mod error;
-mod result;
-mod runner;
-
 use std::path::Path;
 use std::process::ExitCode;
 
-use cli::Action;
-use error::DifftestError;
+use difftest::cli::{self, Action};
+use difftest::error::DifftestError;
+use difftest::{compare, result, runner};
 
 const EXIT_MISMATCH: u8 = 1;
 const EXIT_ERROR: u8 = 2;
@@ -33,8 +28,8 @@ fn main() -> ExitCode {
 /// Returns `Ok(true)` when the action succeeded and, for compare, the results match.
 fn execute(action: Action) -> Result<bool, DifftestError> {
     match action {
-        Action::Run { out, command } => {
-            let outcome = runner::run_command(&command)?;
+        Action::Run { out, spec } => {
+            let outcome = runner::run(&spec)?;
             result::save(&outcome, &out)?;
             Ok(true)
         }
