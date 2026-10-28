@@ -46,7 +46,9 @@ fn read_table<'a>(
     }
     let count = size / RELA_ENTRY_SIZE;
     if count > MAX_RELOCATIONS {
-        return Err(TranslateError::LimitExceeded(format!("more than {MAX_RELOCATIONS} relocations")));
+        return Err(TranslateError::LimitExceeded(format!(
+            "more than {MAX_RELOCATIONS} relocations"
+        )));
     }
     let offset = map.file_offset(address, mul(count, RELA_ENTRY_SIZE)?)?;
     data.read_slice_at::<RelaEntry>(offset, count as usize)
@@ -63,20 +65,30 @@ fn convert(entry: &RelaEntry, symbol_count: usize) -> Result<Option<Relocation>,
         elf::R_X86_64_RELATIVE => RelocKind::Relative { addend },
         elf::R_X86_64_64 | elf::R_X86_64_GLOB_DAT | elf::R_X86_64_JUMP_SLOT => {
             check_symbol(symbol, symbol_count)?;
-            let addend = if entry.r_type(endian, false) == elf::R_X86_64_64 { addend } else { 0 };
+            let addend = if entry.r_type(endian, false) == elf::R_X86_64_64 {
+                addend
+            } else {
+                0
+            };
             RelocKind::Symbol { symbol, addend }
         }
         elf::R_X86_64_COPY => {
             check_symbol(symbol, symbol_count)?;
             RelocKind::Copy { symbol }
         }
-        elf::R_X86_64_DTPMOD64 | elf::R_X86_64_DTPOFF64 | elf::R_X86_64_TPOFF64 | elf::R_X86_64_TLSDESC => {
+        elf::R_X86_64_DTPMOD64
+        | elf::R_X86_64_DTPOFF64
+        | elf::R_X86_64_TPOFF64
+        | elf::R_X86_64_TLSDESC => {
             return Err(TranslateError::Unsupported(
                 "thread-local storage relocations are not translated yet (Milestone 3)".into(),
             ))
         }
         other => {
-            return Err(TranslateError::Unsupported(format!("relocation type {}", other.0)));
+            return Err(TranslateError::Unsupported(format!(
+                "relocation type {}",
+                other.0
+            )));
         }
     };
     Ok(Some(Relocation { offset, kind }))
@@ -84,7 +96,9 @@ fn convert(entry: &RelaEntry, symbol_count: usize) -> Result<Option<Relocation>,
 
 fn check_symbol(symbol: usize, symbol_count: usize) -> Result<(), TranslateError> {
     if symbol == 0 || symbol >= symbol_count {
-        return Err(TranslateError::Elf(format!("relocation refers to symbol {symbol} of {symbol_count}")));
+        return Err(TranslateError::Elf(format!(
+            "relocation refers to symbol {symbol} of {symbol_count}"
+        )));
     }
     Ok(())
 }

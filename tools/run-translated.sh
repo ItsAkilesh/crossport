@@ -37,7 +37,7 @@ cargo build --release --locked --manifest-path "$root/translator/Cargo.toml"
 gcc -O2 -Wall -Wextra -Werror -fno-builtin -shared -o "$shim_dir/crossport_libc.dll" "$root/shim/crossport_libc.c"
 
 "$root/translator/target/release/crossport.exe" translate "$elf" \
-  --shim "$shim_dir/crossport_libc.dll" --out "$bundle_dir"
+  --shim "$shim_dir/crossport_libc.dll" --lib-dir "$elf_dir" --out "$bundle_dir"
 
 "$root/tools/difftest/target/release/difftest.exe" run \
   --out "$results_dir/$case_name-windows.json" -- "$bundle_dir/$case_name.exe"

@@ -1,12 +1,15 @@
 /*
  * File: shim/crossport_libc.c
- * Purpose: Milestone 1 libc shim: starts a translated ELF program on Win32 and provides puts
+ * Purpose: libc shim: starts a translated ELF program and its libraries on Win32 and provides puts
  * Author: Akilesh
  * Date: 2026-10-28
  *
  * Translated code keeps Linux (System V) conventions, so every function it
  * calls is exported with sysv_abi. crossport_start is the exception: the PE
  * entry stub calls it with the Microsoft x64 convention.
+ *
+ * The start-info layout is a contract with translator/src/shim_abi.rs and
+ * translator/src/startup.rs; change them together.
  */
 
 #include <stdint.h>
@@ -16,21 +19,32 @@
 #define SYSV __attribute__((sysv_abi))
 #define EXPORT __declspec(dllexport)
 
-/* "CPRT" as a little-endian u32. Must match translator/src/stub.rs. */
-#define START_INFO_MAGIC 0x54525043u
-#define START_INFO_VERSION 1u
+#define INFO_MAGIC 0x54525043u /* "CPRT", little-endian */
+#define INFO_VERSION 2u
+#define INFO_SYMBOL "__crossport_info"
+#define MAX_MODULES 256u
+#define MAX_RECORDS (1u << 22)
 #define INITIAL_STACK_SLOTS 8
 #define AT_NULL 0
 #define PUTS_FAILURE (-1)
 #define PUTS_SUCCESS 1
 #define STARTUP_FAILURE_EXIT_CODE 127
 
+/* *slot = *source + addend. `source` is an IAT entry, or an RVA in the executable. */
 typedef struct {
-    uint32_t got_rva;
-    uint32_t iat_rva;
-} GotPair;
+    uint32_t slot_rva;
+    uint32_t source_rva;
+    int64_t addend;
+} Binding;
 
-/* Header fields mirror translator/src/stub.rs; `pairs` follows in memory. */
+/* memcpy(executable + dest_rva, *iat_rva, size): an R_X86_64_COPY performed at startup. */
+typedef struct {
+    uint32_t dest_rva;
+    uint32_t iat_rva;
+    uint64_t size;
+} CopyRecord;
+
+/* Fixed 56-byte header; the records follow it in memory. */
 typedef struct {
     uint32_t magic;
     uint32_t version;
@@ -41,8 +55,11 @@ typedef struct {
     uint32_t fini_rva;
     uint32_t fini_array_rva;
     uint32_t fini_array_count;
-    uint32_t pair_count;
-    GotPair pairs[];
+    uint32_t iat_binding_count;
+    uint32_t exe_binding_count;
+    uint32_t copy_count;
+    uint32_t module_count;
+    uint32_t modules_rva;
 } StartInfo;
 
 typedef int (SYSV *MainFn)(int, char **, char **);
@@ -50,12 +67,34 @@ typedef void (SYSV *InitFn)(int, char **, char **);
 typedef void (SYSV *FiniFn)(void);
 
 typedef struct {
+    const StartInfo *info;
+    uint8_t *base;
+} LoadedModule;
+
+typedef struct {
     uint64_t slots[INITIAL_STACK_SLOTS];
     char program_path[MAX_PATH];
 } InitialStack;
 
-static uint8_t *g_image_base;
-static const StartInfo *g_info;
+/* Dependencies first, the executable last: the order constructors run in. */
+static LoadedModule g_modules[MAX_MODULES + 1];
+static size_t g_module_count;
+static uint8_t *g_executable_base;
+
+static const Binding *iat_bindings(const StartInfo *info)
+{
+    return (const Binding *)(info + 1);
+}
+
+static const Binding *exe_bindings(const StartInfo *info)
+{
+    return iat_bindings(info) + info->iat_binding_count;
+}
+
+static const CopyRecord *copy_records(const StartInfo *info)
+{
+    return (const CopyRecord *)(exe_bindings(info) + info->exe_binding_count);
+}
 
 static void fail_startup(const char *message)
 {
@@ -64,44 +103,96 @@ static void fail_startup(const char *message)
     ExitProcess(STARTUP_FAILURE_EXIT_CODE);
 }
 
-/* The loader fills the IAT; the ELF code reads its GOT. Copy one into the other. */
-static void bind_got(void)
+static const StartInfo *validated(const StartInfo *info)
 {
-    for (uint32_t i = 0; i < g_info->pair_count; i++) {
-        const GotPair *pair = &g_info->pairs[i];
-        *(uint64_t *)(g_image_base + pair->got_rva) = *(uint64_t *)(g_image_base + pair->iat_rva);
+    if (info == NULL || info->magic != INFO_MAGIC || info->version != INFO_VERSION ||
+        info->iat_binding_count > MAX_RECORDS || info->exe_binding_count > MAX_RECORDS ||
+        info->copy_count > MAX_RECORDS || info->module_count > MAX_MODULES) {
+        fail_startup("crossport: bad start info\n");
     }
+    return info;
 }
 
-static void run_fini(void)
+/* Finds every dependency DLL the executable lists and records its start info. */
+static void load_modules(const StartInfo *executable)
 {
-    if (g_info->fini_array_rva != 0) {
-        FiniFn *array = (FiniFn *)(g_image_base + g_info->fini_array_rva);
-        for (uint32_t i = g_info->fini_array_count; i > 0; i--) {
-            array[i - 1]();
+    const uint32_t *names = (const uint32_t *)(g_executable_base + executable->modules_rva);
+    for (uint32_t i = 0; i < executable->module_count; i++) {
+        const char *name = (const char *)(g_executable_base + names[i]);
+        HMODULE handle = LoadLibraryExA(name, NULL, LOAD_LIBRARY_SEARCH_APPLICATION_DIR);
+        if (handle == NULL) {
+            fail_startup("crossport: cannot load a bundled library\n");
         }
+        const StartInfo *info = validated((const StartInfo *)(void *)GetProcAddress(handle, INFO_SYMBOL));
+        g_modules[g_module_count].info = info;
+        g_modules[g_module_count].base = (uint8_t *)handle;
+        g_module_count++;
     }
-    if (g_info->fini_rva != 0) {
-        ((FiniFn)(g_image_base + g_info->fini_rva))();
+    g_modules[g_module_count].info = executable;
+    g_modules[g_module_count].base = g_executable_base;
+    g_module_count++;
+}
+
+/* The loader fills each IAT; the ELF code reads its GOT. Copy one into the other. */
+static void bind_module(const LoadedModule *module)
+{
+    const StartInfo *info = module->info;
+    const Binding *imported = iat_bindings(info);
+    for (uint32_t i = 0; i < info->iat_binding_count; i++) {
+        *(uint64_t *)(module->base + imported[i].slot_rva) =
+            *(uint64_t *)(module->base + imported[i].source_rva) + (uint64_t)imported[i].addend;
+    }
+    const Binding *in_executable = exe_bindings(info);
+    for (uint32_t i = 0; i < info->exe_binding_count; i++) {
+        *(uint64_t *)(module->base + in_executable[i].slot_rva) =
+            (uint64_t)(uintptr_t)(g_executable_base + in_executable[i].source_rva) + (uint64_t)in_executable[i].addend;
     }
 }
 
-static void run_init(int argc, char **argv, char **envp)
+/* Copy relocations run after every binding, like ld.so, so copied data is already relocated. */
+static void perform_copies(const LoadedModule *module)
 {
-    if (g_info->init_rva != 0) {
-        ((InitFn)(g_image_base + g_info->init_rva))(argc, argv, envp);
+    const StartInfo *info = module->info;
+    const CopyRecord *records = copy_records(info);
+    for (uint32_t i = 0; i < info->copy_count; i++) {
+        const void *source = (const void *)(uintptr_t) * (uint64_t *)(module->base + records[i].iat_rva);
+        CopyMemory(module->base + records[i].dest_rva, source, (SIZE_T)records[i].size);
     }
-    if (g_info->init_array_rva != 0) {
-        InitFn *array = (InitFn *)(g_image_base + g_info->init_array_rva);
-        for (uint32_t i = 0; i < g_info->init_array_count; i++) {
+}
+
+static void run_init(const LoadedModule *module, int argc, char **argv, char **envp)
+{
+    const StartInfo *info = module->info;
+    if (info->init_rva != 0) {
+        ((InitFn)(module->base + info->init_rva))(argc, argv, envp);
+    }
+    if (info->init_array_rva != 0) {
+        InitFn *array = (InitFn *)(module->base + info->init_array_rva);
+        for (uint32_t i = 0; i < info->init_array_count; i++) {
             array[i](argc, argv, envp);
         }
     }
 }
 
+static void run_fini(const LoadedModule *module)
+{
+    const StartInfo *info = module->info;
+    if (info->fini_array_rva != 0) {
+        FiniFn *array = (FiniFn *)(module->base + info->fini_array_rva);
+        for (uint32_t i = info->fini_array_count; i > 0; i--) {
+            array[i - 1]();
+        }
+    }
+    if (info->fini_rva != 0) {
+        ((FiniFn)(module->base + info->fini_rva))();
+    }
+}
+
 static void finish(int status)
 {
-    run_fini();
+    for (size_t i = g_module_count; i > 0; i--) {
+        run_fini(&g_modules[i - 1]);
+    }
     ExitProcess((UINT)status);
 }
 
@@ -135,7 +226,9 @@ EXPORT SYSV int __libc_start_main(MainFn main_fn, int argc, char **argv, void (*
     (void)rtld_fini;
     (void)stack_end;
     char **envp = argv + argc + 1;
-    run_init(argc, argv, envp);
+    for (size_t i = 0; i < g_module_count; i++) {
+        run_init(&g_modules[i], argc, argv, envp);
+    }
     finish(main_fn(argc, argv, envp));
     return 0;
 }
@@ -152,16 +245,17 @@ static void fill_initial_stack(InitialStack *stack)
 
 EXPORT void crossport_start(const StartInfo *info)
 {
-    if (info->magic != START_INFO_MAGIC || info->version != START_INFO_VERSION) {
-        fail_startup("crossport: bad start info\n");
+    validated(info);
+    g_executable_base = (uint8_t *)GetModuleHandleW(NULL);
+    load_modules(info);
+    for (size_t i = 0; i < g_module_count; i++) {
+        bind_module(&g_modules[i]);
     }
-    g_info = info;
-    g_image_base = (uint8_t *)GetModuleHandleW(NULL);
-    bind_got();
+    perform_copies(&g_modules[g_module_count - 1]);
 
     _Alignas(16) InitialStack stack;
     fill_initial_stack(&stack);
-    void *entry = g_image_base + info->entry_rva;
+    void *entry = g_executable_base + info->entry_rva;
     /* Switch to the initial stack block and enter the ELF _start (rdx = 0: no rtld_fini). */
     __asm__ volatile("mov %0, %%rsp\n\t"
                      "xor %%edx, %%edx\n\t"

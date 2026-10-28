@@ -15,8 +15,7 @@ permissions:
 
 env:
   NATIVE_CASES: hello
-  TRANSLATED_CASES: hello_dyn
-  LINUX_ONLY_CASES: two_libs
+  TRANSLATED_CASES: hello_dyn two_libs
 
 jobs:
   linux:
@@ -24,13 +23,20 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Format and lint
+        run: |
+          cargo fmt --check --manifest-path tools/difftest/Cargo.toml
+          cargo fmt --check --manifest-path translator/Cargo.toml
+          cargo clippy --locked --all-targets --manifest-path tools/difftest/Cargo.toml -- -D warnings
+          cargo clippy --locked --all-targets --manifest-path translator/Cargo.toml -- -D warnings
       - name: Unit tests
         run: |
           cargo test --locked --manifest-path tools/difftest/Cargo.toml
           cargo test --locked --manifest-path translator/Cargo.toml
+          python3 -m unittest discover -s tools -p "test_*.py"
       - name: Build and run corpus cases
         run: |
-          for corpus_case in $NATIVE_CASES $TRANSLATED_CASES $LINUX_ONLY_CASES; do
+          for corpus_case in $NATIVE_CASES $TRANSLATED_CASES; do
             tools/run-case.sh "$corpus_case" linux
           done
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

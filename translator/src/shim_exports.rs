@@ -16,20 +16,26 @@ pub struct ShimExports {
 
 impl ShimExports {
     pub fn from_names<I: IntoIterator<Item = String>>(names: I) -> Self {
-        Self { names: names.into_iter().collect() }
+        Self {
+            names: names.into_iter().collect(),
+        }
     }
 
     /// Reads the export table of a PE32+ DLL.
     pub fn from_dll(bytes: &[u8]) -> Result<Self, TranslateError> {
-        let file = PeFile64::parse(bytes)
-            .map_err(|e| TranslateError::Unsupported(format!("the shim is not a valid PE32+ file: {e}")))?;
-        let exports = Object::exports(&file)
-            .map_err(|e| TranslateError::Unsupported(format!("cannot read the shim export table: {e}")))?;
+        let file = PeFile64::parse(bytes).map_err(|e| {
+            TranslateError::Unsupported(format!("the shim is not a valid PE32+ file: {e}"))
+        })?;
+        let exports = Object::exports(&file).map_err(|e| {
+            TranslateError::Unsupported(format!("cannot read the shim export table: {e}"))
+        })?;
         let names = exports
             .map(|export| {
                 export
                     .map(|e| match e.name() {
-                        NameOrOrdinal::Name(name) => Some(String::from_utf8_lossy(name).into_owned()),
+                        NameOrOrdinal::Name(name) => {
+                            Some(String::from_utf8_lossy(name).into_owned())
+                        }
                         NameOrOrdinal::Ordinal(_) => None,
                     })
                     .map_err(|e| TranslateError::Unsupported(format!("bad shim export entry: {e}")))

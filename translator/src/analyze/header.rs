@@ -18,11 +18,14 @@ pub const MAX_IMAGE_BYTES: u64 = 256 * 1024 * 1024;
 
 pub(super) fn check_header(header: &Header, endian: Endianness) -> Result<(), TranslateError> {
     if header.e_machine(endian) != elf::EM_X86_64 {
-        return Err(TranslateError::Unsupported("only x86-64 ELF files are supported".into()));
+        return Err(TranslateError::Unsupported(
+            "only x86-64 ELF files are supported".into(),
+        ));
     }
     if header.e_type(endian) != elf::ET_DYN {
         return Err(TranslateError::Unsupported(
-            "only position-independent executables and shared objects (ET_DYN) are supported".into(),
+            "only position-independent executables and shared objects (ET_DYN) are supported"
+                .into(),
         ));
     }
     Ok(())
@@ -38,14 +41,19 @@ pub(super) fn reject_tls(phdrs: &[Phdr], endian: Endianness) -> Result<(), Trans
     Ok(())
 }
 
-pub(super) fn load_segments(phdrs: &[Phdr], endian: Endianness) -> Result<Vec<LoadSegment>, TranslateError> {
+pub(super) fn load_segments(
+    phdrs: &[Phdr],
+    endian: Endianness,
+) -> Result<Vec<LoadSegment>, TranslateError> {
     let mut segments: Vec<LoadSegment> = Vec::new();
     for ph in phdrs.iter().filter(|ph| ph.p_type(endian) == elf::PT_LOAD) {
         let segment = to_segment(ph, endian);
         validate_segment(&segment, segments.last())?;
         segments.push(segment);
         if segments.len() > MAX_SEGMENTS {
-            return Err(TranslateError::LimitExceeded(format!("more than {MAX_SEGMENTS} PT_LOAD segments")));
+            return Err(TranslateError::LimitExceeded(format!(
+                "more than {MAX_SEGMENTS} PT_LOAD segments"
+            )));
         }
     }
     if segments.is_empty() {
@@ -69,18 +77,27 @@ fn to_segment(ph: &Phdr, endian: Endianness) -> LoadSegment {
     }
 }
 
-fn validate_segment(segment: &LoadSegment, previous: Option<&LoadSegment>) -> Result<(), TranslateError> {
+fn validate_segment(
+    segment: &LoadSegment,
+    previous: Option<&LoadSegment>,
+) -> Result<(), TranslateError> {
     if segment.file_size > segment.mem_size {
-        return Err(TranslateError::Elf("segment file size exceeds its memory size".into()));
+        return Err(TranslateError::Elf(
+            "segment file size exceeds its memory size".into(),
+        ));
     }
     let end = add(segment.vaddr, segment.mem_size)?;
     add(segment.file_offset, segment.file_size)?;
     if end > MAX_IMAGE_BYTES {
-        return Err(TranslateError::LimitExceeded(format!("module image larger than {MAX_IMAGE_BYTES} bytes")));
+        return Err(TranslateError::LimitExceeded(format!(
+            "module image larger than {MAX_IMAGE_BYTES} bytes"
+        )));
     }
     if let Some(previous) = previous {
         if segment.vaddr < previous.vaddr + previous.mem_size {
-            return Err(TranslateError::Elf("PT_LOAD segments overlap or are not in ascending order".into()));
+            return Err(TranslateError::Elf(
+                "PT_LOAD segments overlap or are not in ascending order".into(),
+            ));
         }
     }
     Ok(())

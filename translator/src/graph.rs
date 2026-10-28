@@ -34,7 +34,12 @@ impl Module {
                 exports.entry(symbol.name.clone()).or_insert(index);
             }
         }
-        Ok(Self { name, info, data, exports })
+        Ok(Self {
+            name,
+            info,
+            data,
+            exports,
+        })
     }
 }
 
@@ -61,11 +66,20 @@ pub fn load(
     while next < modules.len() {
         let needed = modules[next].info.needed.clone();
         let mut edges = Vec::new();
-        for raw in needed.iter().filter(|n| !SHIM_PROVIDED_LIBRARIES.contains(&n.as_str())) {
+        for raw in needed
+            .iter()
+            .filter(|n| !SHIM_PROVIDED_LIBRARIES.contains(&n.as_str()))
+        {
             let name = ModuleName::parse(raw)?;
             let index = match index_by_name.get(&name.case_folded()) {
                 Some(&index) => index,
-                None => add_library(&mut modules, &mut index_by_name, &mut total_bytes, name, source)?,
+                None => add_library(
+                    &mut modules,
+                    &mut index_by_name,
+                    &mut total_bytes,
+                    name,
+                    source,
+                )?,
             };
             edges.push(index);
         }
@@ -73,7 +87,11 @@ pub fn load(
         next += 1;
     }
     let init_order = initialization_order(&dependencies, &modules)?;
-    Ok(ModuleGraph { modules, dependencies, init_order })
+    Ok(ModuleGraph {
+        modules,
+        dependencies,
+        init_order,
+    })
 }
 
 fn add_library(
@@ -84,12 +102,16 @@ fn add_library(
     source: &dyn LibrarySource,
 ) -> Result<usize, TranslateError> {
     if modules.len() >= MAX_MODULES {
-        return Err(TranslateError::LimitExceeded(format!("more than {MAX_MODULES} modules")));
+        return Err(TranslateError::LimitExceeded(format!(
+            "more than {MAX_MODULES} modules"
+        )));
     }
     let data = source.load(&name)?;
     *total_bytes += data.len() as u64;
     if *total_bytes > MAX_TOTAL_BYTES {
-        return Err(TranslateError::LimitExceeded("total ELF input is too large".into()));
+        return Err(TranslateError::LimitExceeded(
+            "total ELF input is too large".into(),
+        ));
     }
     let index = modules.len();
     index_by_name.insert(name.case_folded(), index);
@@ -138,7 +160,10 @@ pub fn initialization_order(
 
 fn cycle_error(stack: &[(usize, usize)], repeated: usize, modules: &[Module]) -> TranslateError {
     let start = stack.iter().position(|&(m, _)| m == repeated).unwrap_or(0);
-    let mut path: Vec<&str> = stack[start..].iter().map(|&(m, _)| modules[m].name.as_str()).collect();
+    let mut path: Vec<&str> = stack[start..]
+        .iter()
+        .map(|&(m, _)| modules[m].name.as_str())
+        .collect();
     path.push(modules[repeated].name.as_str());
     TranslateError::DependencyCycle(path.join(" -> "))
 }
@@ -155,7 +180,9 @@ mod tests {
             self.0
                 .get(name.as_str())
                 .cloned()
-                .ok_or_else(|| TranslateError::MissingLibrary { name: name.as_str().to_string() })
+                .ok_or_else(|| TranslateError::MissingLibrary {
+                    name: name.as_str().to_string(),
+                })
         }
     }
 
@@ -186,27 +213,41 @@ mod tests {
     #[test]
     fn dependencies_initialise_before_dependents() {
         let graph = load(exe_name(), EXE.to_vec(), &source()).expect("loads");
-        assert_eq!(graph.init_order, [2, 1, 0], "libmath, then libgreet, then the executable");
+        assert_eq!(
+            graph.init_order,
+            [2, 1, 0],
+            "libmath, then libgreet, then the executable"
+        );
     }
 
     #[test]
     fn missing_library_is_reported_by_name() {
         let empty = MemorySource(Map::new());
         let result = load(exe_name(), EXE.to_vec(), &empty);
-        assert!(matches!(result, Err(TranslateError::MissingLibrary { name }) if name == "libgreet.so.1"));
+        assert!(
+            matches!(result, Err(TranslateError::MissingLibrary { name }) if name == "libgreet.so.1")
+        );
     }
 
     #[test]
     fn shim_provided_libraries_are_not_loaded() {
-        let graph = load(ModuleName::parse("hello").expect("valid"),
-            include_bytes!("../tests/fixtures/hello_dyn.elf").to_vec(), &MemorySource(Map::new())).expect("loads");
+        let graph = load(
+            ModuleName::parse("hello").expect("valid"),
+            include_bytes!("../tests/fixtures/hello_dyn.elf").to_vec(),
+            &MemorySource(Map::new()),
+        )
+        .expect("loads");
         assert_eq!(graph.modules.len(), 1);
     }
 
     fn fake_modules(count: usize) -> Vec<Module> {
         (0..count)
             .map(|i| {
-                let mut module = Module::new(ModuleName::parse("libx.so.1").expect("valid"), MATH.to_vec()).expect("parses");
+                let mut module = Module::new(
+                    ModuleName::parse("libx.so.1").expect("valid"),
+                    MATH.to_vec(),
+                )
+                .expect("parses");
                 module.name = ModuleName::parse(&format!("m{i}")).expect("valid");
                 module
             })
@@ -217,13 +258,16 @@ mod tests {
     fn cycles_are_detected_with_their_path() {
         let modules = fake_modules(3);
         let result = initialization_order(&[vec![1], vec![2], vec![1]], &modules);
-        assert!(matches!(result, Err(TranslateError::DependencyCycle(path)) if path == "m1 -> m2 -> m1"));
+        assert!(
+            matches!(result, Err(TranslateError::DependencyCycle(path)) if path == "m1 -> m2 -> m1")
+        );
     }
 
     #[test]
     fn diamond_dependencies_are_ordered_once() {
         let modules = fake_modules(4);
-        let order = initialization_order(&[vec![1, 2], vec![3], vec![3], vec![]], &modules).expect("acyclic");
+        let order = initialization_order(&[vec![1, 2], vec![3], vec![3], vec![]], &modules)
+            .expect("acyclic");
         assert_eq!(order, [3, 1, 2, 0]);
     }
 }

@@ -26,12 +26,18 @@ fn read_u32(data: &[u8], offset: u64) -> Result<u32, TranslateError> {
     let bytes = data
         .read_bytes_at(offset, 4)
         .map_err(|()| TranslateError::Elf("hash table is outside the file".into()))?;
-    let array: [u8; 4] = bytes.try_into().map_err(|_| TranslateError::Elf("short hash table read".into()))?;
+    let array: [u8; 4] = bytes
+        .try_into()
+        .map_err(|_| TranslateError::Elf("short hash table read".into()))?;
     Ok(u32::from_le_bytes(array))
 }
 
 /// `.dynsym` has no stored length; the hash table tells us how many symbols exist.
-fn symbol_count(data: &[u8], map: &AddressMap<'_>, table: &DynamicTable) -> Result<u64, TranslateError> {
+fn symbol_count(
+    data: &[u8],
+    map: &AddressMap<'_>,
+    table: &DynamicTable,
+) -> Result<u64, TranslateError> {
     if table.hash != 0 {
         let offset = map.file_offset(table.hash, 8)?;
         return Ok(u64::from(read_u32(data, add(offset, 4)?)?));
@@ -39,16 +45,27 @@ fn symbol_count(data: &[u8], map: &AddressMap<'_>, table: &DynamicTable) -> Resu
     if table.gnu_hash != 0 {
         return gnu_hash_symbol_count(data, map, table.gnu_hash);
     }
-    Err(TranslateError::Elf("no DT_HASH or DT_GNU_HASH, cannot size .dynsym".into()))
+    Err(TranslateError::Elf(
+        "no DT_HASH or DT_GNU_HASH, cannot size .dynsym".into(),
+    ))
 }
 
-fn gnu_hash_symbol_count(data: &[u8], map: &AddressMap<'_>, address: u64) -> Result<u64, TranslateError> {
+fn gnu_hash_symbol_count(
+    data: &[u8],
+    map: &AddressMap<'_>,
+    address: u64,
+) -> Result<u64, TranslateError> {
     let header = map.file_offset(address, GNU_HASH_HEADER_SIZE)?;
     let bucket_count = u64::from(read_u32(data, header)?);
     let first_hashed = u64::from(read_u32(data, add(header, 4)?)?);
-    let bloom_bytes = mul(u64::from(read_u32(data, add(header, 8)?)?), GNU_HASH_BLOOM_WORD_SIZE)?;
+    let bloom_bytes = mul(
+        u64::from(read_u32(data, add(header, 8)?)?),
+        GNU_HASH_BLOOM_WORD_SIZE,
+    )?;
     if bucket_count > MAX_SYMBOLS {
-        return Err(TranslateError::LimitExceeded("GNU hash bucket count".into()));
+        return Err(TranslateError::LimitExceeded(
+            "GNU hash bucket count".into(),
+        ));
     }
     let buckets = add(add(header, GNU_HASH_HEADER_SIZE)?, bloom_bytes)?;
     let mut highest = 0u64;
@@ -80,20 +97,25 @@ pub(super) fn read(
 ) -> Result<Vec<DynSymbol>, TranslateError> {
     let count = symbol_count(data, map, table)?;
     if count > MAX_SYMBOLS {
-        return Err(TranslateError::LimitExceeded(format!("more than {MAX_SYMBOLS} dynamic symbols")));
+        return Err(TranslateError::LimitExceeded(format!(
+            "more than {MAX_SYMBOLS} dynamic symbols"
+        )));
     }
     let base = map.file_offset(table.symtab, mul(count, SYMBOL_ENTRY_SIZE)?)?;
     let entries = data
         .read_slice_at::<SymEntry>(base, count as usize)
         .map_err(|()| TranslateError::Elf("symbol table is outside the file".into()))?;
-    entries.iter().map(|entry| to_symbol(entry, strings)).collect()
+    entries
+        .iter()
+        .map(|entry| to_symbol(entry, strings))
+        .collect()
 }
 
 fn to_symbol(entry: &SymEntry, strings: &Strings<'_>) -> Result<DynSymbol, TranslateError> {
     let endian = Endianness::Little;
-    let name = strings
-        .get(entry.st_name(endian))
-        .map_err(|()| TranslateError::Elf("symbol name offset is outside the string table".into()))?;
+    let name = strings.get(entry.st_name(endian)).map_err(|()| {
+        TranslateError::Elf("symbol name offset is outside the string table".into())
+    })?;
     let shndx = entry.st_shndx(endian);
     let definition = match shndx {
         elf::SHN_UNDEF => Definition::Undefined,

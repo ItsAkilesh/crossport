@@ -8,8 +8,14 @@ use std::fmt;
 #[derive(Debug)]
 pub enum DifftestError {
     Usage(String),
-    Io { context: String, source: std::io::Error },
-    Json { context: String, source: serde_json::Error },
+    Io {
+        context: String,
+        source: std::io::Error,
+    },
+    Json {
+        context: String,
+        source: serde_json::Error,
+    },
 }
 
 impl fmt::Display for DifftestError {

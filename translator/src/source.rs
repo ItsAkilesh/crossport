@@ -44,7 +44,9 @@ impl LibrarySource for DirectorySource {
             };
             return read_bounded(file, &path.display().to_string());
         }
-        Err(TranslateError::MissingLibrary { name: name.as_str().to_string() })
+        Err(TranslateError::MissingLibrary {
+            name: name.as_str().to_string(),
+        })
     }
 }
 
@@ -99,6 +101,9 @@ mod tests {
     fn missing_library_is_a_typed_error() {
         let source = DirectorySource::new(vec![scratch("empty")]);
         let name = ModuleName::parse("libnone.so").expect("valid");
-        assert!(matches!(source.load(&name), Err(TranslateError::MissingLibrary { .. })));
+        assert!(matches!(
+            source.load(&name),
+            Err(TranslateError::MissingLibrary { .. })
+        ));
     }
 }

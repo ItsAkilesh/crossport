@@ -75,8 +75,17 @@ mod tests {
     #[test]
     fn rejects_paths_and_oddities() {
         for name in [
-            "", "../libx.so", "a/b.so", "a\\b.so", "C:evil.dll", ".hidden", "lib..so", "a b.so",
-            "lib\0.so", "lib\n.so", "libé.so",
+            "",
+            "../libx.so",
+            "a/b.so",
+            "a\\b.so",
+            "C:evil.dll",
+            ".hidden",
+            "lib..so",
+            "a b.so",
+            "lib\0.so",
+            "lib\n.so",
+            "libé.so",
         ] {
             assert!(ModuleName::parse(name).is_err(), "{name:?}");
         }
@@ -92,7 +101,10 @@ mod tests {
 
     #[test]
     fn sanitized_replaces_instead_of_failing() {
-        assert_eq!(ModuleName::sanitized("my app!").expect("ok").as_str(), "my_app_");
+        assert_eq!(
+            ModuleName::sanitized("my app!").expect("ok").as_str(),
+            "my_app_"
+        );
         assert!(ModuleName::sanitized("...").is_err());
     }
 }

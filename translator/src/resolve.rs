@@ -39,7 +39,10 @@ impl<'a> Resolver<'a> {
     pub fn resolve(&self, importer: usize, symbol: &DynSymbol) -> Result<Target, TranslateError> {
         match symbol.definition {
             Definition::Absolute => {
-                return Err(TranslateError::Unsupported(format!("reference to absolute symbol {}", symbol.name)))
+                return Err(TranslateError::Unsupported(format!(
+                    "reference to absolute symbol {}",
+                    symbol.name
+                )))
             }
             Definition::Address(address) if symbol.binding == SymbolBinding::Local => {
                 return Ok(Target::Local { address })
@@ -54,7 +57,11 @@ impl<'a> Resolver<'a> {
 
     /// For `R_X86_64_COPY`: the library (or shim) whose data is copied into the executable.
     /// The executable's own definition is the destination, so it is skipped.
-    pub fn resolve_copy_source(&self, importer: usize, symbol: &DynSymbol) -> Result<Target, TranslateError> {
+    pub fn resolve_copy_source(
+        &self,
+        importer: usize,
+        symbol: &DynSymbol,
+    ) -> Result<Target, TranslateError> {
         if let Some(definer) = self.first_definer(&symbol.name, 1) {
             return Ok(Target::Library { module: definer });
         }
@@ -65,12 +72,21 @@ impl<'a> Resolver<'a> {
     }
 
     fn first_definer(&self, name: &str, from: usize) -> Option<usize> {
-        (from..self.graph.modules.len()).find(|&index| self.graph.modules[index].exports.contains_key(name))
+        (from..self.graph.modules.len())
+            .find(|&index| self.graph.modules[index].exports.contains_key(name))
     }
 
-    fn target_for(&self, importer: usize, definer: usize, name: &str) -> Result<Target, TranslateError> {
+    fn target_for(
+        &self,
+        importer: usize,
+        definer: usize,
+        name: &str,
+    ) -> Result<Target, TranslateError> {
         let module = &self.graph.modules[definer];
-        let index = *module.exports.get(name).ok_or_else(|| TranslateError::Elf("export index vanished".into()))?;
+        let index = *module
+            .exports
+            .get(name)
+            .ok_or_else(|| TranslateError::Elf("export index vanished".into()))?;
         let address = module.info.symbols[index]
             .address()
             .ok_or_else(|| TranslateError::Elf("exported symbol has no address".into()))?;
@@ -111,24 +127,49 @@ mod tests {
 
     impl LibrarySource for Files {
         fn load(&self, name: &ModuleName) -> Result<Vec<u8>, TranslateError> {
-            self.0.get(name.as_str()).cloned().ok_or_else(|| TranslateError::MissingLibrary { name: name.as_str().into() })
+            self.0
+                .get(name.as_str())
+                .cloned()
+                .ok_or_else(|| TranslateError::MissingLibrary {
+                    name: name.as_str().into(),
+                })
         }
     }
 
     fn graph() -> ModuleGraph {
         let mut files = HashMap::new();
-        files.insert("libgreet.so.1".to_string(), include_bytes!("../tests/fixtures/two_libs/libgreet.so.1").to_vec());
-        files.insert("libmath.so.1".to_string(), include_bytes!("../tests/fixtures/two_libs/libmath.so.1").to_vec());
+        files.insert(
+            "libgreet.so.1".to_string(),
+            include_bytes!("../tests/fixtures/two_libs/libgreet.so.1").to_vec(),
+        );
+        files.insert(
+            "libmath.so.1".to_string(),
+            include_bytes!("../tests/fixtures/two_libs/libmath.so.1").to_vec(),
+        );
         let exe = include_bytes!("../tests/fixtures/two_libs/two_libs").to_vec();
-        load(ModuleName::parse("two_libs").expect("valid"), exe, &Files(files)).expect("loads")
+        load(
+            ModuleName::parse("two_libs").expect("valid"),
+            exe,
+            &Files(files),
+        )
+        .expect("loads")
     }
 
     fn shim() -> ShimExports {
-        ShimExports::from_names(["puts".to_string(), "__libc_start_main".to_string(), "crossport_start".to_string()])
+        ShimExports::from_names([
+            "puts".to_string(),
+            "__libc_start_main".to_string(),
+            "crossport_start".to_string(),
+        ])
     }
 
     fn symbol<'a>(graph: &'a ModuleGraph, module: usize, name: &str) -> &'a DynSymbol {
-        graph.modules[module].info.symbols.iter().find(|s| s.name == name).expect("symbol present")
+        graph.modules[module]
+            .info
+            .symbols
+            .iter()
+            .find(|s| s.name == name)
+            .expect("symbol present")
     }
 
     #[test]
@@ -136,7 +177,9 @@ mod tests {
         let graph = graph();
         let shim = shim();
         let resolver = Resolver::new(&graph, &shim);
-        let target = resolver.resolve(0, symbol(&graph, 0, "greet_run")).expect("resolves");
+        let target = resolver
+            .resolve(0, symbol(&graph, 0, "greet_run"))
+            .expect("resolves");
         assert_eq!(target, Target::Library { module: 1 });
     }
 
@@ -145,7 +188,9 @@ mod tests {
         let graph = graph();
         let shim = shim();
         let resolver = Resolver::new(&graph, &shim);
-        let target = resolver.resolve(2, symbol(&graph, 2, "math_counter")).expect("resolves");
+        let target = resolver
+            .resolve(2, symbol(&graph, 2, "math_counter"))
+            .expect("resolves");
         assert!(matches!(target, Target::Executable { address } if address == 0x4010));
     }
 
@@ -154,7 +199,9 @@ mod tests {
         let graph = graph();
         let shim = shim();
         let resolver = Resolver::new(&graph, &shim);
-        let target = resolver.resolve_copy_source(0, symbol(&graph, 0, "math_counter")).expect("resolves");
+        let target = resolver
+            .resolve_copy_source(0, symbol(&graph, 0, "math_counter"))
+            .expect("resolves");
         assert_eq!(target, Target::Library { module: 2 });
     }
 
@@ -163,8 +210,18 @@ mod tests {
         let graph = graph();
         let shim = shim();
         let resolver = Resolver::new(&graph, &shim);
-        assert_eq!(resolver.resolve(1, symbol(&graph, 1, "puts")).expect("resolves"), Target::Shim);
-        assert_eq!(resolver.resolve(1, symbol(&graph, 1, "__gmon_start__")).expect("resolves"), Target::Null);
+        assert_eq!(
+            resolver
+                .resolve(1, symbol(&graph, 1, "puts"))
+                .expect("resolves"),
+            Target::Shim
+        );
+        assert_eq!(
+            resolver
+                .resolve(1, symbol(&graph, 1, "__gmon_start__"))
+                .expect("resolves"),
+            Target::Null
+        );
     }
 
     #[test]
@@ -173,7 +230,9 @@ mod tests {
         let empty = ShimExports::from_names(Vec::new());
         let resolver = Resolver::new(&graph, &empty);
         let result = resolver.resolve(1, symbol(&graph, 1, "puts"));
-        assert!(matches!(result, Err(TranslateError::UnresolvedSymbol { symbol, module }) if symbol == "puts" && module == "libgreet.so.1"));
+        assert!(
+            matches!(result, Err(TranslateError::UnresolvedSymbol { symbol, module }) if symbol == "puts" && module == "libgreet.so.1")
+        );
     }
 
     #[test]
@@ -181,7 +240,9 @@ mod tests {
         let graph = graph();
         let shim = shim();
         let resolver = Resolver::new(&graph, &shim);
-        let target = resolver.resolve(2, symbol(&graph, 2, "math_add")).expect("resolves");
+        let target = resolver
+            .resolve(2, symbol(&graph, 2, "math_add"))
+            .expect("resolves");
         assert_eq!(target, Target::Local { address: 0x1130 });
     }
 }

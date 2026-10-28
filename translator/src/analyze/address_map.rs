@@ -37,7 +37,9 @@ impl<'a> AddressMap<'a> {
                 return add(segment.file_offset, vaddr - segment.vaddr);
             }
         }
-        Err(TranslateError::Elf(format!("address range {vaddr:#x}+{len:#x} is not backed by the file")))
+        Err(TranslateError::Elf(format!(
+            "address range {vaddr:#x}+{len:#x} is not backed by the file"
+        )))
     }
 }
 
@@ -52,7 +54,11 @@ mod tests {
             file_offset,
             file_size,
             mem_size: file_size,
-            flags: SegmentFlags { is_readable: true, is_writable: false, is_executable: false },
+            flags: SegmentFlags {
+                is_readable: true,
+                is_writable: false,
+                is_executable: false,
+            },
         }
     }
 
@@ -61,7 +67,10 @@ mod tests {
         let segments = [segment(0x1000, 0x200, 0x100)];
         let map = AddressMap::new(&segments);
         assert_eq!(map.file_offset(0x1010, 8).expect("inside"), 0x210);
-        assert_eq!(map.file_offset(0x1000, 0x100).expect("whole segment"), 0x200);
+        assert_eq!(
+            map.file_offset(0x1000, 0x100).expect("whole segment"),
+            0x200
+        );
     }
 
     #[test]

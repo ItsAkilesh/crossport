@@ -48,7 +48,11 @@ impl DynamicTable {
     }
 }
 
-pub(super) fn read(phdrs: &[Phdr], endian: Endianness, data: &[u8]) -> Result<DynamicTable, TranslateError> {
+pub(super) fn read(
+    phdrs: &[Phdr],
+    endian: Endianness,
+    data: &[u8],
+) -> Result<DynamicTable, TranslateError> {
     let entries = phdrs
         .iter()
         .find_map(|ph| ph.dynamic(endian, data).transpose())
@@ -61,8 +65,14 @@ pub(super) fn read(phdrs: &[Phdr], endian: Endianness, data: &[u8]) -> Result<Dy
             elf::DT_NULL => break,
             elf::DT_NEEDED => push_needed(&mut table, value)?,
             elf::DT_SONAME => table.soname = Some(value),
-            elf::DT_REL => return Err(unsupported("DT_REL relocations (only RELA is used on x86-64)")),
-            elf::DT_RELAENT if value != RELA_ENTRY_SIZE => return Err(unsupported("unexpected RELA entry size")),
+            elf::DT_REL => {
+                return Err(unsupported(
+                    "DT_REL relocations (only RELA is used on x86-64)",
+                ))
+            }
+            elf::DT_RELAENT if value != RELA_ENTRY_SIZE => {
+                return Err(unsupported("unexpected RELA entry size"))
+            }
             tag => assign(&mut table, tag, value),
         }
     }
@@ -75,7 +85,9 @@ fn unsupported(message: &str) -> TranslateError {
 
 fn push_needed(table: &mut DynamicTable, value: u64) -> Result<(), TranslateError> {
     if table.needed.len() >= MAX_NEEDED {
-        return Err(TranslateError::LimitExceeded(format!("more than {MAX_NEEDED} DT_NEEDED entries")));
+        return Err(TranslateError::LimitExceeded(format!(
+            "more than {MAX_NEEDED} DT_NEEDED entries"
+        )));
     }
     table.needed.push(value);
     Ok(())

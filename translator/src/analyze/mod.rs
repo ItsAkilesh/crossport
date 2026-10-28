@@ -60,19 +60,30 @@ fn malformed(what: &str, error: impl std::fmt::Display) -> TranslateError {
 }
 
 fn string_at(strings: &Strings<'_>, offset: u64) -> Result<String, TranslateError> {
-    let offset = u32::try_from(offset).map_err(|_| TranslateError::Elf("string offset is too large".into()))?;
+    let offset = u32::try_from(offset)
+        .map_err(|_| TranslateError::Elf("string offset is too large".into()))?;
     let bytes = strings
         .get(offset)
         .map_err(|()| TranslateError::Elf("string offset is outside the string table".into()))?;
     Ok(String::from_utf8_lossy(bytes).into_owned())
 }
 
-fn optional_string(strings: &Strings<'_>, offset: Option<u64>) -> Result<Option<String>, TranslateError> {
+fn optional_string(
+    strings: &Strings<'_>,
+    offset: Option<u64>,
+) -> Result<Option<String>, TranslateError> {
     offset.map(|offset| string_at(strings, offset)).transpose()
 }
 
-fn needed_names(strings: &Strings<'_>, table: &DynamicTable) -> Result<Vec<String>, TranslateError> {
-    table.needed.iter().map(|&offset| string_at(strings, offset)).collect()
+fn needed_names(
+    strings: &Strings<'_>,
+    table: &DynamicTable,
+) -> Result<Vec<String>, TranslateError> {
+    table
+        .needed
+        .iter()
+        .map(|&offset| string_at(strings, offset))
+        .collect()
 }
 
 fn array_range(vaddr: u64, size_in_bytes: u64) -> Option<ArrayRange> {
@@ -108,9 +119,26 @@ mod tests {
     #[test]
     fn symbol_table_is_sized_from_the_hash_table() {
         let info = analyze(LIBMATH).expect("fixture parses");
-        assert_eq!(info.symbols.len(), 13, "readelf --dyn-syms lists 13 entries");
-        let exported: Vec<&str> = info.symbols.iter().filter(|s| s.is_exported()).map(|s| s.name.as_str()).collect();
-        for name in ["math_add", "math_mul", "math_bump", "math_format", "math_ops", "math_counter", "math_op_count"] {
+        assert_eq!(
+            info.symbols.len(),
+            13,
+            "readelf --dyn-syms lists 13 entries"
+        );
+        let exported: Vec<&str> = info
+            .symbols
+            .iter()
+            .filter(|s| s.is_exported())
+            .map(|s| s.name.as_str())
+            .collect();
+        for name in [
+            "math_add",
+            "math_mul",
+            "math_bump",
+            "math_format",
+            "math_ops",
+            "math_counter",
+            "math_op_count",
+        ] {
             assert!(exported.contains(&name), "{name} is exported");
         }
         assert_eq!(exported.len(), 7);
@@ -119,7 +147,11 @@ mod tests {
     #[test]
     fn defined_data_symbols_keep_their_size_and_address() {
         let info = analyze(LIBMATH).expect("fixture parses");
-        let counter = info.symbols.iter().find(|s| s.name == "math_counter").expect("present");
+        let counter = info
+            .symbols
+            .iter()
+            .find(|s| s.name == "math_counter")
+            .expect("present");
         assert_eq!(counter.size, 4);
         assert_eq!(counter.definition, Definition::Address(0x400c));
         assert_eq!(counter.binding, SymbolBinding::Global);
@@ -133,7 +165,10 @@ mod tests {
             .iter()
             .filter(|r| matches!(r.kind, RelocKind::Symbol { symbol, .. } if info.symbols[symbol].name.starts_with("math_") && info.symbols[symbol].address().is_some()))
             .count();
-        assert!(table_slots >= 3, "math_ops entries and the math_counter GOT slot");
+        assert!(
+            table_slots >= 3,
+            "math_ops entries and the math_counter GOT slot"
+        );
     }
 
     #[test]
@@ -167,7 +202,10 @@ mod tests {
 
     #[test]
     fn rejects_non_elf_input() {
-        assert!(matches!(analyze(b"not an elf"), Err(TranslateError::Elf(_))));
+        assert!(matches!(
+            analyze(b"not an elf"),
+            Err(TranslateError::Elf(_))
+        ));
     }
 
     #[test]

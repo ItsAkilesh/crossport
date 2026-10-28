@@ -8,15 +8,23 @@ use std::fmt;
 #[derive(Debug)]
 pub enum TranslateError {
     Usage(String),
-    Io { context: String, source: std::io::Error },
+    Io {
+        context: String,
+        source: std::io::Error,
+    },
     /// The input is not a well-formed ELF file.
     Elf(String),
     /// The input is valid but uses a feature Crossport does not translate yet.
     Unsupported(String),
     /// A `DT_NEEDED` library was not found in any search directory.
-    MissingLibrary { name: String },
+    MissingLibrary {
+        name: String,
+    },
     /// A strongly referenced symbol is defined by no module and not provided by the shim.
-    UnresolvedSymbol { symbol: String, module: String },
+    UnresolvedSymbol {
+        symbol: String,
+        module: String,
+    },
     /// The library dependency graph contains a cycle.
     DependencyCycle(String),
     /// An input exceeds a safety limit.
