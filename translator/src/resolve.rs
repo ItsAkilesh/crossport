@@ -165,15 +165,23 @@ mod tests {
     use crate::graph::load;
     use crate::naming::ModuleName;
     use crate::source::LibrarySource;
+    use crate::source::{LoadedLibrary, SearchContext};
     use std::collections::HashMap;
 
     struct Files(HashMap<String, Vec<u8>>);
 
     impl LibrarySource for Files {
-        fn load(&self, name: &ModuleName) -> Result<Vec<u8>, TranslateError> {
+        fn load(
+            &self,
+            name: &ModuleName,
+            _context: &SearchContext,
+        ) -> Result<LoadedLibrary, TranslateError> {
             self.0
                 .get(name.as_str())
-                .cloned()
+                .map(|bytes| LoadedLibrary {
+                    bytes: bytes.clone(),
+                    origin: None,
+                })
                 .ok_or_else(|| TranslateError::MissingLibrary {
                     name: name.as_str().into(),
                 })

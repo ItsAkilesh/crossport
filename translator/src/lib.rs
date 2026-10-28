@@ -19,6 +19,7 @@ pub mod pe_writer;
 pub mod relink;
 pub mod resolve;
 pub mod rewrite;
+pub mod search;
 pub mod shim_abi;
 pub mod shim_exports;
 pub mod source;

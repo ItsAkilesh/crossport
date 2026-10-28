@@ -20,6 +20,8 @@ const MAX_NEEDED: usize = 256;
 pub(super) struct DynamicTable {
     pub needed: Vec<u64>,
     pub soname: Option<u64>,
+    pub rpath: Option<u64>,
+    pub runpath: Option<u64>,
     pub strtab: u64,
     pub strsz: u64,
     pub symtab: u64,
@@ -65,6 +67,8 @@ pub(super) fn read(
             elf::DT_NULL => break,
             elf::DT_NEEDED => push_needed(&mut table, value)?,
             elf::DT_SONAME => table.soname = Some(value),
+            elf::DT_RPATH => table.rpath = Some(value),
+            elf::DT_RUNPATH => table.runpath = Some(value),
             elf::DT_REL => {
                 return Err(unsupported(
                     "DT_REL relocations (only RELA is used on x86-64)",

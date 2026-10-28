@@ -5,6 +5,6 @@
 
 mod extract;
 mod header;
-mod paths;
+pub(crate) mod paths;
 
 pub use extract::{unpack, AppDir, Limits, UnpackReport};

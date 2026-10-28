@@ -13,7 +13,7 @@ use crossport_translator::cli::{self, Action};
 use crossport_translator::error::TranslateError;
 use crossport_translator::naming::ModuleName;
 use crossport_translator::shim_exports::ShimExports;
-use crossport_translator::source::{read_bounded, DirectorySource};
+use crossport_translator::source::{read_bounded, AppDirSource, DirectorySource, LibrarySource};
 use crossport_translator::{bundle, translate};
 
 const EXIT_ERROR: u8 = 2;
@@ -39,7 +39,8 @@ fn execute(action: Action) -> Result<(), TranslateError> {
             shim,
             out,
             lib_dirs,
-        } => run_translation(&elf, &shim, &out, lib_dirs),
+            appdir,
+        } => run_translation(&elf, &shim, &out, lib_dirs, appdir),
     }
 }
 
@@ -69,18 +70,44 @@ fn read_file(path: &Path) -> Result<Vec<u8>, TranslateError> {
     read_bounded(file, &path.display().to_string())
 }
 
-fn run_translation(
+/// An AppDir search when `--appdir` is given, otherwise a plain directory list that defaults to
+/// the executable's own directory.
+fn library_source(
     elf: &Path,
-    shim: &Path,
-    out: &Path,
+    appdir: Option<PathBuf>,
     mut lib_dirs: Vec<PathBuf>,
-) -> Result<(), TranslateError> {
+) -> Result<Box<dyn LibrarySource>, TranslateError> {
+    let canonical = |path: &Path| {
+        path.canonicalize().map_err(|source| TranslateError::Io {
+            context: format!("resolving {}", path.display()),
+            source,
+        })
+    };
+    if let Some(root) = appdir {
+        let extra = lib_dirs
+            .iter()
+            .map(|dir| canonical(dir))
+            .collect::<Result<Vec<_>, _>>()?;
+        let source = AppDirSource::new(canonical(&root)?, canonical(elf)?, &extra)?;
+        return Ok(Box::new(source));
+    }
     if lib_dirs.is_empty() {
         lib_dirs.push(
             elf.parent()
                 .map_or_else(|| PathBuf::from("."), Path::to_path_buf),
         );
     }
+    Ok(Box::new(DirectorySource::new(lib_dirs)))
+}
+
+fn run_translation(
+    elf: &Path,
+    shim: &Path,
+    out: &Path,
+    lib_dirs: Vec<PathBuf>,
+    appdir: Option<PathBuf>,
+) -> Result<(), TranslateError> {
+    let source = library_source(elf, appdir, lib_dirs)?;
     let stem = elf
         .file_stem()
         .and_then(|s| s.to_str())
@@ -89,7 +116,7 @@ fn run_translation(
     let translation = translate::translate(
         ModuleName::sanitized(stem)?,
         read_file(elf)?,
-        &DirectorySource::new(lib_dirs),
+        source.as_ref(),
         &exports,
     )?;
     let executable = bundle::write_bundle(&translation.files, shim, out)?;

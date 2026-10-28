@@ -4,12 +4,13 @@
 // Date: 2026-10-28
 
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 use crate::analyze::analyze;
 use crate::elf_model::ElfInfo;
 use crate::error::TranslateError;
 use crate::naming::ModuleName;
-use crate::source::{LibrarySource, MAX_ELF_BYTES};
+use crate::source::{LibrarySource, SearchContext, MAX_ELF_BYTES};
 
 /// Libraries the shim stands in for. They are never loaded from disk.
 pub const SHIM_PROVIDED_LIBRARIES: &[&str] = &[
@@ -29,6 +30,8 @@ pub struct Module {
     pub name: ModuleName,
     pub info: ElfInfo,
     pub data: Vec<u8>,
+    /// Directory the module was read from, the `$ORIGIN` of its own dependencies.
+    pub origin: Option<PathBuf>,
     /// Maps an exported symbol name to its index in `info.symbols`.
     pub exports: HashMap<String, usize>,
     /// Same for exported thread-local symbols, whose values are TLS offsets, not addresses.
@@ -36,7 +39,11 @@ pub struct Module {
 }
 
 impl Module {
-    fn new(name: ModuleName, data: Vec<u8>) -> Result<Self, TranslateError> {
+    fn new(
+        name: ModuleName,
+        data: Vec<u8>,
+        origin: Option<PathBuf>,
+    ) -> Result<Self, TranslateError> {
         let info = analyze(&data)?;
         let mut exports = HashMap::new();
         let mut tls_exports = HashMap::new();
@@ -51,6 +58,7 @@ impl Module {
             name,
             info,
             data,
+            origin,
             exports,
             tls_exports,
         })
@@ -72,13 +80,18 @@ pub fn load(
     exe_data: Vec<u8>,
     source: &dyn LibrarySource,
 ) -> Result<ModuleGraph, TranslateError> {
-    let mut modules = vec![Module::new(exe_name, exe_data)?];
+    let mut modules = vec![Module::new(exe_name, exe_data, source.executable_origin())?];
     let mut dependencies: Vec<Vec<usize>> = Vec::new();
     let mut index_by_name: HashMap<String, usize> = HashMap::new();
     let mut total_bytes = modules[0].data.len() as u64;
     let mut next = 0;
     while next < modules.len() {
         let needed = modules[next].info.needed.clone();
+        let context = SearchContext {
+            origin: modules[next].origin.clone(),
+            rpath: modules[next].info.rpath.clone(),
+            runpath: modules[next].info.runpath.clone(),
+        };
         let mut edges = Vec::new();
         for raw in needed
             .iter()
@@ -92,7 +105,7 @@ pub fn load(
                     &mut index_by_name,
                     &mut total_bytes,
                     name,
-                    source,
+                    (source, &context),
                 )?,
             };
             edges.push(index);
@@ -113,14 +126,15 @@ fn add_library(
     index_by_name: &mut HashMap<String, usize>,
     total_bytes: &mut u64,
     name: ModuleName,
-    source: &dyn LibrarySource,
+    (source, context): (&dyn LibrarySource, &SearchContext),
 ) -> Result<usize, TranslateError> {
     if modules.len() >= MAX_MODULES {
         return Err(TranslateError::LimitExceeded(format!(
             "more than {MAX_MODULES} modules"
         )));
     }
-    let data = source.load(&name)?;
+    let loaded = source.load(&name, context)?;
+    let data = loaded.bytes;
     *total_bytes += data.len() as u64;
     if *total_bytes > MAX_TOTAL_BYTES {
         return Err(TranslateError::LimitExceeded(
@@ -129,7 +143,7 @@ fn add_library(
     }
     let index = modules.len();
     index_by_name.insert(name.case_folded(), index);
-    modules.push(Module::new(name, data)?);
+    modules.push(Module::new(name, data, loaded.origin)?);
     Ok(index)
 }
 
@@ -185,15 +199,23 @@ fn cycle_error(stack: &[(usize, usize)], repeated: usize, modules: &[Module]) ->
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::source::LoadedLibrary;
     use std::collections::HashMap as Map;
 
     struct MemorySource(Map<String, Vec<u8>>);
 
     impl LibrarySource for MemorySource {
-        fn load(&self, name: &ModuleName) -> Result<Vec<u8>, TranslateError> {
+        fn load(
+            &self,
+            name: &ModuleName,
+            _context: &SearchContext,
+        ) -> Result<LoadedLibrary, TranslateError> {
             self.0
                 .get(name.as_str())
-                .cloned()
+                .map(|bytes| LoadedLibrary {
+                    bytes: bytes.clone(),
+                    origin: None,
+                })
                 .ok_or_else(|| TranslateError::MissingLibrary {
                     name: name.as_str().to_string(),
                 })
@@ -260,6 +282,7 @@ mod tests {
                 let mut module = Module::new(
                     ModuleName::parse("libx.so.1").expect("valid"),
                     MATH.to_vec(),
+                    None,
                 )
                 .expect("parses");
                 module.name = ModuleName::parse(&format!("m{i}")).expect("valid");

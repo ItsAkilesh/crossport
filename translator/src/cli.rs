@@ -7,7 +7,7 @@ use std::path::PathBuf;
 
 use crate::error::TranslateError;
 
-const USAGE: &str = "usage:\n  crossport unpack <app.AppImage> --out <new-or-empty-dir>\n  crossport analyze <elf>\n  crossport translate <elf> --shim <crossport_libc.dll> --out <dir> [--lib-dir <dir>]...";
+const USAGE: &str = "usage:\n  crossport unpack <app.AppImage> --out <new-or-empty-dir>\n  crossport analyze <elf>\n  crossport translate <elf> --shim <crossport_libc.dll> --out <dir> [--lib-dir <dir>]... [--appdir <dir>]";
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Action {
@@ -23,6 +23,8 @@ pub enum Action {
         shim: PathBuf,
         out: PathBuf,
         lib_dirs: Vec<PathBuf>,
+        /// Search libraries inside this unpacked AppDir (RUNPATH, $ORIGIN, default directories).
+        appdir: Option<PathBuf>,
     },
 }
 
@@ -46,6 +48,7 @@ fn parse_translate(elf: &str, flags: &[String]) -> Result<Action, TranslateError
     let mut shim = None;
     let mut out = None;
     let mut lib_dirs = Vec::new();
+    let mut appdir = None;
     let mut remaining = flags.iter();
     while let Some(flag) = remaining.next() {
         let value = PathBuf::from(remaining.next().ok_or_else(usage)?);
@@ -53,6 +56,7 @@ fn parse_translate(elf: &str, flags: &[String]) -> Result<Action, TranslateError
             "--shim" if shim.is_none() => shim = Some(value),
             "--out" if out.is_none() => out = Some(value),
             "--lib-dir" => lib_dirs.push(value),
+            "--appdir" if appdir.is_none() => appdir = Some(value),
             _ => return Err(usage()),
         }
     }
@@ -62,6 +66,7 @@ fn parse_translate(elf: &str, flags: &[String]) -> Result<Action, TranslateError
             shim,
             out,
             lib_dirs,
+            appdir,
         }),
         _ => Err(usage()),
     }
@@ -123,8 +128,46 @@ mod tests {
                 shim: PathBuf::from("s.dll"),
                 out: PathBuf::from("dist"),
                 lib_dirs: vec![PathBuf::from("l1"), PathBuf::from("l2")],
+                appdir: None,
             }
         );
+    }
+
+    #[test]
+    fn parses_the_appdir_option() {
+        let action = parse(&args(&[
+            "translate",
+            "app/usr/bin/tool",
+            "--shim",
+            "s.dll",
+            "--out",
+            "dist",
+            "--appdir",
+            "app",
+        ]));
+        assert_eq!(
+            action.expect("valid"),
+            Action::Translate {
+                elf: PathBuf::from("app/usr/bin/tool"),
+                shim: PathBuf::from("s.dll"),
+                out: PathBuf::from("dist"),
+                lib_dirs: vec![],
+                appdir: Some(PathBuf::from("app")),
+            }
+        );
+        assert!(parse(&args(&[
+            "translate",
+            "t",
+            "--shim",
+            "s",
+            "--out",
+            "d",
+            "--appdir",
+            "a",
+            "--appdir",
+            "b"
+        ]))
+        .is_err());
     }
 
     #[test]

@@ -123,6 +123,9 @@ pub struct ElfInfo {
     pub segments: Vec<LoadSegment>,
     pub soname: Option<String>,
     pub needed: Vec<String>,
+    /// `DT_RPATH` and `DT_RUNPATH` entries, split on `:`.
+    pub rpath: Vec<String>,
+    pub runpath: Vec<String>,
     pub symbols: Vec<DynSymbol>,
     pub relocations: Vec<Relocation>,
     pub init: Option<u64>,

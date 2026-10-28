@@ -47,6 +47,8 @@ pub fn analyze(data: &[u8]) -> Result<ElfInfo, TranslateError> {
         entry: header.e_entry(endian),
         soname: optional_string(&strings, table.soname)?,
         needed: needed_names(&strings, &table)?,
+        rpath: search_paths(&strings, table.rpath)?,
+        runpath: search_paths(&strings, table.runpath)?,
         symbols,
         relocations,
         init: table.init,
@@ -88,6 +90,16 @@ fn needed_names(
         .iter()
         .map(|&offset| string_at(strings, offset))
         .collect()
+}
+
+/// Splits a `DT_RPATH`/`DT_RUNPATH` string on `:`, dropping empty entries.
+fn search_paths(strings: &Strings<'_>, offset: Option<u64>) -> Result<Vec<String>, TranslateError> {
+    let text = optional_string(strings, offset)?.unwrap_or_default();
+    Ok(text
+        .split(':')
+        .filter(|entry| !entry.is_empty())
+        .map(str::to_string)
+        .collect())
 }
 
 fn array_range(vaddr: u64, size_in_bytes: u64) -> Option<ArrayRange> {
