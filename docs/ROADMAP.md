@@ -19,7 +19,7 @@
 - Minimal shim providing `puts` and process startup and exit.
 - **Exit criterion:** translated binary runs on Windows and passes its differential test.
 
-## Milestone 2: Shared libraries
+## Milestone 2: Shared libraries (done)
 
 - Multiple `.so` files relinked into DLLs.
 - Relocations, GOT binding, `.init_array` and `.fini_array`.

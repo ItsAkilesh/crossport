@@ -60,6 +60,16 @@ Emit the translated `.exe` and DLLs, the shim DLLs, and the AppDir data files in
 - **Entry:** the PE entry is a 13-byte stub that passes a start-info table to `crossport_start`. That function binds the GOT, builds the initial stack the Linux kernel would (argc, argv, envp, auxv), and jumps to the ELF `_start`. `__libc_start_main` runs `DT_INIT`, `DT_INIT_ARRAY`, `main`, then `DT_FINI_ARRAY` and `DT_FINI` on exit.
 - **Corpus build flags:** `-fno-stack-protector` (the canary reads `%fs:0x28`, which needs the TLS work of Milestone 3), `-mno-red-zone`, `-fcf-protection=none` and `-fno-plt`.
 
+### 2.7 Milestone 2 implementation notes
+
+- **Module graph:** the executable is module 0; libraries follow in breadth-first `DT_NEEDED` order, which is also the ELF global symbol lookup order. Libraries are found in `--lib-dir` directories (default: the executable's directory) and written as `<soname>.dll`. `libc.so.6` is provided by the shim. Names from `DT_NEEDED` are validated to be plain file names before they touch the file system.
+- **Initialisation order:** dependencies before dependents, the executable last (depth-first post-order); finalisers run in reverse. Cycles are reported with the offending path. Constructors run from the shim, not from `DllMain`, because `DllMain` runs under the Windows loader lock and a constructor that touches another DLL could deadlock.
+- **Symbol resolution:** done once, at translation time, with ELF semantics: the first module in scope order that exports a name wins, even over the importer's own definition (interposition works). A symbol nobody defines is an error at translation time unless it is weak, in which case it resolves to null. The set of shim exports is read from the built DLL, so a missing libc function fails the translation, not the run.
+- **Binding kinds:** a symbol defined by the importer becomes a base-relocated absolute pointer. A symbol defined by another library becomes a PE import by name (this works for data as well as functions). A symbol whose first definer is the executable becomes a startup binding to an address inside the executable, so libraries never import from the executable and the import graph stays acyclic.
+- **Copy relocations:** `R_X86_64_COPY` is how a PIE executable references library data (for example a library's global counter). The executable gets its own copy, and by ELF scope rules every module then binds to that copy. The shim performs the copy at startup, after all bindings, from the library's definition (found through the IAT), like `ld.so`.
+- **Start info:** every module carries a start-info table (version 2) with three record arrays: IAT bindings, bindings into the executable, and copies. Libraries export it as `__crossport_info`; the executable's table also lists the dependency DLLs in initialisation order. The contract lives in `translator/src/shim_abi.rs` and `shim/crossport_libc.c`.
+- **Hardening:** the translator treats ELF input as hostile. Offsets use checked arithmetic, table sizes and module counts are capped, segment sizes are bounded, `PT_TLS` and TLS relocations are rejected with a clear error, and mutation sweeps over real binaries assert it never panics. Output is deterministic.
+
 ## 3. Shim ABI
 
 Translated code keeps Linux conventions internally. Only the boundary into shims needs care.

@@ -27,11 +27,11 @@
 [![CI](https://github.com/ItsAkilesh/crossport/actions/workflows/ci.yml/badge.svg)](https://github.com/ItsAkilesh/crossport/actions/workflows/ci.yml)
 [![Rust](https://img.shields.io/badge/tooling-rust-000000?logo=rust&logoColor=white)](https://www.rust-lang.org)
 [![Platforms](https://img.shields.io/badge/targets-linux%20%E2%86%92%20windows-0E7490)](#the-idea)
-[![Milestones](https://img.shields.io/badge/milestones-2%20of%207-1A7F37)](#what-you-get)
+[![Milestones](https://img.shields.io/badge/milestones-3%20of%207-1A7F37)](#what-you-get)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 <p align="center">
-  <img src="docs/progress.svg" alt="Crossport progress: 2 of 7 milestones done" width="880">
+  <img src="docs/progress.svg" alt="Crossport progress: 3 of 7 milestones done" width="880">
 </p>
 
 <sub>Progress is generated from [docs/progress.json](docs/progress.json) by `python tools/gen_progress.py`.
@@ -101,7 +101,7 @@ lives in [docs/ROADMAP.md](docs/ROADMAP.md).
 
 - [x] **Milestone 0:** verification harness (Windows CI and a Linux-versus-Windows differential test)
 - [x] **Milestone 1:** translate a dynamically linked "hello world"
-- [ ] **Milestone 2:** shared libraries relinked into DLLs
+- [x] **Milestone 2:** shared libraries relinked into DLLs
 - [ ] **Milestone 3:** thread-local storage and threads
 - [ ] **Milestone 4:** a corpus of command-line AppImages
 - [ ] **Milestone 5:** Vulkan rendering in a window
@@ -136,9 +136,11 @@ starting with command-line tools, then Vulkan and GUI applications.
 
 ## Status
 
-Early. Milestones 0 and 1 are done. A Linux ELF that calls only `puts` is translated into a native
-Windows `.exe` (plus a small shim DLL) and passes a byte-for-byte differential test against the
-original in CI. Shared libraries, threads and TLS, and everything past `puts` are still ahead.
+Early. Milestones 0, 1 and 2 are done. A Linux executable and the shared libraries it bundles are
+translated into a native Windows `.exe`, one DLL per library and a small shim DLL, and the result
+passes a byte-for-byte differential test against the original in CI, including constructor and
+destructor order, cross-library calls, shared data and function-pointer tables. Threads, TLS and
+the rest of libc are still ahead.
 
 The verification harness came first so every step has fast, objective feedback: a `difftest` runner
 records a program's exit code, stdout and stderr, and CI compares the Linux run against the Windows
@@ -176,7 +178,7 @@ You can also drive the translator directly:
 
 ```bash
 translator/target/release/crossport analyze build/elf/hello_dyn/hello_dyn
-translator/target/release/crossport translate build/elf/hello_dyn/hello_dyn --shim build/shim/crossport_libc.dll --out build/bundle/hello_dyn
+translator/target/release/crossport translate build/elf/two_libs/two_libs --shim build/shim/crossport_libc.dll --lib-dir build/elf/two_libs --out build/bundle/two_libs
 ```
 
 ## Repository layout
