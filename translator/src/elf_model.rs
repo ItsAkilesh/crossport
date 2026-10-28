@@ -1,5 +1,5 @@
 // File: translator/src/elf_model.rs
-// Purpose: Plain data describing an analyzed ELF executable, independent of the parser
+// Purpose: Plain data describing an analyzed ELF module, independent of the parser
 // Author: Akilesh
 // Date: 2026-10-28
 
@@ -19,19 +19,57 @@ pub struct LoadSegment {
     pub flags: SegmentFlags,
 }
 
-/// An undefined dynamic symbol that must be bound to something outside the executable.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SymbolBinding {
+    Local,
+    Global,
+    Weak,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Definition {
+    Undefined,
+    /// Defined at this virtual address inside the module.
+    Address(u64),
+    /// An absolute value that is not an address (`SHN_ABS` and friends).
+    Absolute,
+}
+
+/// One entry of `.dynsym`. Relocations refer to these by index.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ImportSymbol {
+pub struct DynSymbol {
     pub name: String,
-    pub is_weak: bool,
+    pub binding: SymbolBinding,
+    pub definition: Definition,
+    pub size: u64,
+}
+
+impl DynSymbol {
+    pub fn address(&self) -> Option<u64> {
+        match self.definition {
+            Definition::Address(address) => Some(address),
+            _ => None,
+        }
+    }
+
+    pub fn is_weak(&self) -> bool {
+        self.binding == SymbolBinding::Weak
+    }
+
+    /// Whether other modules can bind to this symbol by name.
+    pub fn is_exported(&self) -> bool {
+        self.binding != SymbolBinding::Local && !self.name.is_empty() && self.address().is_some()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RelocKind {
     /// `R_X86_64_RELATIVE`: the slot holds `load base + addend`.
     Relative { addend: i64 },
-    /// `R_X86_64_GLOB_DAT` or `R_X86_64_JUMP_SLOT`: the slot holds the address of `imports[symbol]`.
-    Import { symbol: usize },
+    /// `R_X86_64_64`, `GLOB_DAT` and `JUMP_SLOT`: the slot holds `symbol address + addend`.
+    Symbol { symbol: usize, addend: i64 },
+    /// `R_X86_64_COPY`: copy the symbol's initial data from the defining library into the slot.
+    Copy { symbol: usize },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -50,8 +88,9 @@ pub struct ArrayRange {
 pub struct ElfInfo {
     pub entry: u64,
     pub segments: Vec<LoadSegment>,
+    pub soname: Option<String>,
     pub needed: Vec<String>,
-    pub imports: Vec<ImportSymbol>,
+    pub symbols: Vec<DynSymbol>,
     pub relocations: Vec<Relocation>,
     pub init: Option<u64>,
     pub fini: Option<u64>,

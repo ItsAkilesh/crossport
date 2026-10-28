@@ -19,7 +19,10 @@ name = "crossport"
 path = "src/main.rs"
 
 [dependencies]
-object = { version = "=0.40.0", default-features = false, features = ["read_core", "elf", "std"] }
+object = { version = "=0.40.0", default-features = false, features = ["read_core", "elf", "pe", "std"] }
 
 [dev-dependencies]
 object = { version = "=0.40.0", default-features = false, features = ["read", "std"] }
+
+[lints.rust]
+unsafe_code = "forbid"
