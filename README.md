@@ -28,7 +28,7 @@
 [![Rust](https://img.shields.io/badge/tooling-rust-000000?logo=rust&logoColor=white)](https://www.rust-lang.org)
 [![Platforms](https://img.shields.io/badge/targets-linux%20%E2%86%92%20windows-0E7490)](#the-idea)
 [![Status](https://img.shields.io/badge/status-early%20design-F59E0B)](#status)
-[![License](https://img.shields.io/badge/license-to%20be%20decided-lightgrey)](#license)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 Crossport takes an existing Linux AppImage and turns it into a native Windows application by
 translating the executable format and the operating system interface, not the machine code. The app
@@ -184,7 +184,7 @@ CI runs the same steps on Linux and Windows and fails the build if the two resul
 
 ## License
 
-To be decided. It is one of the open questions in [docs/DESIGN.md](docs/DESIGN.md).
+[MIT](LICENSE). Use it, fork it, make it yours.
 
 ## Why Crossport?
 

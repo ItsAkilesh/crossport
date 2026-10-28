@@ -33,7 +33,12 @@ cargo build --release --locked --manifest-path "$root/tools/difftest/Cargo.toml"
 difftest="$root/tools/difftest/target/release/difftest$exe_suffix"
 
 binary="$build_dir/$case_name$exe_suffix"
-gcc -O2 -Wall -Wextra -Werror -o "$binary" "$root/tests/corpus/$case_name/$case_name.c"
+extra_flags=()
+flags_file="$root/tests/corpus/$case_name/cflags.txt"
+if [[ -f "$flags_file" ]]; then
+  read -r -a extra_flags < "$flags_file"
+fi
+gcc -O2 -Wall -Wextra -Werror "${extra_flags[@]}" -o "$binary" "$root/tests/corpus/$case_name/$case_name.c"
 
 "$difftest" run --out "$results_dir/$case_name-$label.json" -- "$binary"
 echo "recorded $results_dir/$case_name-$label.json"

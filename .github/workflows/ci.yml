@@ -15,6 +15,7 @@ permissions:
 
 env:
   CORPUS_CASE: hello
+  TRANSLATED_CASE: hello_dyn
 
 jobs:
   linux:
@@ -24,12 +25,19 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Unit tests
         run: cargo test --locked --manifest-path tools/difftest/Cargo.toml
-      - name: Build and run corpus case
-        run: tools/run-case.sh "$CORPUS_CASE" linux
+      - name: Build and run corpus cases
+        run: |
+          tools/run-case.sh "$CORPUS_CASE" linux
+          tools/run-case.sh "$TRANSLATED_CASE" linux
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: result-linux
           path: results/*.json
+          if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: elf-${{ env.TRANSLATED_CASE }}
+          path: build/linux/${{ env.TRANSLATED_CASE }}
           if-no-files-found: error
 
   windows:

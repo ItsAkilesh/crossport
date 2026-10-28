@@ -1,0 +1,1 @@
+-fPIE -pie -fno-stack-protector -mno-red-zone -fcf-protection=none -fno-plt

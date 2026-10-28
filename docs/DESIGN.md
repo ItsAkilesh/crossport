@@ -84,7 +84,13 @@ Built before the translator, because agents and humans both need fast, objective
 
 ## 6. Open decisions
 
-- Implementation language for the translator (Rust is the current leaning, using existing ELF and PE crates).
-- Base for the libc shim: write from scratch, or adapt Cygwin, newlib, or mingw-w64 code (license implications).
-- Output form: loose bundle directory versus single-file executable with an embedded payload.
-- Project license.
+### Decided
+
+- **Translator language:** Rust, with the `object` crate (pinned) for reading ELF. The PE image is written by Crossport itself.
+- **libc shim base (Milestone 1):** written from scratch in C. Adapting newlib or mingw-w64 can be revisited at Milestone 4, when the surface grows.
+- **Output form:** a loose bundle directory (`.exe`, DLLs, data). A single-file executable can come later.
+- **Project license:** MIT.
+
+### Open
+
+- Red zone: SysV code uses the 128 bytes below `rsp`, which Windows can overwrite during exception and APC dispatch. Milestone 1 builds the corpus with `-mno-red-zone`; real binaries will need a design answer before Milestone 4.
