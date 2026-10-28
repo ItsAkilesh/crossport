@@ -4,6 +4,7 @@
 // Date: 2026-10-28
 
 mod address_map;
+mod code_ranges;
 mod dynamic;
 mod header;
 mod relocs;
@@ -34,13 +35,14 @@ pub fn analyze(data: &[u8]) -> Result<ElfInfo, TranslateError> {
     let phdrs = header
         .program_headers(endian, data)
         .map_err(|e| malformed("program headers", e))?;
-    header::reject_tls(phdrs, endian)?;
+    let tls = header::tls_segment(phdrs, endian)?;
     let segments = header::load_segments(phdrs, endian)?;
     let map = AddressMap::new(&segments);
     let table = dynamic::read(phdrs, endian, data)?;
     let strings = table.strings(data, &map)?;
     let symbols = symbols::read(data, &map, &table, &strings)?;
     let relocations = relocs::read(data, &map, &table, symbols.len())?;
+    let code_ranges = code_ranges::read(data, &map, phdrs, endian)?;
     Ok(ElfInfo {
         entry: header.e_entry(endian),
         soname: optional_string(&strings, table.soname)?,
@@ -51,6 +53,8 @@ pub fn analyze(data: &[u8]) -> Result<ElfInfo, TranslateError> {
         fini: table.fini,
         init_array: array_range(table.init_array, table.init_arraysz),
         fini_array: array_range(table.fini_array, table.fini_arraysz),
+        tls,
+        code_ranges,
         segments,
     })
 }

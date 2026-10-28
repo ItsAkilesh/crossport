@@ -76,12 +76,20 @@ fn convert(entry: &RelaEntry, symbol_count: usize) -> Result<Option<Relocation>,
             check_symbol(symbol, symbol_count)?;
             RelocKind::Copy { symbol }
         }
-        elf::R_X86_64_DTPMOD64
-        | elf::R_X86_64_DTPOFF64
-        | elf::R_X86_64_TPOFF64
-        | elf::R_X86_64_TLSDESC => {
+        elf::R_X86_64_DTPMOD64 => RelocKind::TlsModule {
+            symbol: optional_symbol(symbol, symbol_count)?,
+        },
+        elf::R_X86_64_DTPOFF64 => RelocKind::TlsOffset {
+            symbol: optional_symbol(symbol, symbol_count)?,
+            addend,
+        },
+        elf::R_X86_64_TPOFF64 => RelocKind::TlsThreadOffset {
+            symbol: optional_symbol(symbol, symbol_count)?,
+            addend,
+        },
+        elf::R_X86_64_TLSDESC => {
             return Err(TranslateError::Unsupported(
-                "thread-local storage relocations are not translated yet (Milestone 3)".into(),
+                "TLS descriptors (-mtls-dialect=gnu2) are not translated".into(),
             ))
         }
         other => {
@@ -92,6 +100,15 @@ fn convert(entry: &RelaEntry, symbol_count: usize) -> Result<Option<Relocation>,
         }
     };
     Ok(Some(Relocation { offset, kind }))
+}
+
+/// TLS relocations may omit the symbol (index 0), meaning "this module".
+fn optional_symbol(symbol: usize, symbol_count: usize) -> Result<Option<usize>, TranslateError> {
+    if symbol == 0 {
+        return Ok(None);
+    }
+    check_symbol(symbol, symbol_count)?;
+    Ok(Some(symbol))
 }
 
 fn check_symbol(symbol: usize, symbol_count: usize) -> Result<(), TranslateError> {

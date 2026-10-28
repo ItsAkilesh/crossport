@@ -9,10 +9,12 @@ use object::Endianness;
 
 use super::address_map::add;
 use super::{Header, Phdr};
-use crate::elf_model::{LoadSegment, SegmentFlags};
+use crate::elf_model::{LoadSegment, SegmentFlags, TlsSegment};
 use crate::error::TranslateError;
 
 const MAX_SEGMENTS: usize = 64;
+/// Largest TLS template accepted for one module.
+const MAX_TLS_BYTES: u64 = 16 * 1024 * 1024;
 /// Upper bound for one module's mapped size, so a hostile `p_memsz` cannot exhaust memory.
 pub const MAX_IMAGE_BYTES: u64 = 256 * 1024 * 1024;
 
@@ -31,14 +33,29 @@ pub(super) fn check_header(header: &Header, endian: Endianness) -> Result<(), Tr
     Ok(())
 }
 
-/// Thread-local storage needs the FS-relative rewriting of Milestone 3.
-pub(super) fn reject_tls(phdrs: &[Phdr], endian: Endianness) -> Result<(), TranslateError> {
-    if phdrs.iter().any(|ph| ph.p_type(endian) == elf::PT_TLS) {
-        return Err(TranslateError::Unsupported(
-            "thread-local storage (PT_TLS) is not translated yet (Milestone 3)".into(),
-        ));
+/// The `PT_TLS` template, if the module has thread-local variables.
+pub(super) fn tls_segment(
+    phdrs: &[Phdr],
+    endian: Endianness,
+) -> Result<Option<TlsSegment>, TranslateError> {
+    let mut found = None;
+    for ph in phdrs.iter().filter(|ph| ph.p_type(endian) == elf::PT_TLS) {
+        let align = ph.p_align(endian).max(1);
+        let segment = TlsSegment {
+            vaddr: ph.p_vaddr(endian),
+            file_size: ph.p_filesz(endian),
+            mem_size: ph.p_memsz(endian),
+            align,
+        };
+        let is_valid = align.is_power_of_two()
+            && segment.file_size <= segment.mem_size
+            && segment.mem_size <= MAX_TLS_BYTES
+            && segment.vaddr.checked_add(segment.file_size).is_some();
+        if !is_valid || found.replace(segment).is_some() {
+            return Err(TranslateError::Elf("invalid or duplicate PT_TLS segment".into()));
+        }
     }
-    Ok(())
+    Ok(found)
 }
 
 pub(super) fn load_segments(

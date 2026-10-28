@@ -82,6 +82,7 @@ impl Patcher<'_, '_> {
             RelocKind::Relative { addend } => self.absolute(slot, 0, addend),
             RelocKind::Symbol { symbol, addend } => self.symbol(slot, symbol, addend),
             RelocKind::Copy { symbol } => self.copy(slot, symbol),
+            RelocKind::TlsModule { .. } | RelocKind::TlsOffset { .. } | RelocKind::TlsThreadOffset { .. } => Ok(()),
         }
     }
 

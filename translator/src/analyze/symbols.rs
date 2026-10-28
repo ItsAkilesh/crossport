@@ -132,5 +132,6 @@ fn to_symbol(entry: &SymEntry, strings: &Strings<'_>) -> Result<DynSymbol, Trans
         binding,
         definition,
         size: entry.st_size(endian),
+        is_tls: entry.st_type() == elf::STT_TLS,
     })
 }
