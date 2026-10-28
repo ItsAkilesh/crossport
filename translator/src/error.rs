@@ -25,6 +25,8 @@ pub enum TranslateError {
         symbol: String,
         module: String,
     },
+    /// Strongly referenced symbols defined by no module and not provided by the shim, all at once.
+    UnresolvedSymbols(Vec<String>),
     /// The library dependency graph contains a cycle.
     DependencyCycle(String),
     /// An input exceeds a safety limit.
@@ -45,10 +47,32 @@ impl fmt::Display for TranslateError {
                 f,
                 "symbol {symbol} (needed by {module}) is not defined by any bundled library or the shim"
             ),
+            Self::UnresolvedSymbols(symbols) => write!(f, "{}", describe_missing(symbols)),
             Self::DependencyCycle(path) => write!(f, "library dependency cycle: {path}"),
             Self::LimitExceeded(message) => write!(f, "limit exceeded: {message}"),
         }
     }
+}
+
+const MAX_LISTED_SYMBOLS: usize = 40;
+
+fn describe_missing(symbols: &[String]) -> String {
+    let shown: Vec<&str> = symbols
+        .iter()
+        .take(MAX_LISTED_SYMBOLS)
+        .map(String::as_str)
+        .collect();
+    let more = symbols.len().saturating_sub(MAX_LISTED_SYMBOLS);
+    let suffix = if more > 0 {
+        format!(" (and {more} more)")
+    } else {
+        String::new()
+    };
+    format!(
+        "{} symbols are not defined by any bundled library or the shim: {}{suffix}",
+        symbols.len(),
+        shown.join(", ")
+    )
 }
 
 impl std::error::Error for TranslateError {}

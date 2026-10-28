@@ -21,6 +21,8 @@ pub const SHIM_PROVIDED_LIBRARIES: &[&str] = &[
     "libpthread.so.0",
     "libdl.so.2",
     "librt.so.1",
+    // The math library is implemented by the shim as well.
+    "libm.so.6",
 ];
 pub const MAX_MODULES: usize = 256;
 /// Total bytes of ELF input across all modules.

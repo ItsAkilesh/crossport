@@ -3,6 +3,7 @@
 // Author: Akilesh
 // Date: 2026-10-28
 
+use crate::coverage::missing_symbols;
 use crate::error::TranslateError;
 use crate::graph;
 use crate::naming::ModuleName;
@@ -48,6 +49,10 @@ pub fn translate(
         )));
     }
     let graph = graph::load(exe_name, exe_data, source)?;
+    let missing = missing_symbols(&graph, shim);
+    if !missing.is_empty() {
+        return Err(TranslateError::UnresolvedSymbols(missing));
+    }
     let resolver = Resolver::new(&graph, shim);
     let tls = TlsLayout::compute(&graph.modules)?;
     let mut files = Vec::with_capacity(graph.modules.len());

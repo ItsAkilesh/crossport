@@ -238,7 +238,7 @@ fn a_symbol_nobody_provides_fails_at_translation_time() {
         ShimExports::from_names(["__libc_start_main", "crossport_start"].map(String::from));
     let result = translate(name("two_libs"), EXE.to_vec(), &fixtures(), &without_puts);
     assert!(
-        matches!(result, Err(TranslateError::UnresolvedSymbol { symbol, .. }) if symbol == "puts")
+        matches!(result, Err(TranslateError::UnresolvedSymbols(ref symbols)) if symbols == &["puts".to_string()])
     );
 }
 
@@ -491,6 +491,6 @@ fn a_shim_missing_a_pthread_function_fails_at_translation_time() {
         &without_join,
     );
     assert!(
-        matches!(result, Err(TranslateError::UnresolvedSymbol { symbol, .. }) if symbol == "pthread_join")
+        matches!(result, Err(TranslateError::UnresolvedSymbols(ref symbols)) if symbols == &["pthread_join".to_string()])
     );
 }

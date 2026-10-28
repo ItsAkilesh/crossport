@@ -5,7 +5,7 @@
 
 use std::collections::BTreeMap;
 
-use crate::elf_model::Definition;
+use crate::elf_model::{Definition, RelocKind};
 use crate::error::TranslateError;
 use crate::graph::ModuleGraph;
 use crate::shim_exports::ShimExports;
@@ -104,9 +104,19 @@ pub fn measure(
     }
 }
 
+/// Strong, unresolved symbols the shim does not provide, sorted by name. A translation fails on exactly these.
+pub fn missing_symbols(graph: &ModuleGraph, shim: &ShimExports) -> Vec<String> {
+    external_symbols(graph)
+        .into_iter()
+        .filter(|(name, is_strong)| *is_strong && !shim.provides(name))
+        .map(|(name, _)| name)
+        .collect()
+}
+
 /// `(name, referenced strongly by at least one module)` for every symbol the graph needs from outside.
 fn external_symbols(graph: &ModuleGraph) -> BTreeMap<String, bool> {
     let mut needed: BTreeMap<String, bool> = BTreeMap::new();
+    add_copy_sources(graph, &mut needed);
     for module in &graph.modules {
         for symbol in &module.info.symbols {
             let is_undefined = symbol.definition == Definition::Undefined && !symbol.is_tls;
@@ -123,6 +133,26 @@ fn external_symbols(graph: &ModuleGraph) -> BTreeMap<String, bool> {
         }
     }
     needed
+}
+
+/// A copy relocation makes the executable "define" the symbol, but its initial value must still come
+/// from a library (typically `stdout`, `stderr`, `environ` from the C library), so it is needed from outside.
+fn add_copy_sources(graph: &ModuleGraph, needed: &mut BTreeMap<String, bool>) {
+    for module in &graph.modules {
+        for relocation in &module.info.relocations {
+            if let RelocKind::Copy { symbol } = relocation.kind {
+                let name = &module.info.symbols[symbol].name;
+                let has_library_source = graph
+                    .modules
+                    .iter()
+                    .skip(1)
+                    .any(|m| m.exports.contains_key(name));
+                if !has_library_source {
+                    needed.insert(name.clone(), true);
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -210,6 +240,18 @@ mod tests {
             .collect();
         assert!(blocking.contains(&"__tls_get_addr") && blocking.contains(&"__stack_chk_fail"));
         assert!(!blocking.contains(&"puts"));
+    }
+
+    #[test]
+    fn data_symbols_reached_through_copy_relocations_count_as_needed() {
+        let provided = shim(&["puts", "__libc_start_main"]);
+        let coverage = measure(vec![program("two_libs", "two_libs")], &provided);
+        assert!(
+            coverage.symbols.iter().all(|s| s.name != "math_counter"),
+            "a library provides that copy source"
+        );
+        let graph = program("two_libs", "two_libs").1.expect("loads");
+        assert!(missing_symbols(&graph, &provided).is_empty());
     }
 
     #[test]
