@@ -21,6 +21,7 @@ path = "src/main.rs"
 [dependencies]
 object = { version = "=0.40.0", default-features = false, features = ["read_core", "elf", "pe", "std"] }
 iced-x86 = { version = "=1.21.0", default-features = false, features = ["std", "decoder", "encoder", "instr_info"] }
+backhand = { version = "=0.25.5", default-features = false, features = ["gzip", "zstd", "xz"] }
 
 [dev-dependencies]
 object = { version = "=0.40.0", default-features = false, features = ["read", "std"] }

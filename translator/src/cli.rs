@@ -7,10 +7,14 @@ use std::path::PathBuf;
 
 use crate::error::TranslateError;
 
-const USAGE: &str = "usage:\n  crossport analyze <elf>\n  crossport translate <elf> --shim <crossport_libc.dll> --out <dir> [--lib-dir <dir>]...";
+const USAGE: &str = "usage:\n  crossport unpack <app.AppImage> --out <new-or-empty-dir>\n  crossport analyze <elf>\n  crossport translate <elf> --shim <crossport_libc.dll> --out <dir> [--lib-dir <dir>]...";
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Action {
+    Unpack {
+        image: PathBuf,
+        out: PathBuf,
+    },
     Analyze {
         elf: PathBuf,
     },
@@ -24,6 +28,12 @@ pub enum Action {
 
 pub fn parse(args: &[String]) -> Result<Action, TranslateError> {
     match args {
+        [command, image, flag, out] if command == "unpack" && flag == "--out" => {
+            Ok(Action::Unpack {
+                image: PathBuf::from(image),
+                out: PathBuf::from(out),
+            })
+        }
         [command, elf] if command == "analyze" => Ok(Action::Analyze {
             elf: PathBuf::from(elf),
         }),
@@ -67,6 +77,19 @@ mod tests {
 
     fn args(items: &[&str]) -> Vec<String> {
         items.iter().map(|item| item.to_string()).collect()
+    }
+
+    #[test]
+    fn parses_unpack() {
+        assert_eq!(
+            parse(&args(&["unpack", "a.AppImage", "--out", "dir"])).expect("valid"),
+            Action::Unpack {
+                image: PathBuf::from("a.AppImage"),
+                out: PathBuf::from("dir")
+            }
+        );
+        assert!(parse(&args(&["unpack", "a.AppImage"])).is_err());
+        assert!(parse(&args(&["unpack", "a.AppImage", "--to", "dir"])).is_err());
     }
 
     #[test]

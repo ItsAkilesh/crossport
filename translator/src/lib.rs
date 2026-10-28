@@ -4,6 +4,7 @@
 // Date: 2026-10-28
 
 pub mod analyze;
+pub mod appimage;
 pub mod base_reloc;
 pub mod bundle;
 pub mod cli;

@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use crossport_translator::analyze::analyze;
+use crossport_translator::appimage::{self, Limits};
 use crossport_translator::cli::{self, Action};
 use crossport_translator::error::TranslateError;
 use crossport_translator::naming::ModuleName;
@@ -31,6 +32,7 @@ fn main() -> ExitCode {
 
 fn execute(action: Action) -> Result<(), TranslateError> {
     match action {
+        Action::Unpack { image, out } => unpack_image(&image, &out),
         Action::Analyze { elf } => show_analysis(&elf),
         Action::Translate {
             elf,
@@ -39,6 +41,24 @@ fn execute(action: Action) -> Result<(), TranslateError> {
             lib_dirs,
         } => run_translation(&elf, &shim, &out, lib_dirs),
     }
+}
+
+fn unpack_image(image: &Path, out: &Path) -> Result<(), TranslateError> {
+    let app_dir = appimage::unpack(image, out, &Limits::default())?;
+    let report = &app_dir.report;
+    println!(
+        "unpacked {} files and {} directories ({} bytes) to {}",
+        report.files,
+        report.directories,
+        report.total_bytes,
+        app_dir.root.display()
+    );
+    println!("AppRun runs {}", app_dir.apprun_target.join("/"));
+    println!("{} symlinks became copies", report.links_materialized);
+    for skipped in &report.skipped {
+        println!("skipped {skipped}");
+    }
+    Ok(())
 }
 
 fn read_file(path: &Path) -> Result<Vec<u8>, TranslateError> {
