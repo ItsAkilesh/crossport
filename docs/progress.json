@@ -79,14 +79,30 @@
     {
       "id": "M4",
       "title": "CLI corpus",
-      "status": "next",
+      "status": "active",
       "tasks": [
+        {
+          "title": "Differential runner: args, stdin, files, timeouts",
+          "done": true
+        },
+        {
+          "title": "AppImage unpacker with safety checks",
+          "done": true
+        },
+        {
+          "title": "RUNPATH and $ORIGIN library search in an AppDir",
+          "done": true
+        },
+        {
+          "title": "Libc coverage tool",
+          "done": true
+        },
         {
           "title": "Corpus of non-JIT CLI AppImages",
           "done": false
         },
         {
-          "title": "Shim coverage prioritized by usage",
+          "title": "Shim coverage grown in order of usage",
           "done": false
         },
         {

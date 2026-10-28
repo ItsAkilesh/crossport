@@ -14,7 +14,7 @@ use crossport_translator::error::TranslateError;
 use crossport_translator::naming::ModuleName;
 use crossport_translator::shim_exports::ShimExports;
 use crossport_translator::source::{read_bounded, AppDirSource, DirectorySource, LibrarySource};
-use crossport_translator::{bundle, translate};
+use crossport_translator::{bundle, coverage, graph, translate};
 
 const EXIT_ERROR: u8 = 2;
 const DEFAULT_PROGRAM_NAME: &str = "program";
@@ -34,6 +34,12 @@ fn execute(action: Action) -> Result<(), TranslateError> {
     match action {
         Action::Unpack { image, out } => unpack_image(&image, &out),
         Action::Analyze { elf } => show_analysis(&elf),
+        Action::Coverage {
+            shim,
+            elfs,
+            lib_dirs,
+            appdir,
+        } => show_coverage(&shim, &elfs, &lib_dirs, appdir.as_deref()),
         Action::Translate {
             elf,
             shim,
@@ -60,6 +66,64 @@ fn unpack_image(image: &Path, out: &Path) -> Result<(), TranslateError> {
         println!("skipped {skipped}");
     }
     Ok(())
+}
+
+fn show_coverage(
+    shim: &Path,
+    elfs: &[PathBuf],
+    lib_dirs: &[PathBuf],
+    appdir: Option<&Path>,
+) -> Result<(), TranslateError> {
+    let exports = ShimExports::from_dll(&read_file(shim)?)?;
+    let mut programs = Vec::with_capacity(elfs.len());
+    for elf in elfs {
+        let stem = elf
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or(DEFAULT_PROGRAM_NAME);
+        let loaded = library_source(elf, appdir.map(Path::to_path_buf), lib_dirs.to_vec())
+            .and_then(|source| {
+                graph::load(
+                    ModuleName::sanitized(stem)?,
+                    read_file(elf)?,
+                    source.as_ref(),
+                )
+            });
+        programs.push((stem.to_string(), loaded));
+    }
+    print_coverage(&coverage::measure(programs, &exports));
+    Ok(())
+}
+
+fn print_coverage(coverage: &coverage::Coverage) {
+    println!(
+        "programs: {} loaded of {}",
+        coverage.loaded_programs(),
+        coverage.programs.len()
+    );
+    for program in &coverage.programs {
+        match &program.result {
+            Ok(modules) => println!("  ok      {} ({modules} modules)", program.name),
+            Err(reason) => println!("  FAILED  {}: {reason}", program.name),
+        }
+    }
+    let provided = coverage.symbols.iter().filter(|s| s.is_provided).count();
+    println!(
+        "symbols needed from the C library: {} ({provided} provided by the shim)",
+        coverage.symbols.len()
+    );
+    if let Some(ratio) = coverage.weighted_coverage() {
+        println!("usage-weighted coverage: {:.1}%", ratio * 100.0);
+    }
+    println!("{:>8}  {:<9} symbol", "programs", "status");
+    for symbol in &coverage.symbols {
+        let status = match (symbol.is_provided, symbol.is_weak_only) {
+            (true, _) => "provided",
+            (false, true) => "weak",
+            (false, false) => "MISSING",
+        };
+        println!("{:>8}  {:<9} {}", symbol.programs, status, symbol.name);
+    }
 }
 
 fn read_file(path: &Path) -> Result<Vec<u8>, TranslateError> {

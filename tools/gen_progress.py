@@ -30,7 +30,7 @@ CELL_GAP = 5
 CELLS_X = 420
 FONT = "-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif"
 
-STATUS_LABELS = {"done": "done", "next": "up next", "planned": "planned"}
+STATUS_LABELS = {"done": "done", "active": "in progress", "next": "up next", "planned": "planned"}
 
 STYLE = """
   :root { --fg:#1F2328; --muted:#656D76; --line:#D0D7DE; --bg:#FFFFFF;
@@ -77,7 +77,7 @@ def summarize(milestones: list[Milestone]) -> tuple[int, int]:
 
 
 def status_color(status: str) -> str:
-    return {"done": "var(--done)", "next": "var(--next)"}.get(status, "var(--todo)")
+    return {"done": "var(--done)", "active": "var(--next)", "next": "var(--next)"}.get(status, "var(--todo)")
 
 
 def status_text_color(status: str) -> str:
@@ -112,7 +112,7 @@ def render_overall_bar(milestones: list[Milestone]) -> str:
 def render_cell(x: float, y: float, milestone: Milestone, task: Task) -> str:
     if task.is_done:
         style = f'fill="{status_color("done")}"'
-    elif milestone.status == "next":
+    elif milestone.status in ("active", "next"):
         style = f'fill="none" stroke="{status_color("next")}" stroke-width="2"'
     else:
         style = f'fill="{status_color("planned")}"'

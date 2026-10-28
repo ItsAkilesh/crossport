@@ -31,11 +31,16 @@
 - pthreads on Windows threads.
 - **Exit criterion:** a multithreaded test suite using thread-local variables passes.
 
-## Milestone 4: CLI corpus
+## Milestone 4: CLI corpus (in progress)
 
 - Corpus of non-JIT CLI AppImages.
 - Shim coverage prioritized by usage frequency.
 - **Exit criterion:** a target pass rate on the corpus, to be set once the corpus exists.
+- **Done so far:** the differential runner (arguments, stdin, environment, directory, timeout, produced
+  files), the AppImage unpacker, `RUNPATH`/`$ORIGIN` library search confined to the AppDir, and the
+  `crossport coverage` tool that reports which libc symbols a set of programs needs.
+- **Still to do:** build the real-app corpus, take the baseline, grow the shim in order of usage and set
+  the target (proposed: all of tier 1, at least 90% of invocations overall).
 
 ## Milestone 5: Vulkan
 

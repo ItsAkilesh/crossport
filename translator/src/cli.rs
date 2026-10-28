@@ -7,7 +7,8 @@ use std::path::PathBuf;
 
 use crate::error::TranslateError;
 
-const USAGE: &str = "usage:\n  crossport unpack <app.AppImage> --out <new-or-empty-dir>\n  crossport analyze <elf>\n  crossport translate <elf> --shim <crossport_libc.dll> --out <dir> [--lib-dir <dir>]... [--appdir <dir>]";
+const USAGE: &str = "usage:\n  crossport unpack <app.AppImage> --out <new-or-empty-dir>\n  crossport analyze <elf>\n  crossport coverage --shim <crossport_libc.dll> [--appdir <dir>] [--lib-dir <dir>]... <elf>...
+  crossport translate <elf> --shim <crossport_libc.dll> --out <dir> [--lib-dir <dir>]... [--appdir <dir>]";
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Action {
@@ -17,6 +18,12 @@ pub enum Action {
     },
     Analyze {
         elf: PathBuf,
+    },
+    Coverage {
+        shim: PathBuf,
+        elfs: Vec<PathBuf>,
+        lib_dirs: Vec<PathBuf>,
+        appdir: Option<PathBuf>,
     },
     Translate {
         elf: PathBuf,
@@ -40,6 +47,7 @@ pub fn parse(args: &[String]) -> Result<Action, TranslateError> {
             elf: PathBuf::from(elf),
         }),
         [command, elf, flags @ ..] if command == "translate" => parse_translate(elf, flags),
+        [command, rest @ ..] if command == "coverage" => parse_coverage(rest),
         _ => Err(usage()),
     }
 }
@@ -72,6 +80,34 @@ fn parse_translate(elf: &str, flags: &[String]) -> Result<Action, TranslateError
     }
 }
 
+fn parse_coverage(args: &[String]) -> Result<Action, TranslateError> {
+    let (mut shim, mut appdir) = (None, None);
+    let (mut elfs, mut lib_dirs) = (Vec::new(), Vec::new());
+    let mut remaining = args.iter();
+    while let Some(argument) = remaining.next() {
+        match argument.as_str() {
+            "--shim" if shim.is_none() => {
+                shim = Some(PathBuf::from(remaining.next().ok_or_else(usage)?))
+            }
+            "--appdir" if appdir.is_none() => {
+                appdir = Some(PathBuf::from(remaining.next().ok_or_else(usage)?))
+            }
+            "--lib-dir" => lib_dirs.push(PathBuf::from(remaining.next().ok_or_else(usage)?)),
+            flag if flag.starts_with("--") => return Err(usage()),
+            elf => elfs.push(PathBuf::from(elf)),
+        }
+    }
+    match shim {
+        Some(shim) if !elfs.is_empty() => Ok(Action::Coverage {
+            shim,
+            elfs,
+            lib_dirs,
+            appdir,
+        }),
+        _ => Err(usage()),
+    }
+}
+
 fn usage() -> TranslateError {
     TranslateError::Usage(USAGE.to_string())
 }
@@ -95,6 +131,36 @@ mod tests {
         );
         assert!(parse(&args(&["unpack", "a.AppImage"])).is_err());
         assert!(parse(&args(&["unpack", "a.AppImage", "--to", "dir"])).is_err());
+    }
+
+    #[test]
+    fn parses_coverage_with_several_programs_and_options_in_any_position() {
+        let action = parse(&args(&[
+            "coverage",
+            "a",
+            "--shim",
+            "s.dll",
+            "b",
+            "--lib-dir",
+            "l",
+            "--appdir",
+            "app",
+        ]));
+        assert_eq!(
+            action.expect("valid"),
+            Action::Coverage {
+                shim: PathBuf::from("s.dll"),
+                elfs: vec![PathBuf::from("a"), PathBuf::from("b")],
+                lib_dirs: vec![PathBuf::from("l")],
+                appdir: Some(PathBuf::from("app")),
+            }
+        );
+        assert!(
+            parse(&args(&["coverage", "--shim", "s.dll"])).is_err(),
+            "needs a program"
+        );
+        assert!(parse(&args(&["coverage", "a"])).is_err(), "needs a shim");
+        assert!(parse(&args(&["coverage", "a", "--shim", "s", "--bogus"])).is_err());
     }
 
     #[test]

@@ -8,6 +8,7 @@ pub mod appimage;
 pub mod base_reloc;
 pub mod bundle;
 pub mod cli;
+pub mod coverage;
 pub mod elf_model;
 pub mod error;
 pub mod exports;

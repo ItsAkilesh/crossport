@@ -138,7 +138,8 @@ starting with command-line tools, then Vulkan and GUI applications.
 
 ## Status
 
-Early. Milestones 0 to 3 are done. A Linux executable and the shared libraries it bundles are
+Early. Milestones 0 to 3 are done and Milestone 4 is under way (AppImage unpacking, AppDir library
+search and a libc coverage tool exist; the real-app corpus and a much larger libc are next). A Linux executable and the shared libraries it bundles are
 translated into a native Windows `.exe`, one DLL per library and a small shim DLL, and the result
 passes a byte-for-byte differential test against the original in CI, including constructor and
 destructor order, cross-library calls, shared data, function-pointer tables, all four ELF
