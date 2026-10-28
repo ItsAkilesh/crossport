@@ -7,7 +7,9 @@
 # Usage: tools/run-case.sh <case> <label>
 #   <case>  directory name under tests/corpus/ (e.g. hello)
 #   <label> platform label used in the output name (e.g. linux, windows)
-# Output: results/<case>-<label>.json
+# A case is either <case>.c (built with optional cflags.txt flags) or a build.sh
+# that takes an output directory and produces <case> inside it.
+# Output: build/<label>/<case>/ and results/<case>-<label>.json
 
 set -euo pipefail
 
@@ -19,7 +21,8 @@ fi
 case_name="$1"
 label="$2"
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-build_dir="$root/build/$label"
+case_dir="$root/tests/corpus/$case_name"
+build_dir="$root/build/$label/$case_name"
 results_dir="$root/results"
 
 exe_suffix=""
@@ -27,18 +30,22 @@ if [[ "${OS:-}" == "Windows_NT" ]]; then
   exe_suffix=".exe"
 fi
 
+rm -rf "$build_dir"
 mkdir -p "$build_dir" "$results_dir"
 
 cargo build --release --locked --manifest-path "$root/tools/difftest/Cargo.toml"
 difftest="$root/tools/difftest/target/release/difftest$exe_suffix"
 
-binary="$build_dir/$case_name$exe_suffix"
-extra_flags=()
-flags_file="$root/tests/corpus/$case_name/cflags.txt"
-if [[ -f "$flags_file" ]]; then
-  read -r -a extra_flags < "$flags_file"
+if [[ -f "$case_dir/build.sh" ]]; then
+  bash "$case_dir/build.sh" "$build_dir"
+else
+  extra_flags=()
+  if [[ -f "$case_dir/cflags.txt" ]]; then
+    read -r -a extra_flags < "$case_dir/cflags.txt"
+  fi
+  gcc -O2 -Wall -Wextra -Werror "${extra_flags[@]}" \
+    -o "$build_dir/$case_name$exe_suffix" "$case_dir/$case_name.c"
 fi
-gcc -O2 -Wall -Wextra -Werror "${extra_flags[@]}" -o "$binary" "$root/tests/corpus/$case_name/$case_name.c"
 
-"$difftest" run --out "$results_dir/$case_name-$label.json" -- "$binary"
+"$difftest" run --out "$results_dir/$case_name-$label.json" -- "$build_dir/$case_name$exe_suffix"
 echo "recorded $results_dir/$case_name-$label.json"

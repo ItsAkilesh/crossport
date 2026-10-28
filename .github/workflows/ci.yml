@@ -14,8 +14,9 @@ permissions:
   contents: read
 
 env:
-  CORPUS_CASE: hello
-  TRANSLATED_CASE: hello_dyn
+  NATIVE_CASES: hello
+  TRANSLATED_CASES: hello_dyn
+  LINUX_ONLY_CASES: two_libs
 
 jobs:
   linux:
@@ -29,8 +30,9 @@ jobs:
           cargo test --locked --manifest-path translator/Cargo.toml
       - name: Build and run corpus cases
         run: |
-          tools/run-case.sh "$CORPUS_CASE" linux
-          tools/run-case.sh "$TRANSLATED_CASE" linux
+          for corpus_case in $NATIVE_CASES $TRANSLATED_CASES $LINUX_ONLY_CASES; do
+            tools/run-case.sh "$corpus_case" linux
+          done
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: result-linux
@@ -38,8 +40,8 @@ jobs:
           if-no-files-found: error
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: elf-${{ env.TRANSLATED_CASE }}
-          path: build/linux/${{ env.TRANSLATED_CASE }}
+          name: elf-corpus
+          path: build/linux
           if-no-files-found: error
 
   windows:
@@ -55,14 +57,20 @@ jobs:
         run: |
           cargo test --locked --manifest-path tools/difftest/Cargo.toml
           cargo test --locked --manifest-path translator/Cargo.toml
-      - name: Build and run native corpus case
-        run: tools/run-case.sh "$CORPUS_CASE" windows
+      - name: Build and run native corpus cases
+        run: |
+          for corpus_case in $NATIVE_CASES; do
+            tools/run-case.sh "$corpus_case" windows
+          done
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: elf-${{ env.TRANSLATED_CASE }}
+          name: elf-corpus
           path: build/elf
-      - name: Translate the Linux ELF and run it on Windows
-        run: tools/run-translated.sh "$TRANSLATED_CASE"
+      - name: Translate the Linux ELF files and run them on Windows
+        run: |
+          for corpus_case in $TRANSLATED_CASES; do
+            tools/run-translated.sh "$corpus_case"
+          done
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: result-windows
@@ -84,7 +92,7 @@ jobs:
         run: cargo build --release --locked --manifest-path tools/difftest/Cargo.toml
       - name: Compare Linux and Windows results
         run: |
-          for corpus_case in "$CORPUS_CASE" "$TRANSLATED_CASE"; do
+          for corpus_case in $NATIVE_CASES $TRANSLATED_CASES; do
             echo "comparing $corpus_case"
             tools/difftest/target/release/difftest compare               "results/$corpus_case-linux.json"               "results/$corpus_case-windows.json"
           done

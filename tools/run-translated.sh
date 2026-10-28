@@ -5,7 +5,7 @@
 # Date: 2026-10-28
 #
 # Usage: tools/run-translated.sh <case>
-#   <case> corpus case name; the ELF is read from build/elf/<case>
+#   <case> corpus case name; the ELF and its libraries are read from build/elf/<case>/
 # Output: results/<case>-windows.json
 # Needs: cargo and a mingw-w64 gcc on a Windows host.
 
@@ -18,7 +18,8 @@ fi
 
 case_name="$1"
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-elf="$root/build/elf/$case_name"
+elf_dir="$root/build/elf/$case_name"
+elf="$elf_dir/$case_name"
 shim_dir="$root/build/shim"
 bundle_dir="$root/build/bundle/$case_name"
 results_dir="$root/results"

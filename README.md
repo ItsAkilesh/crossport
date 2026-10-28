@@ -166,7 +166,7 @@ tools/difftest/target/release/difftest compare results/hello-linux.json results/
 CI runs the same steps on Linux and Windows and fails the build if the two results differ.
 
 To translate the dynamically linked `hello_dyn` case on Windows, take the ELF that the Linux CI job
-uploads (artifact `elf-hello_dyn`), place it at `build/elf/hello_dyn`, then:
+uploads (artifact `elf-corpus`), place it under `build/elf/` (so the program is `build/elf/hello_dyn/hello_dyn`), then:
 
 ```bash
 tools/run-translated.sh hello_dyn     # builds the shim, translates, runs, records the result
@@ -175,8 +175,8 @@ tools/run-translated.sh hello_dyn     # builds the shim, translates, runs, recor
 You can also drive the translator directly:
 
 ```bash
-translator/target/release/crossport analyze build/elf/hello_dyn
-translator/target/release/crossport translate build/elf/hello_dyn --shim build/shim/crossport_libc.dll --out build/bundle/hello_dyn
+translator/target/release/crossport analyze build/elf/hello_dyn/hello_dyn
+translator/target/release/crossport translate build/elf/hello_dyn/hello_dyn --shim build/shim/crossport_libc.dll --out build/bundle/hello_dyn
 ```
 
 ## Repository layout
