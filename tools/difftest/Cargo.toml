@@ -1,0 +1,14 @@
+# File: tools/difftest/Cargo.toml
+# Purpose: Manifest for the differential test runner (run a command, compare two results)
+# Author: Akilesh
+# Date: 2026-10-28
+
+[package]
+name = "difftest"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+serde = { version = "=1.0.228", features = ["derive"] }
+serde_json = "=1.0.145"

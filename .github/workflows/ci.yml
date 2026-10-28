@@ -1,0 +1,70 @@
+# File: .github/workflows/ci.yml
+# Purpose: Build and run corpus cases on Linux and Windows, then diff the results
+# Author: Akilesh
+# Date: 2026-10-28
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  CORPUS_CASE: hello
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Unit tests
+        run: cargo test --locked --manifest-path tools/difftest/Cargo.toml
+      - name: Build and run corpus case
+        run: tools/run-case.sh "$CORPUS_CASE" linux
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: result-linux
+          path: results/*.json
+          if-no-files-found: error
+
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Unit tests
+        run: cargo test --locked --manifest-path tools/difftest/Cargo.toml
+      - name: Build and run corpus case
+        run: tools/run-case.sh "$CORPUS_CASE" windows
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: result-windows
+          path: results/*.json
+          if-no-files-found: error
+
+  differential:
+    needs: [linux, windows]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: result-*
+          path: results
+          merge-multiple: true
+      - name: Build difftest
+        run: cargo build --release --locked --manifest-path tools/difftest/Cargo.toml
+      - name: Compare Linux and Windows results
+        run: >
+          tools/difftest/target/release/difftest compare
+          "results/$CORPUS_CASE-linux.json"
+          "results/$CORPUS_CASE-windows.json"

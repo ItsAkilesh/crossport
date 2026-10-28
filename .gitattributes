@@ -1,0 +1,6 @@
+# File: .gitattributes
+# Purpose: Force LF line endings so Linux and Windows checkouts are byte-identical
+# Author: Akilesh
+# Date: 2026-10-28
+
+* text=auto eol=lf
