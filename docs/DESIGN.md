@@ -2,7 +2,7 @@
   File: docs/DESIGN.md
   Purpose: Technical design for the Crossport ELF-to-PE static translator
   Author: Akilesh
-  Date: 2026-10-28
+  Date: 2026-10-29
 -->
 
 # Crossport Design
@@ -121,6 +121,14 @@ Built before the translator, because agents and humans both need fast, objective
 - **libc shim base (Milestone 1):** written from scratch in C. Adapting newlib or mingw-w64 can be revisited at Milestone 4, when the surface grows.
 - **Output form:** a loose bundle directory (`.exe`, DLLs, data). A single-file executable can come later.
 - **Project license:** MIT.
+- **Milestone 5 sample (decided 2026-10-29):** offscreen first. The sample renders to an image, reads it
+  back and writes a PPM, so Linux and Windows output can be compared byte for byte with no window. A
+  windowed triangle comes second.
+- **Milestone 5 window surface (decided 2026-10-29):** a minimal xcb shim (connect, create window, map)
+  backed by one Win32 window, with `VK_KHR_xcb_surface` implemented on top of `VK_KHR_win32_surface`. It
+  is the seed of the Milestone 6 X11 work.
+- **Milestone 5 CI driver (decided 2026-10-29):** a pinned, checksum-verified SwiftShader build plus the
+  Khronos loader, because hosted Windows runners have no GPU and CPU rendering is deterministic.
 
 ### Open
 
