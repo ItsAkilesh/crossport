@@ -2,10 +2,11 @@
  * File: shim/errno.c
  * Purpose: errno storage on any thread, Win32-to-Linux error mapping and glibc's strerror messages
  * Author: Akilesh
- * Date: 2026-10-28
+ * Date: 2026-10-29
  */
 
 #include <stdio.h>
+#include <winsock2.h>
 
 #include "libc_abi.h"
 #include "tls.h"
@@ -38,6 +39,16 @@ static const ErrorMapping g_mappings[] = {
     {ERROR_TOO_MANY_OPEN_FILES, LINUX_EMFILE}, {ERROR_FILENAME_EXCED_RANGE, LINUX_ENAMETOOLONG},
     {ERROR_BUFFER_OVERFLOW, LINUX_ENAMETOOLONG}, {ERROR_NOT_SUPPORTED, LINUX_ENOSYS},
     {ERROR_CALL_NOT_IMPLEMENTED, LINUX_ENOSYS}, {ERROR_BUSY, LINUX_EBUSY},
+    {WSAEINTR, LINUX_EINTR}, {WSAEBADF, LINUX_EBADF}, {WSAEACCES, LINUX_EACCES}, {WSAEFAULT, LINUX_EFAULT},
+    {WSAEINVAL, LINUX_EINVAL}, {WSAEMFILE, LINUX_EMFILE}, {WSAEWOULDBLOCK, LINUX_EAGAIN},
+    {WSAEINPROGRESS, LINUX_EINPROGRESS}, {WSAEALREADY, LINUX_EALREADY}, {WSAENOTSOCK, LINUX_ENOTSOCK},
+    {WSAEMSGSIZE, LINUX_EMSGSIZE}, {WSAEPROTOTYPE, LINUX_EPROTOTYPE}, {WSAENOPROTOOPT, LINUX_ENOPROTOOPT},
+    {WSAEPROTONOSUPPORT, LINUX_EPROTONOSUPPORT}, {WSAEOPNOTSUPP, LINUX_EOPNOTSUPP},
+    {WSAEAFNOSUPPORT, LINUX_EAFNOSUPPORT}, {WSAEADDRINUSE, LINUX_EADDRINUSE},
+    {WSAEADDRNOTAVAIL, LINUX_EADDRNOTAVAIL}, {WSAENETDOWN, LINUX_ENETDOWN}, {WSAENETUNREACH, LINUX_ENETUNREACH},
+    {WSAECONNABORTED, LINUX_ECONNABORTED}, {WSAECONNRESET, LINUX_ECONNRESET}, {WSAENOBUFS, LINUX_ENOBUFS},
+    {WSAEISCONN, LINUX_EISCONN}, {WSAENOTCONN, LINUX_ENOTCONN}, {WSAETIMEDOUT, LINUX_ETIMEDOUT},
+    {WSAECONNREFUSED, LINUX_ECONNREFUSED}, {WSAEHOSTUNREACH, LINUX_EHOSTUNREACH},
 };
 
 int shim_errno_from_win(DWORD code)
@@ -83,6 +94,17 @@ static const ErrorMessage g_messages[] = {
     {LINUX_ELOOP, "Too many levels of symbolic links"},
     {LINUX_EOVERFLOW, "Value too large for defined data type"},
     {LINUX_EILSEQ, "Invalid or incomplete multibyte or wide character"},
+    {LINUX_ENOTSOCK, "Socket operation on non-socket"}, {LINUX_EMSGSIZE, "Message too long"},
+    {LINUX_EPROTOTYPE, "Protocol wrong type for socket"}, {LINUX_ENOPROTOOPT, "Protocol not available"},
+    {LINUX_EPROTONOSUPPORT, "Protocol not supported"}, {LINUX_EOPNOTSUPP, "Operation not supported"},
+    {LINUX_EAFNOSUPPORT, "Address family not supported by protocol"}, {LINUX_EADDRINUSE, "Address already in use"},
+    {LINUX_EADDRNOTAVAIL, "Cannot assign requested address"}, {LINUX_ENETDOWN, "Network is down"},
+    {LINUX_ENETUNREACH, "Network is unreachable"}, {LINUX_ECONNABORTED, "Software caused connection abort"},
+    {LINUX_ECONNRESET, "Connection reset by peer"}, {LINUX_ENOBUFS, "No buffer space available"},
+    {LINUX_EISCONN, "Transport endpoint is already connected"}, {LINUX_ENOTCONN, "Transport endpoint is not connected"},
+    {LINUX_ETIMEDOUT, "Connection timed out"}, {LINUX_ECONNREFUSED, "Connection refused"},
+    {LINUX_EHOSTUNREACH, "No route to host"}, {LINUX_EALREADY, "Operation already in progress"},
+    {LINUX_EINPROGRESS, "Operation now in progress"},
 };
 
 const char *shim_strerror(int value, char *scratch, size_t scratch_size)

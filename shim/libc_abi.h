@@ -2,7 +2,7 @@
  * File: shim/libc_abi.h
  * Purpose: Conventions every public C library function of the shim follows, plus Linux errno values and shared helpers
  * Author: Akilesh
- * Date: 2026-10-28
+ * Date: 2026-10-29
  *
  * Translated code calls the C library with the System V convention. The compiler, however, generates its own
  * calls (memcpy for struct copies, for example) with the Windows convention, and the Windows C runtime exports
@@ -39,7 +39,13 @@ enum {
     LINUX_ENFILE = 23, LINUX_EMFILE = 24, LINUX_ENOTTY = 25, LINUX_EFBIG = 27, LINUX_ENOSPC = 28,
     LINUX_ESPIPE = 29, LINUX_EROFS = 30, LINUX_EMLINK = 31, LINUX_EPIPE = 32, LINUX_EDOM = 33,
     LINUX_ERANGE = 34, LINUX_EDEADLK = 35, LINUX_ENAMETOOLONG = 36, LINUX_ENOSYS = 38,
-    LINUX_ENOTEMPTY = 39, LINUX_ELOOP = 40, LINUX_EOVERFLOW = 75, LINUX_EILSEQ = 84
+    LINUX_ENOTEMPTY = 39, LINUX_ELOOP = 40, LINUX_EOVERFLOW = 75, LINUX_EILSEQ = 84,
+    LINUX_ENOTSOCK = 88, LINUX_EMSGSIZE = 90, LINUX_EPROTOTYPE = 91, LINUX_ENOPROTOOPT = 92,
+    LINUX_EPROTONOSUPPORT = 93, LINUX_EOPNOTSUPP = 95, LINUX_EAFNOSUPPORT = 97, LINUX_EADDRINUSE = 98,
+    LINUX_EADDRNOTAVAIL = 99, LINUX_ENETDOWN = 100, LINUX_ENETUNREACH = 101, LINUX_ECONNABORTED = 103,
+    LINUX_ECONNRESET = 104, LINUX_ENOBUFS = 105, LINUX_EISCONN = 106, LINUX_ENOTCONN = 107,
+    LINUX_ETIMEDOUT = 110, LINUX_ECONNREFUSED = 111, LINUX_EHOSTUNREACH = 113, LINUX_EALREADY = 114,
+    LINUX_EINPROGRESS = 115
 };
 
 /* The calling thread's errno, usable on any thread. */

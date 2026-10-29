@@ -24,7 +24,7 @@ enum { LINUX_O_NONBLOCK = 0x800, LINUX_O_CLOEXEC = 0x80000 };
 enum { LINUX_SEEK_SET = 0, LINUX_SEEK_CUR = 1, LINUX_SEEK_END = 2 };
 
 /* What a descriptor is, which decides how it is read, written and waited on. */
-typedef enum { FD_KIND_FILE = 0, FD_KIND_PIPE = 1, FD_KIND_EVENT = 2 } FdKind;
+typedef enum { FD_KIND_FILE = 0, FD_KIND_PIPE = 1, FD_KIND_EVENT = 2, FD_KIND_SOCKET = 3 } FdKind;
 
 /* An eventfd: a 64-bit counter and a Win32 event that is signalled while the counter is not zero. */
 typedef struct {
@@ -54,6 +54,19 @@ void *shim_fd_state(int fd);
 /* The status flags (access mode, O_NONBLOCK, O_APPEND) of a descriptor, or -1 for a bad one. */
 int shim_fd_flags(int fd);
 int shim_fd_set_nonblocking(int fd, int is_nonblocking);
+
+/* A Winsock socket. The Win32 socket is always non-blocking; blocking is emulated by waiting for `event`. */
+typedef struct {
+    UINT_PTR socket;
+    HANDLE event;
+    int family; /* the Linux address family the program asked for */
+    int type;
+} SocketState;
+
+/* Socket reads and writes behind read(2) and write(2); see sock.c. */
+int64_t shim_socket_read(int fd, void *buffer, size_t count);
+int64_t shim_socket_write(int fd, const void *buffer, size_t count);
+int shim_socket_close(SocketState *state);
 
 /* eventfd counter operations (fd_event.c). Both block unless the descriptor is non-blocking. */
 int64_t shim_event_read(int fd, void *buffer, size_t count);

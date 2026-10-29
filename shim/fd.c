@@ -195,6 +195,9 @@ int shim_fd_close(int fd)
         HeapFree(GetProcessHeap(), 0, entry.state);
         return 0;
     }
+    if (entry.kind == FD_KIND_SOCKET) {
+        return shim_socket_close((SocketState *)entry.state);
+    }
     return (entry.is_standard || CloseHandle(entry.handle)) ? 0 : shim_fail_from_win();
 }
 
@@ -206,6 +209,9 @@ int64_t shim_fd_read(int fd, void *buffer, size_t count)
     }
     if (entry.kind == FD_KIND_EVENT) {
         return shim_event_read(fd, buffer, count);
+    }
+    if (entry.kind == FD_KIND_SOCKET) {
+        return shim_socket_read(fd, buffer, count);
     }
     if (entry.kind == FD_KIND_PIPE && entry.is_nonblocking && (shim_fd_ready(fd, 1) & 1) == 0) {
         return shim_fail(LINUX_EAGAIN);
@@ -227,6 +233,9 @@ int64_t shim_fd_write(int fd, const void *buffer, size_t count)
     }
     if (entry.kind == FD_KIND_EVENT) {
         return shim_event_write(fd, buffer, count);
+    }
+    if (entry.kind == FD_KIND_SOCKET) {
+        return shim_socket_write(fd, buffer, count);
     }
     const uint8_t *bytes = (const uint8_t *)buffer;
     size_t done = 0;

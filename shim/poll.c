@@ -9,13 +9,13 @@
  * wait is cut into short slices and readiness is checked again after each one.
  */
 
-#include "fd.h"
+#include "sock.h"
 
-#define POLLIN 0x001
-#define POLLOUT 0x004
-#define POLLERR 0x008
-#define POLLHUP 0x010
-#define POLLNVAL 0x020
+#define LINUX_POLLIN 0x001
+#define LINUX_POLLOUT 0x004
+#define LINUX_POLLERR 0x008
+#define LINUX_POLLHUP 0x010
+#define LINUX_POLLNVAL 0x020
 #define POLL_SLICE_MS 2
 #define SELECT_FD_LIMIT 1024
 #define SELECT_WORD_BITS 64
@@ -47,13 +47,13 @@ typedef struct {
 static short pipe_ready(int fd, short wanted)
 {
     if (shim_fd_flags(fd) != LINUX_O_RDONLY) {
-        return (short)(wanted & POLLOUT);
+        return (short)(wanted & LINUX_POLLOUT);
     }
     DWORD available = 0;
     if (!PeekNamedPipe(shim_fd_handle(fd), NULL, 0, NULL, &available, NULL)) {
-        return (short)(GetLastError() == ERROR_BROKEN_PIPE ? (POLLIN | POLLHUP) : POLLERR);
+        return (short)(GetLastError() == ERROR_BROKEN_PIPE ? (LINUX_POLLIN | LINUX_POLLHUP) : LINUX_POLLERR);
     }
-    return (short)(available > 0 ? (wanted & POLLIN) : 0);
+    return (short)(available > 0 ? (wanted & LINUX_POLLIN) : 0);
 }
 
 static short event_ready(int fd, short wanted)
@@ -61,8 +61,8 @@ static short event_ready(int fd, short wanted)
     EventState *state = (EventState *)shim_fd_state(fd);
     short ready = 0;
     AcquireSRWLockShared(&state->lock);
-    ready |= state->counter != 0 ? POLLIN : 0;
-    ready |= state->counter < UINT64_MAX - 1 ? POLLOUT : 0;
+    ready |= state->counter != 0 ? LINUX_POLLIN : 0;
+    ready |= state->counter < UINT64_MAX - 1 ? LINUX_POLLOUT : 0;
     ReleaseSRWLockShared(&state->lock);
     return (short)(ready & wanted);
 }
@@ -74,14 +74,32 @@ static short file_ready(int fd, short wanted)
     DWORD mode;
     int is_console_input = shim_fd_flags(fd) == LINUX_O_RDONLY && GetConsoleMode(handle, &mode);
     if (is_console_input) {
-        return (short)(WaitForSingleObject(handle, 0) == WAIT_OBJECT_0 ? (wanted & POLLIN) : 0);
+        return (short)(WaitForSingleObject(handle, 0) == WAIT_OBJECT_0 ? (wanted & LINUX_POLLIN) : 0);
     }
-    return (short)(wanted & (POLLIN | POLLOUT));
+    return (short)(wanted & (LINUX_POLLIN | LINUX_POLLOUT));
+}
+
+/* Winsock's WSAPoll flag values differ from Linux's, so each direction is asked for and translated. */
+static short socket_ready(int fd, short wanted)
+{
+    SocketState *state = (SocketState *)shim_fd_state(fd);
+    SHORT asked = (SHORT)(((wanted & LINUX_POLLIN) ? POLLRDNORM : 0) | ((wanted & LINUX_POLLOUT) ? POLLWRNORM : 0));
+    WSAPOLLFD entry = {.fd = state->socket, .events = asked};
+    short ready = 0;
+    if (WSAPoll(&entry, 1, 0) > 0) {
+        ready |= (entry.revents & POLLRDNORM) ? LINUX_POLLIN : 0;
+        ready |= (entry.revents & POLLWRNORM) ? LINUX_POLLOUT : 0;
+        ready |= (entry.revents & POLLHUP) ? (LINUX_POLLHUP | LINUX_POLLIN) : 0;
+        ready |= (entry.revents & POLLERR) ? LINUX_POLLERR : 0;
+    }
+    return ready;
 }
 
 short shim_fd_ready(int fd, short wanted)
 {
     switch (shim_fd_kind(fd)) {
+    case FD_KIND_SOCKET:
+        return socket_ready(fd, wanted);
     case FD_KIND_PIPE:
         return pipe_ready(fd, wanted);
     case FD_KIND_EVENT:
@@ -96,7 +114,7 @@ HANDLE shim_fd_wait_handle(int fd)
     return shim_fd_kind(fd) == FD_KIND_EVENT ? shim_fd_handle(fd) : NULL;
 }
 
-/* Fills revents for every entry and returns how many are ready (an invalid descriptor counts, as POLLNVAL). */
+/* Fills revents for every entry and returns how many are ready (an invalid descriptor counts, as LINUX_POLLNVAL). */
 static int scan(PollFd *fds, uint64_t count)
 {
     int ready = 0;
@@ -106,9 +124,9 @@ static int scan(PollFd *fds, uint64_t count)
             continue;
         }
         if (shim_fd_flags(fds[i].fd) < 0) {
-            fds[i].revents = POLLNVAL;
+            fds[i].revents = LINUX_POLLNVAL;
         } else {
-            fds[i].revents = shim_fd_ready(fds[i].fd, (short)(fds[i].events | POLLHUP | POLLERR));
+            fds[i].revents = shim_fd_ready(fds[i].fd, (short)(fds[i].events | LINUX_POLLHUP | LINUX_POLLERR));
         }
         ready += fds[i].revents != 0;
     }
@@ -195,7 +213,7 @@ static int select_in_poll(int limit, FdSet *reads, FdSet *writes, FdSet *errors,
         return shim_fail(LINUX_EINVAL);
     }
     for (int fd = 0; fd < limit; fd++) {
-        int16_t events = (int16_t)((bit_is_set(reads, fd) ? POLLIN : 0) | (bit_is_set(writes, fd) ? POLLOUT : 0));
+        int16_t events = (int16_t)((bit_is_set(reads, fd) ? LINUX_POLLIN : 0) | (bit_is_set(writes, fd) ? LINUX_POLLOUT : 0));
         if (events != 0 || bit_is_set(errors, fd)) {
             fds[count++] = (PollFd){.fd = fd, .events = events};
         }
@@ -208,8 +226,8 @@ static int select_in_poll(int limit, FdSet *reads, FdSet *writes, FdSet *errors,
     FdSet out_writes = {{0}};
     int total = 0;
     for (int i = 0; i < count; i++) {
-        int is_read = (fds[i].revents & (POLLIN | POLLHUP | POLLERR)) != 0 && bit_is_set(reads, fds[i].fd);
-        int is_write = (fds[i].revents & POLLOUT) != 0 && bit_is_set(writes, fds[i].fd);
+        int is_read = (fds[i].revents & (LINUX_POLLIN | LINUX_POLLHUP | LINUX_POLLERR)) != 0 && bit_is_set(reads, fds[i].fd);
+        int is_write = (fds[i].revents & LINUX_POLLOUT) != 0 && bit_is_set(writes, fds[i].fd);
         if (is_read) {
             set_bit(&out_reads, fds[i].fd);
         }

@@ -22,5 +22,5 @@ sources=$(find "$root/shim" "$generated" -name '*.c' | sort)
 # shellcheck disable=SC2086
 gcc -O2 -Wall -Wextra -Werror -fno-builtin -fno-tree-loop-distribute-patterns -shared \
   -I "$root/shim" -I "$root/shim/vulkan" -I "$root/shim/xcb" \
-  -o "$out/crossport_libc.dll" $sources "$out/crossport_libc.def" -lbcrypt -lsynchronization -lshell32
+  -o "$out/crossport_libc.dll" $sources "$out/crossport_libc.def" -lbcrypt -lsynchronization -lshell32 -lws2_32
 echo "$out/crossport_libc.dll"
