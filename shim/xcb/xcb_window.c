@@ -115,19 +115,25 @@ LIBC_FN XcbCookie sysv_xcb_create_window(void *connection, uint8_t depth, XcbId 
 {
     (void)connection;
     (void)depth;
-    (void)parent;
     (void)border_width;
     (void)window_class;
     (void)visual;
     (void)value_mask;
     (void)value_list;
     xcb_events_register_class();
-    RECT frame = {0, 0, width, height};
-    AdjustWindowRect(&frame, WINDOW_STYLE, FALSE);
-    int left = (x == 0 && y == 0) ? CW_USEDEFAULT : x;
-    int top = (x == 0 && y == 0) ? CW_USEDEFAULT : y;
-    HWND handle = CreateWindowExW(0, XCB_WINDOW_CLASS, L"", WINDOW_STYLE, left, top, frame.right - frame.left,
-                                  frame.bottom - frame.top, NULL, NULL, GetModuleHandleW(NULL), NULL);
+    HWND parent_handle = parent == XCB_ROOT_WINDOW_ID ? NULL : xcb_window_handle(parent);
+    HWND handle;
+    if (parent_handle != NULL) {
+        handle = CreateWindowExW(0, XCB_WINDOW_CLASS, L"", WS_CHILD | WS_CLIPSIBLINGS, x, y, width, height, parent_handle,
+                                 NULL, GetModuleHandleW(NULL), NULL);
+    } else {
+        RECT frame = {0, 0, width, height};
+        AdjustWindowRect(&frame, WINDOW_STYLE, FALSE);
+        int left = (x == 0 && y == 0) ? CW_USEDEFAULT : x;
+        int top = (x == 0 && y == 0) ? CW_USEDEFAULT : y;
+        handle = CreateWindowExW(0, XCB_WINDOW_CLASS, L"", WINDOW_STYLE, left, top, frame.right - frame.left,
+                                 frame.bottom - frame.top, NULL, NULL, GetModuleHandleW(NULL), NULL);
+    }
     if (handle != NULL && !store_window(window, handle)) {
         DestroyWindow(handle);
     }
@@ -180,7 +186,7 @@ LIBC_FN XcbCookie sysv_xcb_change_property(void *connection, uint8_t mode, XcbId
     (void)connection;
     (void)mode;
     HWND handle = xcb_window_handle(window);
-    if (handle != NULL && property == XCB_ATOM_WM_NAME && format == 8) {
+    if (handle != NULL && (property == XCB_ATOM_WM_NAME || property == xcb_atom_for("_NET_WM_NAME", 12)) && format == 8) {
         set_title(handle, (const char *)data, length);
     } else if (handle != NULL && type == XCB_ATOM_ATOM && format == PROPERTY_FORMAT_32 && length > 0 &&
                property == xcb_atom_for("WM_PROTOCOLS", 12)) {
@@ -189,22 +195,26 @@ LIBC_FN XcbCookie sysv_xcb_change_property(void *connection, uint8_t mode, XcbId
     return next_cookie();
 }
 
+/* Sizes are client-area sizes, as in X; the frame Windows adds around a top-level window is added here. */
 LIBC_FN XcbCookie sysv_xcb_configure_window(void *connection, XcbId window, uint16_t mask, const uint32_t *values)
 {
     (void)connection;
     HWND handle = xcb_window_handle(window);
-    RECT rect;
-    if (handle != NULL && GetWindowRect(handle, &rect)) {
-        int x = rect.left;
-        int y = rect.top;
-        int width = rect.right - rect.left;
-        int height = rect.bottom - rect.top;
+    RECT outer;
+    RECT client;
+    if (handle != NULL && GetWindowRect(handle, &outer) && GetClientRect(handle, &client)) {
+        int frame_width = (outer.right - outer.left) - client.right;
+        int frame_height = (outer.bottom - outer.top) - client.bottom;
+        int x = outer.left;
+        int y = outer.top;
+        int width = client.right;
+        int height = client.bottom;
         size_t next = 0;
         x = (mask & CONFIGURE_X) ? (int)values[next++] : x;
         y = (mask & CONFIGURE_Y) ? (int)values[next++] : y;
         width = (mask & CONFIGURE_WIDTH) ? (int)values[next++] : width;
         height = (mask & CONFIGURE_HEIGHT) ? (int)values[next++] : height;
-        SetWindowPos(handle, NULL, x, y, width, height, SWP_NOZORDER | SWP_NOACTIVATE);
+        SetWindowPos(handle, NULL, x, y, width + frame_width, height + frame_height, SWP_NOZORDER | SWP_NOACTIVATE);
     }
     return next_cookie();
 }

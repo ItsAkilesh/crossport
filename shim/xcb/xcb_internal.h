@@ -13,7 +13,20 @@
 /* The shim's own allocator, so memory handed to programs can be released with their free(). */
 LIBC_FN void *sysv_malloc(size_t size);
 
+/* The xcb requests the layer above (Xlib) forwards to. */
+LIBC_FN XcbCookie sysv_xcb_create_window(void *connection, uint8_t depth, XcbId window, XcbId parent, int16_t x, int16_t y,
+                                         uint16_t width, uint16_t height, uint16_t border_width, uint16_t window_class,
+                                         XcbId visual, uint32_t value_mask, const void *value_list);
+LIBC_FN XcbCookie sysv_xcb_map_window(void *connection, XcbId window);
+LIBC_FN XcbCookie sysv_xcb_unmap_window(void *connection, XcbId window);
+LIBC_FN XcbCookie sysv_xcb_destroy_window(void *connection, XcbId window);
+LIBC_FN XcbCookie sysv_xcb_configure_window(void *connection, XcbId window, uint16_t mask, const uint32_t *values);
+LIBC_FN XcbCookie sysv_xcb_change_property(void *connection, uint8_t mode, XcbId window, XcbId property, XcbId type,
+                                           uint8_t format, uint32_t length, const void *data);
+
 #define XCB_WINDOW_CLASS L"CrossportX11"
+/* The root window's id: windows created under it are top-level. */
+#define XCB_ROOT_WINDOW_ID 0x00000100u
 
 /* A connection hands out its setup block and screen as one piece of memory, like the X server's reply. */
 typedef struct {
@@ -39,5 +52,13 @@ uint32_t xcb_window_delete_atom(XcbId id);
 /* Event queue, filled by the window procedure and drained by xcb_poll_for_event / xcb_wait_for_event. */
 void xcb_events_push(const XcbEvent *event);
 void xcb_events_register_class(void);
+/* Moves the oldest event into `out`; when none is waiting, `should_wait` blocks until one arrives. Returns 0 for none. */
+int xcb_events_take(XcbEvent *out, int should_wait);
+/* A layer above xcb (Xlib) that keeps pixel buffers for windows paints them and follows their size. */
+typedef int (*XcbPaintHook)(HWND window);
+typedef void (*XcbSizeHook)(HWND window, int width, int height);
+void xcb_events_set_hooks(XcbPaintHook paint, XcbSizeHook size);
+/* Name of an atom, or NULL when the number is unknown. */
+const char *xcb_atom_name(XcbId atom);
 
 #endif

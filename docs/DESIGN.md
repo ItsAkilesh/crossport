@@ -144,6 +144,21 @@ What it showed, and what has been done about it:
   monotonic clocks, random numbers (`getrandom`, `arc4random`), and the `_FORTIFY_SOURCE` variants of
   the string, read, poll, scanf and select calls.
 
+### 2.11 Milestone 6: in-process Xlib (first slice)
+
+`shim/xlib/` provides libX11 on top of the xcb layer, with no X server. A `Display` is memory laid out like
+Xlib's public part (checked against the real headers by `tests/shim/xlib_layout_check.c`). Every window and
+pixmap is a drawable record with a 32-bit BGRX pixel buffer (the visual is 24-bit TrueColor); drawing writes
+the buffer and the window's `WM_PAINT` copies it to the screen, asking the program for an `Expose` only
+when the buffer is new or resized. Win32 messages become wire-format events in one queue, and each display
+converts them to `XEvent`s, dropping events the window did not select and `ConfigureNotify`s that report an
+unchanged size. Drawing covers rectangles, 1-pixel lines, points, area copies and images (ZPixmap 32 and 24
+bit, XYBitmap); `xlib_draw` compares it with a real server under Xvfb in CI.
+
+Not done yet: keyboard translation (keysyms, `XLookupString`), window properties (reads answer "none"),
+a display descriptor that wakes `poll`, focus and enter/leave events, arcs, polygons, text and fonts, and
+the remaining Xlib surface SDL2 and toolkits need.
+
 ## 3. Shim ABI
 
 Translated code keeps Linux conventions internally. Only the boundary into shims needs care.

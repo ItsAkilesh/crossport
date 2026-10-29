@@ -26,11 +26,28 @@
 #define WHEEL_STEP WHEEL_DELTA
 #define CLIENT_MESSAGE_FORMAT 32
 #define CURSOR_ARROW MAKEINTRESOURCEW(32512)
+#define KEY_DOWN_BIT 0x8000
+#define KEY_TOGGLED_BIT 0x0001
+#define STATE_SHIFT 0x0001
+#define STATE_LOCK 0x0002
+#define STATE_CONTROL 0x0004
+#define STATE_ALT 0x0008
+#define STATE_BUTTON1 0x0100
+#define STATE_BUTTON2 0x0200
+#define STATE_BUTTON3 0x0400
 
 static XcbEvent g_queue[QUEUE_CAPACITY];
 static size_t g_head;
 static size_t g_count;
 static SRWLOCK g_queue_lock = SRWLOCK_INIT;
+static XcbPaintHook g_paint_hook;
+static XcbSizeHook g_size_hook;
+
+void xcb_events_set_hooks(XcbPaintHook paint, XcbSizeHook size)
+{
+    g_paint_hook = paint;
+    g_size_hook = size;
+}
 
 void xcb_events_push(const XcbEvent *event)
 {
@@ -43,21 +60,19 @@ void xcb_events_push(const XcbEvent *event)
     ReleaseSRWLockExclusive(&g_queue_lock);
 }
 
-/* Removes the oldest event into a heap block the program will free, or returns NULL when none is waiting. */
-static SYSV XcbEvent *pop_event(void)
+/* Removes the oldest event into `out`; returns 0 when none is waiting. */
+static int pop_into(XcbEvent *out)
 {
-    XcbEvent *event = NULL;
+    int has_event = 0;
     AcquireSRWLockExclusive(&g_queue_lock);
     if (g_count > 0) {
-        event = (XcbEvent *)sysv_malloc(sizeof(*event));
-        if (event != NULL) {
-            *event = g_queue[g_head];
-        }
+        *out = g_queue[g_head];
         g_head = (g_head + 1) % QUEUE_CAPACITY;
         g_count--;
+        has_event = 1;
     }
     ReleaseSRWLockExclusive(&g_queue_lock);
-    return event;
+    return has_event;
 }
 
 /* Queues an event of any layout: the structure is copied into a zero-filled 32-byte event. */
@@ -68,11 +83,30 @@ static void push_raw(const void *data, size_t size)
     xcb_events_push(&event);
 }
 
+static int is_down(int key)
+{
+    return (GetKeyState(key) & KEY_DOWN_BIT) != 0;
+}
+
+/* The X modifier and button mask for the keys and buttons held right now. */
+static uint16_t input_state(void)
+{
+    uint16_t state = 0;
+    state |= is_down(VK_SHIFT) ? STATE_SHIFT : 0;
+    state |= (GetKeyState(VK_CAPITAL) & KEY_TOGGLED_BIT) ? STATE_LOCK : 0;
+    state |= is_down(VK_CONTROL) ? STATE_CONTROL : 0;
+    state |= is_down(VK_MENU) ? STATE_ALT : 0;
+    state |= is_down(VK_LBUTTON) ? STATE_BUTTON1 : 0;
+    state |= is_down(VK_MBUTTON) ? STATE_BUTTON2 : 0;
+    state |= is_down(VK_RBUTTON) ? STATE_BUTTON3 : 0;
+    return state;
+}
+
 static void push_input(HWND window, uint8_t type, uint8_t detail, int x, int y)
 {
     XcbInputEvent input = {.response_type = type, .detail = detail, .time = GetTickCount(),
                            .root = xcb_roots()->screens[0].root, .event = xcb_window_id(window),
-                           .event_x = (int16_t)x, .event_y = (int16_t)y, .same_screen = 1};
+                           .event_x = (int16_t)x, .event_y = (int16_t)y, .state = input_state(), .same_screen = 1};
     push_raw(&input, sizeof(input));
 }
 
@@ -140,9 +174,15 @@ static LRESULT CALLBACK window_procedure(HWND window, UINT message, WPARAM wpara
         xcb_window_forget(window);
         return 0;
     case WM_PAINT:
+        if (g_paint_hook != NULL && g_paint_hook(window)) {
+            return 0;
+        }
         push_expose(window);
         break;
     case WM_SIZE:
+        if (g_size_hook != NULL && LOWORD(lparam) > 0 && HIWORD(lparam) > 0) {
+            g_size_hook(window, LOWORD(lparam), HIWORD(lparam));
+        }
         push_configure(window);
         break;
     case WM_KEYDOWN:
@@ -209,23 +249,40 @@ static void pump_messages(void)
     }
 }
 
+int xcb_events_take(XcbEvent *out, int should_wait)
+{
+    for (;;) {
+        pump_messages();
+        if (pop_into(out)) {
+            return 1;
+        }
+        if (!should_wait) {
+            return 0;
+        }
+        WaitMessage();
+    }
+}
+
+/* Copies an event into a heap block the program will free. */
+static SYSV XcbEvent *event_block(const XcbEvent *event)
+{
+    XcbEvent *block = (XcbEvent *)sysv_malloc(sizeof(*block));
+    if (block != NULL) {
+        *block = *event;
+    }
+    return block;
+}
+
 LIBC_FN XcbEvent *sysv_xcb_poll_for_event(void *connection)
 {
     (void)connection;
-    pump_messages();
-    return pop_event();
+    XcbEvent event;
+    return xcb_events_take(&event, 0) ? event_block(&event) : NULL;
 }
 
 LIBC_FN XcbEvent *sysv_xcb_wait_for_event(void *connection)
 {
     (void)connection;
-    XcbEvent *event = NULL;
-    while (event == NULL) {
-        pump_messages();
-        event = pop_event();
-        if (event == NULL) {
-            WaitMessage();
-        }
-    }
-    return event;
+    XcbEvent event;
+    return xcb_events_take(&event, 1) ? event_block(&event) : NULL;
 }

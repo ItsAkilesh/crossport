@@ -11,7 +11,7 @@
 
 #define RESOURCE_ID_BASE 0x00200000u
 #define RESOURCE_ID_MASK 0x001fffffu
-#define ROOT_WINDOW_ID 0x00000100u
+#define ROOT_WINDOW_ID XCB_ROOT_WINDOW_ID
 #define DEFAULT_COLORMAP_ID 0x00000020u
 #define ROOT_VISUAL_ID 0x00000021u
 #define ROOT_DEPTH 24
@@ -30,8 +30,20 @@ static SRWLOCK g_atom_lock = SRWLOCK_INIT;
 static char g_atom_names[MAX_ATOMS][MAX_ATOM_NAME];
 static uint32_t g_atom_count;
 
-static const char *const PREDEFINED_ATOMS[] = {"ATOM", "CARDINAL", "STRING", "WM_NAME"};
-static const uint32_t PREDEFINED_ATOM_IDS[] = {XCB_ATOM_ATOM, XCB_ATOM_CARDINAL, XCB_ATOM_STRING, XCB_ATOM_WM_NAME};
+/* The atoms the X protocol predefines, numbered from 1 in this order. */
+static const char *const PREDEFINED_ATOMS[] = {
+    "PRIMARY", "SECONDARY", "ARC", "ATOM", "BITMAP", "CARDINAL", "COLORMAP", "CURSOR", "CUT_BUFFER0",
+    "CUT_BUFFER1", "CUT_BUFFER2", "CUT_BUFFER3", "CUT_BUFFER4", "CUT_BUFFER5", "CUT_BUFFER6", "CUT_BUFFER7",
+    "DRAWABLE", "FONT", "INTEGER", "PIXMAP", "POINT", "RECTANGLE", "RESOURCE_MANAGER", "RGB_COLOR_MAP",
+    "RGB_BEST_MAP", "RGB_BLUE_MAP", "RGB_DEFAULT_MAP", "RGB_GRAY_MAP", "RGB_GREEN_MAP", "RGB_RED_MAP", "STRING",
+    "VISUALID", "WINDOW", "WM_COMMAND", "WM_HINTS", "WM_CLIENT_MACHINE", "WM_ICON_NAME", "WM_ICON_SIZE",
+    "WM_NAME", "WM_NORMAL_HINTS", "WM_SIZE_HINTS", "WM_ZOOM_HINTS", "MIN_SPACE", "NORM_SPACE", "MAX_SPACE",
+    "END_SPACE", "SUPERSCRIPT_X", "SUPERSCRIPT_Y", "SUBSCRIPT_X", "SUBSCRIPT_Y", "UNDERLINE_POSITION",
+    "UNDERLINE_THICKNESS", "STRIKEOUT_ASCENT", "STRIKEOUT_DESCENT", "ITALIC_ANGLE", "X_HEIGHT", "QUAD_WIDTH",
+    "WEIGHT", "POINT_SIZE", "RESOLUTION", "COPYRIGHT", "NOTICE", "FONT_NAME", "FAMILY_NAME", "FULL_NAME",
+    "CAP_HEIGHT", "WM_CLASS", "WM_TRANSIENT_FOR",
+};
+#define PREDEFINED_ATOM_COUNT (sizeof(PREDEFINED_ATOMS) / sizeof(PREDEFINED_ATOMS[0]))
 
 static uint16_t millimeters(int pixels)
 {
@@ -124,9 +136,9 @@ LIBC_FN uint32_t sysv_xcb_generate_id(void *connection)
 /* Number of an atom, creating it on first use; 0 when the table is full. */
 XcbId xcb_atom_for(const char *name, size_t length)
 {
-    for (size_t i = 0; i < sizeof(PREDEFINED_ATOMS) / sizeof(PREDEFINED_ATOMS[0]); i++) {
+    for (size_t i = 0; i < PREDEFINED_ATOM_COUNT; i++) {
         if (strlen(PREDEFINED_ATOMS[i]) == length && strncmp(PREDEFINED_ATOMS[i], name, length) == 0) {
-            return PREDEFINED_ATOM_IDS[i];
+            return (XcbId)(i + 1);
         }
     }
     XcbId found = 0;
@@ -144,6 +156,20 @@ XcbId xcb_atom_for(const char *name, size_t length)
     }
     ReleaseSRWLockExclusive(&g_atom_lock);
     return found;
+}
+
+const char *xcb_atom_name(XcbId atom)
+{
+    if (atom >= 1 && atom <= PREDEFINED_ATOM_COUNT) {
+        return PREDEFINED_ATOMS[atom - 1];
+    }
+    const char *name = NULL;
+    AcquireSRWLockShared(&g_atom_lock);
+    if (atom >= XCB_FIRST_DYNAMIC_ATOM && atom < g_atom_count) {
+        name = g_atom_names[atom];
+    }
+    ReleaseSRWLockShared(&g_atom_lock);
+    return name;
 }
 
 LIBC_FN XcbCookie sysv_xcb_intern_atom(void *connection, uint8_t only_if_exists, uint16_t name_length, const char *name)
