@@ -10,6 +10,8 @@
 
 #include "libc_abi.h"
 
+#define VK_ERROR_INITIALIZATION_FAILED (-3)
+
 /* Sorted by name; the thunk at the same index in g_vulkan_thunks calls the command of that name. */
 extern const size_t g_vulkan_command_count;
 extern const char *const g_vulkan_command_names[];
@@ -17,6 +19,10 @@ extern const void *const g_vulkan_thunks[];
 
 /* The real (Microsoft convention) entry point behind a generated thunk, or NULL when no loader or driver provides it. */
 void *vulkan_target(size_t index);
+
+/* The loader's own export, or NULL when vulkan-1.dll is missing; and the function a given instance resolves. */
+void *vulkan_loader_export(const char *name);
+void *vulkan_instance_function(void *instance, const char *name);
 
 /* Hand-written entry points; everything else in the Vulkan API is generated. */
 LIBC_FN int32_t sysv_vkCreateInstance(const void *info, const void *allocator, void **instance);

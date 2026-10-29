@@ -15,7 +15,7 @@ permissions:
 
 env:
   NATIVE_CASES: hello
-  TRANSLATED_CASES: hello_dyn two_libs tls_basic threads vulkan_triangle
+  TRANSLATED_CASES: hello_dyn two_libs tls_basic threads vulkan_triangle vulkan_window
   ABORT_CASES: canary_smash
   APPS: lua sqlite3 jq
 
@@ -38,12 +38,10 @@ jobs:
           python3 -m unittest discover -s tools -p "test_*.py"
           (cd tools/corpus && python3 -m unittest discover -p "test_*.py")
       - name: Install the Vulkan build tools and a software driver
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq glslang-tools libvulkan-dev mesa-vulkan-drivers
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq glslang-tools libvulkan-dev mesa-vulkan-drivers libxcb1-dev xvfb
       - name: Build and run corpus cases
         run: |
-          for corpus_case in $NATIVE_CASES $TRANSLATED_CASES $ABORT_CASES; do
-            tools/run-case.sh "$corpus_case" linux
-          done
+          xvfb-run -a bash -c 'for corpus_case in $NATIVE_CASES $TRANSLATED_CASES $ABORT_CASES; do tools/run-case.sh "$corpus_case" linux; done'
       - name: Install SquashFS tools
         run: sudo apt-get update -qq && sudo apt-get install -y -qq squashfs-tools
       - name: Package the corpus apps and record their Linux results

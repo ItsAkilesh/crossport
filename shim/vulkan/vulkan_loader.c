@@ -13,10 +13,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "vulkan_loader.h"
+#include "vulkan_wsi.h"
 
 #define VULKAN_LOADER_NAME "vulkan-1.dll"
-#define VK_ERROR_INITIALIZATION_FAILED (-3)
 #define MAX_COMMANDS 2048
 
 typedef void *(*GetInstanceProcAddrFn)(void *instance, const char *name);
@@ -44,7 +43,7 @@ static HMODULE loader_module(void)
     return g_loader;
 }
 
-static void *loader_export(const char *name)
+void *vulkan_loader_export(const char *name)
 {
     HMODULE module = loader_module();
     return module != NULL ? (void *)GetProcAddress(module, name) : NULL;
@@ -56,9 +55,9 @@ static void remember(size_t index, void *target)
     InterlockedCompareExchangePointer((PVOID volatile *)&g_targets[index], target, NULL);
 }
 
-static void *instance_lookup(void *instance, const char *name)
+void *vulkan_instance_function(void *instance, const char *name)
 {
-    GetInstanceProcAddrFn lookup = (GetInstanceProcAddrFn)loader_export("vkGetInstanceProcAddr");
+    GetInstanceProcAddrFn lookup = (GetInstanceProcAddrFn)vulkan_loader_export("vkGetInstanceProcAddr");
     return (lookup != NULL && instance != NULL) ? lookup(instance, name) : NULL;
 }
 
@@ -66,9 +65,9 @@ void *vulkan_target(size_t index)
 {
     void *target = g_targets[index];
     if (target == NULL) {
-        target = loader_export(g_vulkan_command_names[index]);
+        target = vulkan_loader_export(g_vulkan_command_names[index]);
         if (target == NULL) {
-            target = instance_lookup(g_instance_hint, g_vulkan_command_names[index]);
+            target = vulkan_instance_function(g_instance_hint, g_vulkan_command_names[index]);
         }
         if (target != NULL) {
             remember(index, target);
@@ -91,11 +90,12 @@ static ptrdiff_t command_index(const char *name)
 
 LIBC_FN int32_t sysv_vkCreateInstance(const void *info, const void *allocator, void **instance)
 {
-    CreateInstanceFn create = (CreateInstanceFn)loader_export("vkCreateInstance");
+    CreateInstanceFn create = (CreateInstanceFn)vulkan_loader_export("vkCreateInstance");
     if (create == NULL) {
         return VK_ERROR_INITIALIZATION_FAILED;
     }
-    int32_t result = create(info, allocator, instance);
+    VulkanInstanceStorage storage;
+    int32_t result = create(vulkan_wsi_instance_info(info, &storage), allocator, instance);
     if (result == 0 && instance != NULL) {
         InterlockedCompareExchangePointer((PVOID volatile *)&g_instance_hint, *instance, NULL);
     }
@@ -104,7 +104,7 @@ LIBC_FN int32_t sysv_vkCreateInstance(const void *info, const void *allocator, v
 
 LIBC_FN void sysv_vkDestroyInstance(void *instance, const void *allocator)
 {
-    DestroyInstanceFn destroy = (DestroyInstanceFn)loader_export("vkDestroyInstance");
+    DestroyInstanceFn destroy = (DestroyInstanceFn)vulkan_loader_export("vkDestroyInstance");
     if (destroy == NULL) {
         return;
     }
@@ -124,7 +124,10 @@ static void *handwritten_entry(const char *name)
     if (strcmp(name, "vkGetInstanceProcAddr") == 0) {
         return (void *)sysv_vkGetInstanceProcAddr;
     }
-    return strcmp(name, "vkGetDeviceProcAddr") == 0 ? (void *)sysv_vkGetDeviceProcAddr : NULL;
+    if (strcmp(name, "vkGetDeviceProcAddr") == 0) {
+        return (void *)sysv_vkGetDeviceProcAddr;
+    }
+    return vulkan_wsi_entry(name);
 }
 
 /* The thunk for `name` when the real loader or driver also provides it for `instance`, else NULL. */
@@ -141,9 +144,9 @@ LIBC_FN void *sysv_vkGetInstanceProcAddr(void *instance, const char *name)
     if (index < 0) {
         return NULL;
     }
-    void *real = instance_lookup(instance, name);
+    void *real = vulkan_instance_function(instance, name);
     if (real == NULL) {
-        real = loader_export(name);
+        real = vulkan_loader_export(name);
     }
     if (real == NULL) {
         return NULL;
@@ -154,7 +157,7 @@ LIBC_FN void *sysv_vkGetInstanceProcAddr(void *instance, const char *name)
 
 LIBC_FN void *sysv_vkGetDeviceProcAddr(void *device, const char *name)
 {
-    GetDeviceProcAddrFn lookup = (GetDeviceProcAddrFn)loader_export("vkGetDeviceProcAddr");
+    GetDeviceProcAddrFn lookup = (GetDeviceProcAddrFn)vulkan_loader_export("vkGetDeviceProcAddr");
     if (name == NULL || lookup == NULL) {
         return NULL;
     }

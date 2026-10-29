@@ -25,6 +25,8 @@ pub const SHIM_PROVIDED_LIBRARIES: &[&str] = &[
     "libm.so.6",
     // The Vulkan loader is forwarded to the Windows loader (vulkan-1.dll) by the shim.
     "libvulkan.so.1",
+    // The X11 wire library is provided by the shim on top of Win32 windows.
+    "libxcb.so.1",
 ];
 pub const MAX_MODULES: usize = 256;
 /// Total bytes of ELF input across all modules.

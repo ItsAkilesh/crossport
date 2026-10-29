@@ -21,6 +21,7 @@ HANDWRITTEN = {
     "vkDestroyInstance",
     "vkGetInstanceProcAddr",
     "vkGetDeviceProcAddr",
+    "vkEnumerateInstanceExtensionProperties",
 }
 # C types by name for everything a command parameter or result can be passed by value as.
 SCALARS = {

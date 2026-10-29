@@ -1,0 +1,43 @@
+/*
+ * File: shim/xcb/xcb_internal.h
+ * Purpose: State and helpers shared by the xcb shim's source files: the connection, the window table and the event queue
+ * Author: Akilesh
+ * Date: 2026-10-29
+ */
+
+#ifndef CROSSPORT_XCB_INTERNAL_H
+#define CROSSPORT_XCB_INTERNAL_H
+
+#include "xcb_abi.h"
+
+/* The shim's own allocator, so memory handed to programs can be released with their free(). */
+LIBC_FN void *sysv_malloc(size_t size);
+
+#define XCB_WINDOW_CLASS L"CrossportX11"
+
+/* A connection hands out its setup block and screen as one piece of memory, like the X server's reply. */
+typedef struct {
+    XcbSetup setup;
+    XcbScreen screens[1];
+} XcbRoots;
+
+/* The one connection of this process (a translated program talks to a single, local X server). */
+XcbRoots *xcb_roots(void);
+uint32_t xcb_next_sequence(void);
+
+/* Number of an atom, created on first use; 0 when the table is full. */
+XcbId xcb_atom_for(const char *name, size_t length);
+
+/* Window table: maps the ids programs generate to the Win32 windows behind them. */
+HWND xcb_window_handle(XcbId id);
+XcbId xcb_window_id(HWND handle);
+void xcb_window_forget(HWND handle);
+/* The atom the program registered as its WM_DELETE_WINDOW protocol on a window, or 0 when it did not. */
+void xcb_window_set_delete_atom(XcbId id, uint32_t delete_atom);
+uint32_t xcb_window_delete_atom(XcbId id);
+
+/* Event queue, filled by the window procedure and drained by xcb_poll_for_event / xcb_wait_for_event. */
+void xcb_events_push(const XcbEvent *event);
+void xcb_events_register_class(void);
+
+#endif
