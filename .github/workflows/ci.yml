@@ -80,6 +80,10 @@ jobs:
         run: |
           cargo test --locked --manifest-path tools/difftest/Cargo.toml
           cargo test --locked --manifest-path translator/Cargo.toml
+      - name: Test the shim's C library against recorded glibc output
+        run: |
+          tools/build-shim.sh
+          tools/test-shim.sh
       - name: Build and run native corpus cases
         run: |
           for corpus_case in $NATIVE_CASES; do

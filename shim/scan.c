@@ -221,7 +221,7 @@ static int convert_float(Input *in, const Spec *spec, __builtin_sysv_va_list ap)
     return MATCHED_STORED;
 }
 
-/* %s, %c and %[: copies characters accepted by `accepts` (a table, or NULL for "any non-space"). */
+/* %s, %c and %[: copies characters in `table`, or any non-space characters when it is NULL. */
 static int convert_text(Input *in, const Spec *spec, const unsigned char *table, __builtin_sysv_va_list ap)
 {
     int is_character = spec->conversion == 'c';
@@ -285,10 +285,12 @@ static int run_directive(Input *in, const char **format, __builtin_sysv_va_list 
         skip_space(in);
         return *in->cursor++ == '%' ? MATCHED_SKIPPED : MATCH_FAILED;
     }
+    const unsigned char *accepted = NULL;
     if (spec.conversion == '[') {
         *format = parse_set(*format, table);
+        accepted = table;
     }
-    return convert(in, &spec, table, ap);
+    return convert(in, &spec, accepted, ap);
 }
 
 static int scan_core(const char *text, const char *format, __builtin_sysv_va_list ap)
