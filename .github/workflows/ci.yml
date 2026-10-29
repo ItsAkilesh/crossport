@@ -39,6 +39,8 @@ jobs:
           (cd tools/corpus && python3 -m unittest discover -p "test_*.py")
       - name: Install the Vulkan build tools and a software driver
         run: sudo apt-get update -qq && sudo apt-get install -y -qq glslang-tools libvulkan-dev mesa-vulkan-drivers libxcb1-dev xvfb
+      - name: Check the xcb structure layouts against the real headers
+        run: gcc -fsyntax-only -Wall -Wextra -Werror tests/shim/xcb_layout_check.c
       - name: Build and run corpus cases
         run: |
           xvfb-run -a bash -c 'for corpus_case in $NATIVE_CASES $TRANSLATED_CASES $ABORT_CASES; do tools/run-case.sh "$corpus_case" linux; done'
