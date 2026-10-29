@@ -16,6 +16,7 @@ _Static_assert(sizeof(Screen) == 128, "Screen is 128 bytes");
 _Static_assert(sizeof(Visual) == 56, "Visual is 56 bytes");
 _Static_assert(sizeof(Depth) == 16, "Depth is 16 bytes");
 _Static_assert(sizeof(ScreenFormat) == 24, "ScreenFormat is 24 bytes");
+_Static_assert(sizeof(XPixmapFormatValues) == 12, "XPixmapFormatValues is 12 bytes");
 _Static_assert(sizeof(XImage) == 136, "XImage is 136 bytes");
 _Static_assert(offsetof(XImage, f) == 88, "XImage function table is at 88");
 _Static_assert(offsetof(Display, default_screen) == 224, "default_screen is at 224");

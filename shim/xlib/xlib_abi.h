@@ -24,6 +24,13 @@ typedef struct {
     int32_t scanline_pad;
 } XlScreenFormat;
 
+/* XPixmapFormatValues: what XListPixmapFormats returns, one entry per depth. */
+typedef struct {
+    int32_t depth;
+    int32_t bits_per_pixel;
+    int32_t scanline_pad;
+} XlPixmapFormat;
+
 typedef struct {
     void *ext_data;
     XlId visual_id;
@@ -385,6 +392,7 @@ enum {
 };
 
 _Static_assert(sizeof(XlScreenFormat) == 24, "ScreenFormat is 24 bytes");
+_Static_assert(sizeof(XlPixmapFormat) == 12, "XPixmapFormatValues is 12 bytes");
 _Static_assert(sizeof(XlVisual) == 56, "Visual is 56 bytes");
 _Static_assert(sizeof(XlDepth) == 16, "Depth is 16 bytes");
 _Static_assert(sizeof(XlScreen) == 128, "Screen is 128 bytes");
