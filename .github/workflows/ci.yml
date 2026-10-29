@@ -209,7 +209,14 @@ jobs:
           for corpus_case in $TRANSLATED_CASES $ABORT_CASES; do
             tools/run-translated.sh "$corpus_case"
           done
+      - name: Show the translated results (single-case runs only)
+        if: inputs.cases != '' && always()
+        run: |
+          for corpus_case in $TRANSLATED_CASES; do
+            cat "results/$corpus_case-windows.json" || true
+          done
       - name: Stress the threaded program for races
+        if: inputs.cases == ''
         run: tools/stress.sh threads 200
       - name: A smashed stack must abort, not return
         run: |
@@ -221,11 +228,13 @@ jobs:
           name: apps-linux
           path: .
       - name: Unpack, translate and run the corpus apps on Windows
+        if: inputs.cases == ''
         run: |
           for app in $APPS; do
             tools/corpus/translate_and_run.sh "$app"
           done
       - name: Convert an AppImage in one step and check the environment file is applied
+        if: inputs.cases == ''
         run: |
           translator/target/release/crossport.exe convert build/corpus/images/lua.AppImage --shim build/shim/crossport_libc.dll --out build/convert/lua
           build/convert/lua/lua.exe -e "print(os.getenv('APPDIR') ~= nil, 6 * 7)" | grep -qx "true	42"
