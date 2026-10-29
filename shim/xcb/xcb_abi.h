@@ -169,15 +169,15 @@ typedef struct {
 enum { XCB_ATOM_ATOM = 4, XCB_ATOM_CARDINAL = 6, XCB_ATOM_STRING = 31, XCB_ATOM_WM_NAME = 39, XCB_FIRST_DYNAMIC_ATOM = 69 };
 
 /* The sizes libxcb's own headers give these structures; a mismatch would corrupt what programs read. */
-static_assert(sizeof(XcbSetup) == 40, "xcb_setup_t is 40 bytes");
-static_assert(sizeof(XcbScreen) == 40, "xcb_screen_t is 40 bytes");
-static_assert(sizeof(XcbScreenIterator) == 16, "xcb_screen_iterator_t is 16 bytes");
-static_assert(sizeof(XcbEvent) == 32, "xcb events are 32 bytes");
-static_assert(sizeof(XcbInputEvent) == 32, "input events are 32 bytes");
-static_assert(sizeof(XcbClientMessageEvent) == 32, "client messages are 32 bytes");
-static_assert(sizeof(XcbExposeEvent) == 20, "expose events are 20 bytes");
-static_assert(sizeof(XcbConfigureEvent) == 28, "configure events are 28 bytes");
-static_assert(sizeof(XcbInternAtomReply) == 12, "intern atom replies are 12 bytes");
-static_assert(sizeof(XcbGeometryReply) == 24, "geometry replies are 24 bytes");
+_Static_assert(sizeof(XcbSetup) == 40, "xcb_setup_t is 40 bytes");
+_Static_assert(sizeof(XcbScreen) == 40, "xcb_screen_t is 40 bytes");
+_Static_assert(sizeof(XcbScreenIterator) == 16, "xcb_screen_iterator_t is 16 bytes");
+_Static_assert(sizeof(XcbEvent) == 32, "xcb events are 32 bytes");
+_Static_assert(sizeof(XcbInputEvent) == 32, "input events are 32 bytes");
+_Static_assert(sizeof(XcbClientMessageEvent) == 32, "client messages are 32 bytes");
+_Static_assert(sizeof(XcbExposeEvent) == 20, "expose events are 20 bytes");
+_Static_assert(sizeof(XcbConfigureEvent) == 28, "configure events are 28 bytes");
+_Static_assert(sizeof(XcbInternAtomReply) == 12, "intern atom replies are 12 bytes");
+_Static_assert(sizeof(XcbGeometryReply) == 24, "geometry replies are 24 bytes");
 
 #endif

@@ -1,7 +1,7 @@
 // File: translator/src/relink/mod.rs
 // Purpose: Relink one ELF module of a graph into a PE image (executable or DLL) bound to its dependencies and the shim
 // Author: Akilesh
-// Date: 2026-10-28
+// Date: 2026-10-29
 
 mod layout;
 mod patch;
@@ -261,6 +261,7 @@ fn module_info(
             Vec::new()
         },
         tls,
+        eh_frame_hdr_rva: elf.eh_frame_header.map_or(0, rva),
     })
 }
 

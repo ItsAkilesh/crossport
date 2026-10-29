@@ -2,7 +2,7 @@
  * File: shim/tls.c
  * Purpose: Per-thread TLS blocks, the thread pointer in a Windows TLS slot, stack canaries and __tls_get_addr
  * Author: Akilesh
- * Date: 2026-10-28
+ * Date: 2026-10-29
  *
  * Windows resets a user-set FS base at the next context switch, so translated
  * code never uses %fs. The translator rewrites those accesses to read the thread
@@ -94,6 +94,9 @@ void tls_init(const LoadedModule *modules, size_t count)
 
 uint8_t *tls_thread_pointer(void)
 {
+    if (g_slot == TLS_OUT_OF_INDEXES) {
+        return NULL; /* the shim is used without a translated program (the unit tests): no TLS yet */
+    }
     return (uint8_t *)__readgsqword(TEB_TLS_SLOTS_OFFSET + 8u * g_slot);
 }
 

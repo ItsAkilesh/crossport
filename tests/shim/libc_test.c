@@ -32,7 +32,7 @@
     X(int, strcasecmp, (const char *, const char *)) \
     X(void *, memmove, (void *, const void *, size_t)) \
     X(int, memcmp, (const void *, const void *, size_t)) \
-    X(char *, getcwd, (char *, size_t))
+    X(char *, getcwd, (char *, size_t))     X(void *, aligned_alloc, (size_t, size_t))     X(int, posix_memalign, (void **, size_t, size_t))     X(void *, realloc, (void *, size_t))     X(void, free, (void *))     X(int, pthread_rwlock_rdlock, (void *))     X(int, pthread_rwlock_wrlock, (void *))     X(int, pthread_rwlock_tryrdlock, (void *))     X(int, pthread_rwlock_trywrlock, (void *))     X(int, pthread_rwlock_unlock, (void *))     X(void *, dlopen, (const char *, int))     X(void *, dlsym, (void *, const char *))     X(char *, dlerror, (void))
 
 #define DECLARE(ret, name, params) static ret (SYSV *shim_##name) params;
 SHIM_FUNCTIONS(DECLARE)
@@ -246,6 +246,49 @@ static void test_working_directory_is_an_absolute_linux_path(void)
     CHECK(shim_strchr(directory, '\\') == NULL);
 }
 
+#define EBUSY_CODE 16
+#define PAGE_ALIGNMENT 4096
+
+static void test_aligned_allocation(void)
+{
+    void *page = shim_aligned_alloc(PAGE_ALIGNMENT, 100);
+    CHECK(page != NULL && ((uintptr_t)page & (PAGE_ALIGNMENT - 1)) == 0);
+    ((char *)page)[99] = 'x';
+    char *grown = shim_realloc(page, 10000);
+    CHECK(grown != NULL && grown[99] == 'x');
+    shim_free(grown);
+    void *small = shim_aligned_alloc(16, 40);
+    CHECK(small != NULL && ((uintptr_t)small & 15) == 0);
+    shim_free(small);
+    void *posix = NULL;
+    CHECK(shim_posix_memalign(&posix, 64, 10) == 0 && ((uintptr_t)posix & 63) == 0);
+    shim_free(posix);
+    CHECK(shim_posix_memalign(&posix, 3, 10) != 0);
+}
+
+/* A zeroed object is an unlocked lock, as glibc's static initialiser makes it. */
+static void test_rwlock(void)
+{
+    uint64_t lock[7] = {0};
+    CHECK(shim_pthread_rwlock_rdlock(lock) == 0);
+    CHECK(shim_pthread_rwlock_tryrdlock(lock) == 0);
+    CHECK(shim_pthread_rwlock_trywrlock(lock) == EBUSY_CODE);
+    CHECK(shim_pthread_rwlock_unlock(lock) == 0 && shim_pthread_rwlock_unlock(lock) == 0);
+    CHECK(shim_pthread_rwlock_wrlock(lock) == 0);
+    CHECK(shim_pthread_rwlock_tryrdlock(lock) == EBUSY_CODE);
+    CHECK(shim_pthread_rwlock_unlock(lock) == 0);
+    CHECK(shim_pthread_rwlock_trywrlock(lock) == 0 && shim_pthread_rwlock_unlock(lock) == 0);
+}
+
+static void test_dynamic_lookup(void)
+{
+    void *self = shim_dlopen(NULL, 0);
+    CHECK(self != NULL && shim_dlsym(self, "strlen") != NULL);
+    CHECK(shim_dlsym(self, "definitely_not_a_function") == NULL && shim_dlerror() != NULL && shim_dlerror() == NULL);
+    CHECK(shim_dlopen("libc.so.6", 0) == self);
+    CHECK(shim_dlopen("libmissing.so.1", 0) == NULL && shim_dlerror() != NULL);
+}
+
 int main(void)
 {
     HMODULE module = LoadLibraryA("crossport_libc.dll");
@@ -263,6 +306,9 @@ int main(void)
     test_qsort_is_stable();
     test_strings_and_memory();
     test_working_directory_is_an_absolute_linux_path();
+    test_aligned_allocation();
+    test_rwlock();
+    test_dynamic_lookup();
     report("%d checks, %d failures\n", g_checks, g_failures);
     return g_failures == 0 ? 0 : 1;
 }

@@ -1,7 +1,7 @@
 // File: translator/src/startup.rs
 // Purpose: Encode the per-module start-info table the shim reads, and the executable's 13-byte entry stub
 // Author: Akilesh
-// Date: 2026-10-28
+// Date: 2026-10-29
 
 use crate::error::TranslateError;
 use crate::shim_abi::{
@@ -50,6 +50,8 @@ pub struct ModuleInfo {
     /// DLL file names the executable's startup must load, dependencies first.
     pub dependencies: Vec<String>,
     pub tls: TlsInfo,
+    /// RVA of the module's `.eh_frame_hdr`, which the shim reports through `dl_iterate_phdr`.
+    pub eh_frame_hdr_rva: u32,
 }
 
 /// Thread-local storage data for one module. All zero when the module has none.
@@ -169,7 +171,7 @@ fn encode_info(out: &mut Vec<u8>, info: &ModuleInfo, info_rva: u32) -> Result<()
         tls.max_align,
         tls.stubs_rva,
         tls.stubs_size,
-        0,
+        info.eh_frame_hdr_rva,
     ];
     for field in header {
         push_u32(out, field);

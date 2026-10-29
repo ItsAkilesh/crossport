@@ -1,7 +1,7 @@
 // File: translator/src/shim_abi.rs
 // Purpose: Constants shared with shim/crossport_libc.c; the one place the translator and shim agree on names and layout
 // Author: Akilesh
-// Date: 2026-10-28
+// Date: 2026-10-29
 
 /// File name of the shim DLL every translated module may import from.
 pub const SHIM_DLL: &str = "crossport_libc.dll";
@@ -12,7 +12,7 @@ pub const INFO_SYMBOL: &str = "__crossport_info";
 
 /// "CPRT" read as a little-endian u32.
 pub const INFO_MAGIC: u32 = 0x5452_5043;
-pub const INFO_VERSION: u32 = 3;
+pub const INFO_VERSION: u32 = 4;
 
 /// Fixed header: 26 little-endian u32 fields, in the order of `startup::encode_info`.
 pub const INFO_HEADER_BYTES: usize = 104;

@@ -57,7 +57,7 @@ typedef int32_t (*EnumerateExtensionsFn)(const char *layer, uint32_t *count, voi
 typedef int32_t (*CreateWin32SurfaceFn)(void *instance, const void *info, const void *allocator, uint64_t *surface);
 typedef uint32_t (*Win32PresentationFn)(void *physical, uint32_t queue_family);
 
-static_assert(sizeof(InstanceInfo) <= sizeof(((VulkanInstanceStorage *)0)->info), "instance info storage is too small");
+_Static_assert(sizeof(InstanceInfo) <= sizeof(((VulkanInstanceStorage *)0)->info), "instance info storage is too small");
 
 const void *vulkan_wsi_instance_info(const void *info, VulkanInstanceStorage *storage)
 {

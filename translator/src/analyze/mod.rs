@@ -1,7 +1,7 @@
 // File: translator/src/analyze/mod.rs
 // Purpose: Parse a 64-bit x86-64 ET_DYN ELF (PIE or shared library) into an ElfInfo
 // Author: Akilesh
-// Date: 2026-10-28
+// Date: 2026-10-29
 
 mod address_map;
 mod code_ranges;
@@ -43,6 +43,7 @@ pub fn analyze(data: &[u8]) -> Result<ElfInfo, TranslateError> {
     let symbols = symbols::read(data, &map, &table, &strings)?;
     let relocations = relocs::read(data, &map, &table, symbols.len())?;
     let code_ranges = code_ranges::read(data, &map, phdrs, endian)?;
+    let eh_frame_header = header::eh_frame_header(phdrs, endian);
     Ok(ElfInfo {
         entry: header.e_entry(endian),
         soname: optional_string(&strings, table.soname)?,
@@ -57,6 +58,7 @@ pub fn analyze(data: &[u8]) -> Result<ElfInfo, TranslateError> {
         fini_array: array_range(table.fini_array, table.fini_arraysz),
         tls,
         code_ranges,
+        eh_frame_header,
         segments,
     })
 }

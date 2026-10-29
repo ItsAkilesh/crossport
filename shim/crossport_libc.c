@@ -28,6 +28,12 @@ static LoadedModule g_modules[MAX_MODULES + 1];
 static size_t g_module_count;
 static uint8_t *g_executable_base;
 
+const LoadedModule *shim_loaded_modules(size_t *count)
+{
+    *count = g_module_count;
+    return g_modules;
+}
+
 static const StartInfo *validated(const StartInfo *info)
 {
     if (info == NULL || info->magic != INFO_MAGIC || info->version != INFO_VERSION ||

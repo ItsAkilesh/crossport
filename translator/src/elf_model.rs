@@ -1,7 +1,7 @@
 // File: translator/src/elf_model.rs
 // Purpose: Plain data describing an analyzed ELF module, independent of the parser
 // Author: Akilesh
-// Date: 2026-10-28
+// Date: 2026-10-29
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SegmentFlags {
@@ -134,4 +134,6 @@ pub struct ElfInfo {
     pub fini_array: Option<ArrayRange>,
     pub tls: Option<TlsSegment>,
     pub code_ranges: Vec<CodeRange>,
+    /// Virtual address of `PT_GNU_EH_FRAME`: how the C++ and C unwinders find a module's frame tables.
+    pub eh_frame_header: Option<u64>,
 }

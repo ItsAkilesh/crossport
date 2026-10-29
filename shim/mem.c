@@ -2,10 +2,11 @@
  * File: shim/mem.c
  * Purpose: malloc family on the Win32 process heap and the memory functions, with the fortify _chk variants
  * Author: Akilesh
- * Date: 2026-10-28
+ * Date: 2026-10-29
  */
 
 #include "libc_abi.h"
+#include "mem_aligned.h"
 
 #define CHK_FAILURE_EXIT_CODE 134 /* 128 + SIGABRT, like glibc's abort */
 
@@ -22,7 +23,7 @@ LIBC_FN void *sysv_malloc(size_t size)
 
 LIBC_FN void sysv_free(void *block)
 {
-    if (block != NULL) {
+    if (block != NULL && !aligned_block_release(block)) {
         HeapFree(GetProcessHeap(), 0, block);
     }
 }
@@ -47,8 +48,17 @@ LIBC_FN void *sysv_realloc(void *block, size_t size)
         return sysv_malloc(size);
     }
     if (size == 0) {
-        HeapFree(GetProcessHeap(), 0, block);
+        sysv_free(block);
         return NULL;
+    }
+    size_t aligned_size = aligned_block_size(block);
+    if (aligned_size != 0) {
+        void *copy = sysv_malloc(size);
+        if (copy != NULL) {
+            CopyMemory(copy, block, aligned_size < size ? aligned_size : size);
+            aligned_block_release(block);
+        }
+        return copy;
     }
     void *moved = HeapReAlloc(GetProcessHeap(), 0, block, size);
     if (moved == NULL) {

@@ -2,16 +2,17 @@
  * File: shim/startinfo.h
  * Purpose: The per-module start-info table the translator emits; a contract with translator/src/shim_abi.rs and startup.rs
  * Author: Akilesh
- * Date: 2026-10-28
+ * Date: 2026-10-29
  */
 
 #ifndef CROSSPORT_STARTINFO_H
 #define CROSSPORT_STARTINFO_H
 
+#include <stddef.h>
 #include <stdint.h>
 
 #define INFO_MAGIC 0x54525043u /* "CPRT", little-endian */
-#define INFO_VERSION 3u
+#define INFO_VERSION 4u
 #define INFO_SYMBOL "__crossport_info"
 #define MAX_MODULES 256u
 #define MAX_RECORDS (1u << 22)
@@ -57,7 +58,7 @@ typedef struct {
     uint32_t tls_max_align;  /* executable only */
     uint32_t stubs_rva;
     uint32_t stubs_size;
-    uint32_t reserved;
+    uint32_t eh_frame_hdr_rva; /* the module's .eh_frame_hdr, or 0 */
 } StartInfo;
 
 _Static_assert(sizeof(StartInfo) == 104, "StartInfo must match INFO_HEADER_BYTES in shim_abi.rs");
@@ -67,6 +68,9 @@ typedef struct {
     const StartInfo *info;
     uint8_t *base;
 } LoadedModule;
+
+/* The modules of this process, dependencies first and the executable last (defined in crossport_libc.c). */
+const LoadedModule *shim_loaded_modules(size_t *count);
 
 static inline const Binding *info_iat_bindings(const StartInfo *info)
 {

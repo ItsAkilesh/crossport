@@ -1,7 +1,7 @@
 // File: translator/src/analyze/header.rs
 // Purpose: Validate the ELF header and extract PT_LOAD segments, rejecting what Crossport cannot translate
 // Author: Akilesh
-// Date: 2026-10-28
+// Date: 2026-10-29
 
 use object::elf;
 use object::read::elf::{FileHeader, ProgramHeader};
@@ -31,6 +31,14 @@ pub(super) fn check_header(header: &Header, endian: Endianness) -> Result<(), Tr
         ));
     }
     Ok(())
+}
+
+/// Virtual address of the `PT_GNU_EH_FRAME` segment (the `.eh_frame_hdr` the unwinder searches), if any.
+pub(super) fn eh_frame_header(phdrs: &[Phdr], endian: Endianness) -> Option<u64> {
+    phdrs
+        .iter()
+        .find(|ph| ph.p_type(endian) == elf::PT_GNU_EH_FRAME)
+        .map(|ph| ph.p_vaddr(endian))
 }
 
 /// The `PT_TLS` template, if the module has thread-local variables.
