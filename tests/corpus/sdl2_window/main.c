@@ -92,7 +92,9 @@ int main(void)
         SDL_Quit();
         return 1;
     }
+    puts("surface acquired");
     draw(surface);
+    puts("surface drawn");
     printf("update=%d\n", SDL_UpdateWindowSurface(window));
     print_surface(surface);
     SDL_DestroyWindow(window);
