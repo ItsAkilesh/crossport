@@ -267,17 +267,21 @@ LIBC_FN int sysv_fstatvfs64(int fd, StatVfs *out)
 
 LIBC_FN int64_t sysv_sendfile(int out_fd, int in_fd, int64_t *offset, size_t count)
 {
-    static __thread uint8_t buffer[SENDFILE_CHUNK];
+    uint8_t *buffer = (uint8_t *)HeapAlloc(GetProcessHeap(), 0, SENDFILE_CHUNK);
+    if (buffer == NULL) {
+        return shim_fail(LINUX_ENOMEM);
+    }
     int64_t restore = -1;
     int64_t total = 0;
     if (offset != NULL) {
         restore = shim_fd_seek(in_fd, 0, LINUX_SEEK_CUR);
         if (restore < 0 || shim_fd_seek(in_fd, *offset, LINUX_SEEK_SET) < 0) {
+            HeapFree(GetProcessHeap(), 0, buffer);
             return -1;
         }
     }
     while ((size_t)total < count) {
-        size_t want = count - (size_t)total < sizeof(buffer) ? count - (size_t)total : sizeof(buffer);
+        size_t want = count - (size_t)total < SENDFILE_CHUNK ? count - (size_t)total : SENDFILE_CHUNK;
         int64_t got = shim_fd_read(in_fd, buffer, want);
         if (got <= 0) {
             total = got < 0 && total == 0 ? -1 : total;
@@ -289,6 +293,7 @@ LIBC_FN int64_t sysv_sendfile(int out_fd, int in_fd, int64_t *offset, size_t cou
         }
         total += got;
     }
+    HeapFree(GetProcessHeap(), 0, buffer);
     if (offset != NULL) {
         *offset += total > 0 ? total : 0;
         shim_fd_seek(in_fd, restore, LINUX_SEEK_SET);

@@ -12,6 +12,7 @@
 #include <string.h>
 
 #include "libc_abi.h"
+#include "thread_cell.h"
 
 #define LC_GLOBAL_LOCALE ((void *)-1)
 #define MB_CUR_MAX_UTF8 6
@@ -46,7 +47,7 @@ static const char *const ABBREVIATED_MONTHS[MONTHS_PER_YEAR] = {"Jan", "Feb", "M
 static const char *const MONTHS[MONTHS_PER_YEAR] = {"January", "February", "March", "April", "May", "June",
                                                     "July", "August", "September", "October", "November", "December"};
 
-static __thread void *t_current_locale = LC_GLOBAL_LOCALE;
+static ThreadCell g_locale_cell = THREAD_CELL_INIT;
 
 LIBC_FN size_t sysv_strftime(char *out, size_t size, const char *format, const void *tm);
 LIBC_FN double sysv_strtod(const char *text, char **end);
@@ -102,9 +103,10 @@ LIBC_FN void sysv_freelocale(void *locale)
 /* Makes `locale` this thread's locale (NULL only asks) and returns the previous one. */
 LIBC_FN void *sysv_uselocale(void *locale)
 {
-    void *previous = t_current_locale;
+    void *current = thread_cell_get(&g_locale_cell);
+    void *previous = current != NULL ? current : LC_GLOBAL_LOCALE;
     if (locale != NULL) {
-        t_current_locale = locale;
+        thread_cell_set(&g_locale_cell, locale);
     }
     return previous;
 }

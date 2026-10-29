@@ -13,6 +13,7 @@
 #include <string.h>
 
 #include "libc_abi.h"
+#include "thread_cell.h"
 
 #define RTLD_NEXT_HANDLE ((void *)-1)
 #define ERROR_TEXT_MAX 256
@@ -26,7 +27,12 @@ static const char *const PROVIDED[] = {"libc.so.6", "libm.so.6", "libpthread.so.
 
 /* The handle every provided library shares: the shim's own module. */
 static HMODULE g_self;
-static __thread const char *t_error;
+static ThreadCell g_error_cell = THREAD_CELL_INIT;
+
+static void set_error(const char *message)
+{
+    thread_cell_set(&g_error_cell, (void *)message);
+}
 
 static HMODULE self_module(void)
 {
@@ -52,24 +58,24 @@ static int is_provided(const char *name)
 LIBC_FN void *sysv_dlopen(const char *name, int flags)
 {
     (void)flags;
-    t_error = NULL;
+    set_error(NULL);
     if (name == NULL || is_provided(name)) {
         return self_module();
     }
-    t_error = ERROR_MISSING;
+    set_error(ERROR_MISSING);
     return NULL;
 }
 
 LIBC_FN void *sysv_dlsym(void *handle, const char *name)
 {
-    t_error = NULL;
+    set_error(NULL);
     if (handle != NULL && handle != RTLD_NEXT_HANDLE && handle != self_module()) {
-        t_error = ERROR_HANDLE;
+        set_error(ERROR_HANDLE);
         return NULL;
     }
     void *address = (void *)GetProcAddress(self_module(), name);
     if (address == NULL) {
-        t_error = ERROR_SYMBOL;
+        set_error(ERROR_SYMBOL);
     }
     return address;
 }
@@ -83,8 +89,8 @@ LIBC_FN int sysv_dlclose(void *handle)
 /* The text of the last failure on this thread, once: like glibc, a second call returns NULL. */
 LIBC_FN char *sysv_dlerror(void)
 {
-    const char *message = t_error;
-    t_error = NULL;
+    const char *message = (const char *)thread_cell_get(&g_error_cell);
+    set_error(NULL);
     return (char *)message;
 }
 
