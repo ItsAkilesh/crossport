@@ -18,6 +18,8 @@ use crossport_translator::{bundle, coverage, graph, translate};
 
 const EXIT_ERROR: u8 = 2;
 const DEFAULT_PROGRAM_NAME: &str = "program";
+/// Where `convert` puts the unpacked AppDir inside the output directory.
+const APPDIR_NAME: &str = "appdir";
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -41,6 +43,12 @@ fn execute(action: Action) -> Result<(), TranslateError> {
             appdir,
             allow_missing,
         } => show_coverage(&shim, &elfs, &lib_dirs, appdir.as_deref(), allow_missing),
+        Action::Convert {
+            image,
+            shim,
+            out,
+            runtime_dirs,
+        } => convert_image(&image, &shim, &out, runtime_dirs),
         Action::Translate {
             elf,
             shim,
@@ -205,6 +213,27 @@ fn run_translation(
             );
         }
     }
+    Ok(())
+}
+
+/// The whole pipeline for an AppImage: unpack it beside the output, translate its program, and write the
+/// environment file the shim applies at start. Everything the program needs ends up in `out`.
+fn convert_image(
+    image: &Path,
+    shim: &Path,
+    out: &Path,
+    runtime_dirs: Vec<PathBuf>,
+) -> Result<(), TranslateError> {
+    let appdir = out.join(APPDIR_NAME);
+    let unpacked = appimage::unpack(image, &appdir, &Limits::default())?;
+    let program = unpacked
+        .apprun_target
+        .iter()
+        .fold(appdir.clone(), |path, part| path.join(part));
+    println!("program: {}", unpacked.apprun_target.join("/"));
+    run_translation(&program, shim, out, runtime_dirs, Some(appdir))?;
+    let env_path = bundle::write_env_file(out, &[("APPDIR", "${BUNDLE}/appdir")])?;
+    println!("wrote {}", env_path.display());
     Ok(())
 }
 

@@ -118,6 +118,10 @@ jobs:
           for app in $APPS; do
             tools/corpus/translate_and_run.sh "$app"
           done
+      - name: Convert an AppImage in one step and check the environment file is applied
+        run: |
+ translator/target/release/crossport.exe convert build/corpus/images/lua.AppImage --shim build/shim/crossport_libc.dll --out build/convert/lua
+          build/convert/lua/lua.exe -e "print(os.getenv('APPDIR') ~= nil, 6 * 7)" | grep -qx "true	42"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: result-windows

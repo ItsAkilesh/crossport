@@ -8,7 +8,8 @@ use std::path::PathBuf;
 use crate::error::TranslateError;
 
 const USAGE: &str = "usage:\n  crossport unpack <app.AppImage> --out <new-or-empty-dir>\n  crossport analyze <elf>\n  crossport coverage --shim <crossport_libc.dll> [--appdir <dir>] [--lib-dir <dir>]... [--allow-missing] <elf>...
-  crossport translate <elf> --shim <crossport_libc.dll> --out <dir> [--lib-dir <dir>]... [--appdir <dir>]";
+  crossport translate <elf> --shim <crossport_libc.dll> --out <dir> [--lib-dir <dir>]... [--appdir <dir>]
+  crossport convert <app.AppImage> --shim <crossport_libc.dll> --out <new-or-empty-dir> [--runtime <dir>]...";
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Action {
@@ -26,6 +27,14 @@ pub enum Action {
         appdir: Option<PathBuf>,
         /// Measure even when some libraries are missing (host libraries the AppDir does not bundle).
         allow_missing: bool,
+    },
+    /// Unpack an AppImage and translate it into a runnable bundle in one step.
+    Convert {
+        image: PathBuf,
+        shim: PathBuf,
+        out: PathBuf,
+        /// Directories of libraries the AppImage expects from its host (libstdc++ and the like).
+        runtime_dirs: Vec<PathBuf>,
     },
     Translate {
         elf: PathBuf,
@@ -50,6 +59,31 @@ pub fn parse(args: &[String]) -> Result<Action, TranslateError> {
         }),
         [command, elf, flags @ ..] if command == "translate" => parse_translate(elf, flags),
         [command, rest @ ..] if command == "coverage" => parse_coverage(rest),
+        [command, image, flags @ ..] if command == "convert" => parse_convert(image, flags),
+        _ => Err(usage()),
+    }
+}
+
+fn parse_convert(image: &str, flags: &[String]) -> Result<Action, TranslateError> {
+    let (mut shim, mut out) = (None, None);
+    let mut runtime_dirs = Vec::new();
+    let mut remaining = flags.iter();
+    while let Some(flag) = remaining.next() {
+        let value = PathBuf::from(remaining.next().ok_or_else(usage)?);
+        match flag.as_str() {
+            "--shim" if shim.is_none() => shim = Some(value),
+            "--out" if out.is_none() => out = Some(value),
+            "--runtime" => runtime_dirs.push(value),
+            _ => return Err(usage()),
+        }
+    }
+    match (shim, out) {
+        (Some(shim), Some(out)) => Ok(Action::Convert {
+            image: PathBuf::from(image),
+            shim,
+            out,
+            runtime_dirs,
+        }),
         _ => Err(usage()),
     }
 }
@@ -123,6 +157,36 @@ mod tests {
 
     fn args(items: &[&str]) -> Vec<String> {
         items.iter().map(|item| item.to_string()).collect()
+    }
+
+    #[test]
+    fn parses_convert_with_runtime_directories() {
+        let action = parse(&args(&[
+            "convert",
+            "a.AppImage",
+            "--shim",
+            "s.dll",
+            "--out",
+            "o",
+            "--runtime",
+            "r1",
+            "--runtime",
+            "r2",
+        ]));
+        assert_eq!(
+            action.expect("valid"),
+            Action::Convert {
+                image: PathBuf::from("a.AppImage"),
+                shim: PathBuf::from("s.dll"),
+                out: PathBuf::from("o"),
+                runtime_dirs: vec![PathBuf::from("r1"), PathBuf::from("r2")],
+            }
+        );
+        assert!(
+            parse(&args(&["convert", "a", "--out", "o"])).is_err(),
+            "needs a shim"
+        );
+        assert!(parse(&args(&["convert", "a", "--shim", "s", "--bogus", "x"])).is_err());
     }
 
     #[test]

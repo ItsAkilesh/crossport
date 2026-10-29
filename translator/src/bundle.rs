@@ -1,7 +1,7 @@
 // File: translator/src/bundle.rs
 // Purpose: Write the translated files and the shim DLL into a loose bundle directory
 // Author: Akilesh
-// Date: 2026-10-28
+// Date: 2026-10-29
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -33,9 +33,48 @@ pub fn write_bundle(
     executable.ok_or_else(|| TranslateError::Elf("internal: translation produced no files".into()))
 }
 
+/// Name of the file the shim reads at start to set the environment a launcher script would have set.
+pub const ENV_FILE: &str = "crossport.env";
+
+/// Writes `crossport.env` beside the executable: one `NAME=value` line per variable, `${BUNDLE}` standing
+/// for the bundle directory. Names and values may not contain line breaks, and names no `=`.
+pub fn write_env_file(
+    out_dir: &Path,
+    variables: &[(&str, &str)],
+) -> Result<PathBuf, TranslateError> {
+    let mut text =
+        String::from("# Written by crossport convert; read by the shim at program start.\n");
+    for (name, value) in variables {
+        let is_valid =
+            !name.is_empty() && !name.contains(['=', '\n', '\r']) && !value.contains(['\n', '\r']);
+        if !is_valid {
+            return Err(TranslateError::Unsupported(format!(
+                "cannot write the environment variable {name:?}"
+            )));
+        }
+        text.push_str(&format!("{name}={value}\n"));
+    }
+    let path = out_dir.join(ENV_FILE);
+    fs::write(&path, text).map_err(io_error(format!("writing {}", path.display())))?;
+    Ok(path)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_env_file_has_one_line_per_variable() {
+        let dir = std::env::temp_dir().join("crossport-env-test");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).expect("temp dir");
+        let path =
+            write_env_file(&dir, &[("APPDIR", "${BUNDLE}/appdir"), ("A", "b")]).expect("writes");
+        let text = fs::read_to_string(path).expect("exists");
+        assert!(text.contains("APPDIR=${BUNDLE}/appdir\nA=b\n"));
+        assert!(write_env_file(&dir, &[("BAD=NAME", "x")]).is_err());
+        assert!(write_env_file(&dir, &[("OK", "two\nlines")]).is_err());
+    }
 
     #[test]
     fn writes_files_and_copies_the_shim() {

@@ -13,4 +13,7 @@
 /* Builds the UTF-8 environment from the Windows one and sets `environ`. */
 void env_init(void);
 
+/* Applies crossport.env from the executable's directory (envfile.c); call after env_init. */
+void shim_apply_env_file(void);
+
 #endif

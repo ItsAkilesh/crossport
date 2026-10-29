@@ -179,6 +179,18 @@ uploads (artifact `elf-corpus`), place it under `build/elf/` (so the program is 
 tools/run-translated.sh hello_dyn     # builds the shim, translates, runs, records the result
 ```
 
+To convert a whole AppImage in one step (unpack, translate its program and libraries, and write the
+environment file the program needs), give `convert` the image, the shim and an empty output directory:
+
+```bash
+translator/target/release/crossport convert app.AppImage --shim build/shim/crossport_libc.dll --out build/app
+build/app/app.exe        # the unpacked AppDir is in build/app/appdir
+```
+
+When the AppImage starts through a shell script, the program is taken from the `Exec=` line of its
+desktop file. Libraries the AppImage expects from its host (libstdc++ and similar) can be supplied with
+`--runtime <dir>`, a directory of Linux copies of them.
+
 You can also drive the translator directly:
 
 ```bash
