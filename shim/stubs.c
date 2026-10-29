@@ -89,8 +89,6 @@ STUB_FAIL(statx)
 STUB_FAIL(waitid)
 STUB_FAIL(initstate_r)
 STUB_FAIL(random_r)
-STUB_FAIL(glob)
-STUB_ZERO(globfree)
 
 /* Extended attributes. */
 STUB_FAIL(fgetxattr)

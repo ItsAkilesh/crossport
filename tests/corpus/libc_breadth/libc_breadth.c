@@ -6,13 +6,17 @@
  */
 
 #define _GNU_SOURCE
+#include <dirent.h>
+#include <fnmatch.h>
 #include <getopt.h>
+#include <glob.h>
 #include <search.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #define LINE_BYTES 128
@@ -130,6 +134,52 @@ static void test_search(void)
     expect(lfind(&absent, keys, &count, sizeof(int), compare_ints) == NULL, "lfind miss");
 }
 
+static void touch(const char *path)
+{
+    FILE *file = fopen(path, "w");
+    if (file != NULL) {
+        fclose(file);
+    }
+}
+
+static void test_files_and_globs(void)
+{
+    mkdir("globdir", 0755);
+    mkdir("globdir/sub", 0755);
+    touch("globdir/b.txt");
+    touch("globdir/a.txt");
+    touch("globdir/c.log");
+    touch("globdir/sub/d.txt");
+    glob_t found;
+    expect(glob("globdir/*.txt", 0, NULL, &found) == 0 && found.gl_pathc == 2, "glob finds two text files");
+    printf("glob: %s %s\n", found.gl_pathv[0], found.gl_pathv[1]);
+    globfree(&found);
+    expect(glob("globdir/*/*.txt", 0, NULL, &found) == 0 && found.gl_pathc == 1, "glob across a directory level");
+    printf("glob: %s\n", found.gl_pathv[0]);
+    globfree(&found);
+    expect(glob("globdir/*.zzz", 0, NULL, &found) == GLOB_NOMATCH, "glob reports no match");
+    expect(fnmatch("*.c", "main.c", 0) == 0 && fnmatch("*.c", "main.h", 0) == FNM_NOMATCH, "fnmatch star");
+    expect(fnmatch("[a-c]?x", "bzx", 0) == 0 && fnmatch("[!a-c]?x", "bzx", 0) == FNM_NOMATCH, "fnmatch class");
+    expect(fnmatch("*", ".hidden", FNM_PERIOD) == FNM_NOMATCH, "fnmatch FNM_PERIOD");
+    struct dirent **names = NULL;
+    int count = scandir("globdir", &names, NULL, alphasort);
+    printf("scandir:");
+    for (int i = 0; i < count; i++) {
+        if (names[i]->d_name[0] != '.') {
+            printf(" %s", names[i]->d_name);
+        }
+        free(names[i]);
+    }
+    printf("\n");
+    free(names);
+    unlink("globdir/sub/d.txt");
+    unlink("globdir/a.txt");
+    unlink("globdir/b.txt");
+    unlink("globdir/c.log");
+    rmdir("globdir/sub");
+    rmdir("globdir");
+}
+
 static void test_getline_and_asprintf(void)
 {
     FILE *file = fopen("lines.txt", "w");
@@ -164,6 +214,7 @@ int main(void)
     test_random();
     test_search();
     test_getline_and_asprintf();
+    test_files_and_globs();
     printf("failures: %d\n", g_failures);
     return g_failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }
