@@ -118,11 +118,14 @@ impl LibrarySource for DirectorySource {
 
 /// Searches an unpacked AppDir the way the dynamic loader would: the requester's `RPATH`
 /// (when it has no `RUNPATH`), extra directories, its `RUNPATH` with `$ORIGIN`, then the
-/// default library directories. Nothing outside the AppDir is ever read.
+/// default library directories. Nothing outside the AppDir is read, except the runtime directories
+/// the user names themselves (the host libraries an AppImage expects, such as libstdc++), which are
+/// searched last.
 pub struct AppDirSource {
     root: PathBuf,
     executable: PathBuf,
     extra: Vec<Vec<String>>,
+    runtime: Vec<PathBuf>,
 }
 
 impl AppDirSource {
@@ -154,7 +157,14 @@ impl AppDirSource {
             root,
             executable,
             extra,
+            runtime: Vec::new(),
         })
+    }
+
+    /// Directories outside the AppDir searched after everything inside it.
+    pub fn with_runtime_directories(mut self, directories: Vec<PathBuf>) -> Self {
+        self.runtime = directories;
+        self
     }
 
     fn origin_components(&self, origin: &Path) -> Option<Vec<String>> {
@@ -189,6 +199,11 @@ impl LibrarySource for AppDirSource {
                 .iter()
                 .fold(self.root.clone(), |path, part| path.join(part));
             if let Some(library) = read_candidate(&directory, name, Some(&self.root))? {
+                return Ok(library);
+            }
+        }
+        for directory in &self.runtime {
+            if let Some(library) = read_candidate(directory, name, None)? {
                 return Ok(library);
             }
         }

@@ -42,7 +42,14 @@ fn execute(action: Action) -> Result<(), TranslateError> {
             lib_dirs,
             appdir,
             allow_missing,
-        } => show_coverage(&shim, &elfs, &lib_dirs, appdir.as_deref(), allow_missing),
+            runtime_dirs,
+        } => show_coverage(
+            &shim,
+            &elfs,
+            (&lib_dirs, &runtime_dirs),
+            appdir.as_deref(),
+            allow_missing,
+        ),
         Action::Convert {
             image,
             shim,
@@ -55,7 +62,8 @@ fn execute(action: Action) -> Result<(), TranslateError> {
             out,
             lib_dirs,
             appdir,
-        } => run_translation(&elf, &shim, &out, lib_dirs, appdir),
+            runtime_dirs,
+        } => run_translation(&elf, &shim, &out, (lib_dirs, runtime_dirs), appdir),
     }
 }
 
@@ -80,7 +88,7 @@ fn unpack_image(image: &Path, out: &Path) -> Result<(), TranslateError> {
 fn show_coverage(
     shim: &Path,
     elfs: &[PathBuf],
-    lib_dirs: &[PathBuf],
+    (lib_dirs, runtime_dirs): (&[PathBuf], &[PathBuf]),
     appdir: Option<&Path>,
     allow_missing: bool,
 ) -> Result<(), TranslateError> {
@@ -92,15 +100,20 @@ fn show_coverage(
             .file_stem()
             .and_then(|s| s.to_str())
             .unwrap_or(DEFAULT_PROGRAM_NAME);
-        let loaded = library_source(elf, appdir.map(Path::to_path_buf), lib_dirs.to_vec())
-            .and_then(|source| {
-                let (name, bytes) = (ModuleName::sanitized(stem)?, read_file(elf)?);
-                if allow_missing {
-                    graph::load_lenient(name, bytes, source.as_ref(), &mut missing_libraries)
-                } else {
-                    graph::load(name, bytes, source.as_ref())
-                }
-            });
+        let loaded = library_source(
+            elf,
+            appdir.map(Path::to_path_buf),
+            lib_dirs.to_vec(),
+            runtime_dirs,
+        )
+        .and_then(|source| {
+            let (name, bytes) = (ModuleName::sanitized(stem)?, read_file(elf)?);
+            if allow_missing {
+                graph::load_lenient(name, bytes, source.as_ref(), &mut missing_libraries)
+            } else {
+                graph::load(name, bytes, source.as_ref())
+            }
+        });
         programs.push((stem.to_string(), loaded));
     }
     for library in &missing_libraries {
@@ -155,6 +168,7 @@ fn library_source(
     elf: &Path,
     appdir: Option<PathBuf>,
     mut lib_dirs: Vec<PathBuf>,
+    runtime_dirs: &[PathBuf],
 ) -> Result<Box<dyn LibrarySource>, TranslateError> {
     let canonical = |path: &Path| {
         path.canonicalize().map_err(|source| TranslateError::Io {
@@ -167,9 +181,15 @@ fn library_source(
             .iter()
             .map(|dir| canonical(dir))
             .collect::<Result<Vec<_>, _>>()?;
-        let source = AppDirSource::new(canonical(&root)?, canonical(elf)?, &extra)?;
+        let runtime = runtime_dirs
+            .iter()
+            .map(|dir| canonical(dir))
+            .collect::<Result<Vec<_>, _>>()?;
+        let source = AppDirSource::new(canonical(&root)?, canonical(elf)?, &extra)?
+            .with_runtime_directories(runtime);
         return Ok(Box::new(source));
     }
+    lib_dirs.extend(runtime_dirs.iter().cloned());
     if lib_dirs.is_empty() {
         lib_dirs.push(
             elf.parent()
@@ -183,10 +203,10 @@ fn run_translation(
     elf: &Path,
     shim: &Path,
     out: &Path,
-    lib_dirs: Vec<PathBuf>,
+    (lib_dirs, runtime_dirs): (Vec<PathBuf>, Vec<PathBuf>),
     appdir: Option<PathBuf>,
 ) -> Result<(), TranslateError> {
-    let source = library_source(elf, appdir, lib_dirs)?;
+    let source = library_source(elf, appdir, lib_dirs, &runtime_dirs)?;
     let stem = elf
         .file_stem()
         .and_then(|s| s.to_str())
@@ -231,7 +251,13 @@ fn convert_image(
         .iter()
         .fold(appdir.clone(), |path, part| path.join(part));
     println!("program: {}", unpacked.apprun_target.join("/"));
-    run_translation(&program, shim, out, runtime_dirs, Some(appdir))?;
+    run_translation(
+        &program,
+        shim,
+        out,
+        (Vec::new(), runtime_dirs),
+        Some(appdir),
+    )?;
     let env_path = bundle::write_env_file(out, &[("APPDIR", "${BUNDLE}/appdir")])?;
     println!("wrote {}", env_path.display());
     Ok(())

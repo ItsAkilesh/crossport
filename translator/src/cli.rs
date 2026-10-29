@@ -7,8 +7,8 @@ use std::path::PathBuf;
 
 use crate::error::TranslateError;
 
-const USAGE: &str = "usage:\n  crossport unpack <app.AppImage> --out <new-or-empty-dir>\n  crossport analyze <elf>\n  crossport coverage --shim <crossport_libc.dll> [--appdir <dir>] [--lib-dir <dir>]... [--allow-missing] <elf>...
-  crossport translate <elf> --shim <crossport_libc.dll> --out <dir> [--lib-dir <dir>]... [--appdir <dir>]
+const USAGE: &str = "usage:\n  crossport unpack <app.AppImage> --out <new-or-empty-dir>\n  crossport analyze <elf>\n  crossport coverage --shim <crossport_libc.dll> [--appdir <dir>] [--lib-dir <dir>]... [--runtime <dir>]... [--allow-missing] <elf>...
+  crossport translate <elf> --shim <crossport_libc.dll> --out <dir> [--lib-dir <dir>]... [--appdir <dir>] [--runtime <dir>]...
   crossport convert <app.AppImage> --shim <crossport_libc.dll> --out <new-or-empty-dir> [--runtime <dir>]...";
 
 #[derive(Debug, PartialEq, Eq)]
@@ -27,6 +27,8 @@ pub enum Action {
         appdir: Option<PathBuf>,
         /// Measure even when some libraries are missing (host libraries the AppDir does not bundle).
         allow_missing: bool,
+        /// Directories of host libraries (libstdc++ and the like) searched after the AppDir.
+        runtime_dirs: Vec<PathBuf>,
     },
     /// Unpack an AppImage and translate it into a runnable bundle in one step.
     Convert {
@@ -43,6 +45,8 @@ pub enum Action {
         lib_dirs: Vec<PathBuf>,
         /// Search libraries inside this unpacked AppDir (RUNPATH, $ORIGIN, default directories).
         appdir: Option<PathBuf>,
+        /// Directories of host libraries (libstdc++ and the like) searched after the AppDir.
+        runtime_dirs: Vec<PathBuf>,
     },
 }
 
@@ -93,6 +97,7 @@ fn parse_translate(elf: &str, flags: &[String]) -> Result<Action, TranslateError
     let mut out = None;
     let mut lib_dirs = Vec::new();
     let mut appdir = None;
+    let mut runtime_dirs = Vec::new();
     let mut remaining = flags.iter();
     while let Some(flag) = remaining.next() {
         let value = PathBuf::from(remaining.next().ok_or_else(usage)?);
@@ -101,6 +106,7 @@ fn parse_translate(elf: &str, flags: &[String]) -> Result<Action, TranslateError
             "--out" if out.is_none() => out = Some(value),
             "--lib-dir" => lib_dirs.push(value),
             "--appdir" if appdir.is_none() => appdir = Some(value),
+            "--runtime" => runtime_dirs.push(value),
             _ => return Err(usage()),
         }
     }
@@ -111,6 +117,7 @@ fn parse_translate(elf: &str, flags: &[String]) -> Result<Action, TranslateError
             out,
             lib_dirs,
             appdir,
+            runtime_dirs,
         }),
         _ => Err(usage()),
     }
@@ -120,6 +127,7 @@ fn parse_coverage(args: &[String]) -> Result<Action, TranslateError> {
     let (mut shim, mut appdir) = (None, None);
     let (mut elfs, mut lib_dirs) = (Vec::new(), Vec::new());
     let mut allow_missing = false;
+    let mut runtime_dirs = Vec::new();
     let mut remaining = args.iter();
     while let Some(argument) = remaining.next() {
         match argument.as_str() {
@@ -131,6 +139,7 @@ fn parse_coverage(args: &[String]) -> Result<Action, TranslateError> {
             }
             "--lib-dir" => lib_dirs.push(PathBuf::from(remaining.next().ok_or_else(usage)?)),
             "--allow-missing" => allow_missing = true,
+            "--runtime" => runtime_dirs.push(PathBuf::from(remaining.next().ok_or_else(usage)?)),
             flag if flag.starts_with("--") => return Err(usage()),
             elf => elfs.push(PathBuf::from(elf)),
         }
@@ -142,6 +151,7 @@ fn parse_coverage(args: &[String]) -> Result<Action, TranslateError> {
             lib_dirs,
             appdir,
             allow_missing,
+            runtime_dirs,
         }),
         _ => Err(usage()),
     }
@@ -223,6 +233,7 @@ mod tests {
                 lib_dirs: vec![PathBuf::from("l")],
                 appdir: Some(PathBuf::from("app")),
                 allow_missing: false,
+                runtime_dirs: Vec::new(),
             }
         );
         assert!(
@@ -265,6 +276,7 @@ mod tests {
                 out: PathBuf::from("dist"),
                 lib_dirs: vec![PathBuf::from("l1"), PathBuf::from("l2")],
                 appdir: None,
+                runtime_dirs: Vec::new(),
             }
         );
     }
@@ -289,6 +301,7 @@ mod tests {
                 out: PathBuf::from("dist"),
                 lib_dirs: vec![],
                 appdir: Some(PathBuf::from("app")),
+                runtime_dirs: Vec::new(),
             }
         );
         assert!(parse(&args(&[

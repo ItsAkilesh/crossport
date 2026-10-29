@@ -138,31 +138,46 @@ LIBC_FN int sysv_timerfd_gettime(int fd, ITimerSpec *out)
     return 0;
 }
 
-/* Waits for the timer, then returns how many times it expired since the last read and re-arms it. */
-int64_t shim_timer_read(int fd, void *buffer, size_t count)
+/* Waits until the timer has expired. Returns 0, or -1 with EAGAIN when the descriptor is non-blocking and it has not. */
+static int wait_for_expiry(int fd, TimerState *state)
 {
-    TimerState *state = timer_state(fd);
-    if (state == NULL || count < sizeof(uint64_t)) {
-        return state == NULL ? -1 : shim_fail(LINUX_EINVAL);
-    }
-    for (;;) {
-        if (WaitForSingleObject(state->timer, 0) == WAIT_OBJECT_0 && state->next_expiry_100ns != 0) {
-            break;
-        }
+    while (state->next_expiry_100ns == 0 || WaitForSingleObject(state->timer, 0) != WAIT_OBJECT_0) {
         if ((shim_fd_flags(fd) & LINUX_O_NONBLOCK) != 0) {
             return shim_fail(LINUX_EAGAIN);
         }
         WaitForSingleObject(state->timer, WAIT_SLICE_MS);
     }
-    int64_t now = now_100ns(state->clock);
+    return 0;
+}
+
+/* The periods that have passed since the expiry time (at least one); re-arms a periodic timer, disarms a one-shot. */
+static uint64_t take_expirations(TimerState *state)
+{
     uint64_t expirations = 1;
+    int64_t now = now_100ns(state->clock);
     if (state->interval_100ns > 0) {
-        expirations += (uint64_t)((now - state->next_expiry_100ns) / state->interval_100ns);
+        uint64_t late = now > state->next_expiry_100ns ? (uint64_t)(now - state->next_expiry_100ns) : 0;
+        expirations += late / (uint64_t)state->interval_100ns;
         state->next_expiry_100ns += (int64_t)expirations * state->interval_100ns;
         arm(state, state->next_expiry_100ns - now);
     } else {
         disarm(state);
     }
-    *(uint64_t *)buffer = expirations;
-    return sizeof(uint64_t);
+    return expirations;
+}
+
+int64_t shim_timer_read(int fd, void *buffer, size_t count)
+{
+    TimerState *state = timer_state(fd);
+    if (state == NULL) {
+        return -1;
+    }
+    if (count < sizeof(uint64_t)) {
+        return shim_fail(LINUX_EINVAL);
+    }
+    if (wait_for_expiry(fd, state) != 0) {
+        return -1;
+    }
+    *(uint64_t *)buffer = take_expirations(state);
+    return (int64_t)sizeof(uint64_t);
 }
