@@ -82,6 +82,35 @@ Emit the translated `.exe` and DLLs, the shim DLLs, and the AppDir data files in
 - **Known limits.** Translated code must run on the main thread or a thread created by `pthread_create`; a foreign thread has no TLS block. `dlopen` and TLS descriptors are not supported. A process that already uses all 64 inline Windows TLS slots cannot start.
 - **Verification.** CI translates `tls_basic` (all four TLS models and live canaries) and `threads`, stresses `threads` 200 times for identical output, and requires `canary_smash` to abort with exit 134 and glibc's message.
 
+### 2.10 Milestone 6 groundwork (measured on a real Qt AppImage, 2026-10-29)
+
+`crossport coverage --allow-missing` measured KeePassXC 2.8.0 (a Qt 5 AppImage, 52 MB) without running it.
+What it showed, and what has been done about it:
+
+- **AppRun is a shell script.** Graphical AppImages start through a launcher script that sets the
+  environment and runs the real program. Crossport does not run scripts, so `unpack` now takes the program
+  named by the `Exec=` line of the AppDir's `.desktop` file (it must be an ELF file under `usr/bin` and
+  similar). The environment the script would have set (`QT_PLUGIN_PATH`, `LD_LIBRARY_PATH`, `APPDIR`) is
+  not reproduced yet; Qt's `qt.conf` covers part of it.
+- **Many libraries are not bundled.** The AppImage rules let an AppImage rely on the host for glibc,
+  libstdc++, libgcc_s, libz, freetype, fontconfig, harfbuzz, libX11, libGL and EGL, and a few others. On
+  Windows nothing provides them, so each must come from somewhere. See the open question in section 6.
+- **C++ needs the unwinder to find translated code.** Exceptions are unwound with the DWARF tables in
+  `.eh_frame`, which libgcc and libc++abi locate through `dl_iterate_phdr`, or `_dl_find_object` on glibc
+  2.35 and newer. The shim implements both. It describes each translated module with two synthetic
+  program headers, a `PT_LOAD` covering the image and a `PT_GNU_EH_FRAME` for the module's
+  `.eh_frame_hdr`, whose address the translator records in the start info (version 4). The tables are
+  position independent, so the unwinder reads them in place. `cxx_exceptions` tests it with the C++
+  runtime linked statically.
+- **Descriptors are no longer only files.** Event loops need pipes, eventfd, dup, fcntl, ioctl, poll and
+  select. A descriptor now has a kind (file, pipe, event) that decides how it is read and waited on. A
+  Win32 event serves eventfds, and pipes and consoles, which have none, are polled in short slices.
+  Sockets, timerfd, epoll and signalfd are the next kinds. `posix_io` tests it.
+- **Smaller pieces:** `dlopen`, `dlsym`, `dlerror` and `dladdr` answer for the shim's own libraries (`dlopen`
+  of bundled libraries is still out of scope), `aligned_alloc`, `posix_memalign` and `memalign` (page-backed
+  above 16-byte alignment), read-write locks, and the `_FORTIFY_SOURCE` variants of the string, read, poll
+  and select calls.
+
 ## 3. Shim ABI
 
 Translated code keeps Linux conventions internally. Only the boundary into shims needs care.
@@ -154,4 +183,11 @@ Built before the translator, because agents and humans both need fast, objective
 
 ### Open
 
+- **Host libraries (needed for Milestone 6).** Two ways to supply a library an AppImage expects from its
+  host. (a) The shim implements it (libc, libvulkan and libxcb are done; libX11 and libGL are the Windows
+  graphics glue and must be native anyway). (b) A runtime pack: Crossport ships pre-translated builds of
+  portable libraries (libstdc++, libgcc_s, zlib, freetype, harfbuzz, fontconfig, expat, libpng) built from
+  pinned upstream sources and translated by the same pipeline, so they cost no new translator code and are
+  tested like the corpus. The recommendation is (a) for anything that touches the operating system and (b)
+  for everything else. Not decided; needs a decision before the Qt and GTK work starts.
 - Red zone: SysV code uses the 128 bytes below `rsp`, which Windows can overwrite during exception and APC dispatch. Milestone 1 builds the corpus with `-mno-red-zone`; real binaries will need a design answer before Milestone 4.
