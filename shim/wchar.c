@@ -1,11 +1,8 @@
 /*
  * File: shim/wchar.c
- * Purpose: Multibyte and wide-character conversion (UTF-8 and 32-bit wchar_t) and the wide string and memory functions
+ * Purpose: Multibyte and wide-character conversion between UTF-8 and 32-bit wchar_t
  * Author: Akilesh
  * Date: 2026-10-29
- *
- * The shim's locale is always UTF-8, which is what Linux programs run in. glibc's own "C" locale refuses
- * bytes above 127, but a program can only observe that difference with invalid input.
  */
 
 #include <string.h>
@@ -33,6 +30,9 @@ typedef struct {
 _Static_assert(sizeof(MbState) <= 8, "MbState must fit in mbstate_t");
 
 LIBC_FN size_t sysv_mbrtowc(WChar *out, const char *text, size_t count, MbState *state);
+
+/* Fortify variants: the destination capacity is in elements. */
+LIBC_FN NORETURN void sysv___chk_fail(void);
 
 /* Bytes of the sequence introduced by `lead`, 0 for an invalid lead byte. */
 static unsigned sequence_length(uint8_t lead)
@@ -244,131 +244,6 @@ LIBC_FN size_t sysv_wcstombs(char *out, const WChar *source, size_t limit)
 {
     const WChar *at = source;
     return sysv_wcsrtombs(out, &at, limit, NULL);
-}
-
-LIBC_FN size_t sysv_wcslen(const WChar *text)
-{
-    size_t length = 0;
-    while (text[length] != 0) {
-        length++;
-    }
-    return length;
-}
-
-LIBC_FN WChar *sysv_wmemcpy(WChar *to, const WChar *from, size_t count)
-{
-    return (WChar *)memcpy(to, from, count * sizeof(WChar));
-}
-
-LIBC_FN WChar *sysv_wmemmove(WChar *to, const WChar *from, size_t count)
-{
-    return (WChar *)memmove(to, from, count * sizeof(WChar));
-}
-
-LIBC_FN WChar *sysv_wmemset(WChar *to, WChar value, size_t count)
-{
-    for (size_t i = 0; i < count; i++) {
-        to[i] = value;
-    }
-    return to;
-}
-
-LIBC_FN int sysv_wmemcmp(const WChar *first, const WChar *second, size_t count)
-{
-    for (size_t i = 0; i < count; i++) {
-        if (first[i] != second[i]) {
-            return first[i] < second[i] ? -1 : 1;
-        }
-    }
-    return 0;
-}
-
-LIBC_FN WChar *sysv_wmemchr(const WChar *text, WChar value, size_t count)
-{
-    for (size_t i = 0; i < count; i++) {
-        if (text[i] == value) {
-            return (WChar *)&text[i];
-        }
-    }
-    return NULL;
-}
-
-LIBC_FN int sysv_wcscmp(const WChar *first, const WChar *second)
-{
-    while (*first != 0 && *first == *second) {
-        first++;
-        second++;
-    }
-    return *first < *second ? -1 : (*first > *second ? 1 : 0);
-}
-
-LIBC_FN int sysv_wcsncmp(const WChar *first, const WChar *second, size_t count)
-{
-    for (size_t i = 0; i < count; i++) {
-        if (first[i] != second[i] || first[i] == 0) {
-            return first[i] < second[i] ? -1 : (first[i] > second[i] ? 1 : 0);
-        }
-    }
-    return 0;
-}
-
-LIBC_FN WChar *sysv_wcscpy(WChar *to, const WChar *from)
-{
-    size_t length = sysv_wcslen(from);
-    memcpy(to, from, (length + 1) * sizeof(WChar));
-    return to;
-}
-
-LIBC_FN WChar *sysv_wcschr(const WChar *text, WChar value)
-{
-    for (;; text++) {
-        if (*text == value) {
-            return (WChar *)text;
-        }
-        if (*text == 0) {
-            return NULL;
-        }
-    }
-}
-
-LIBC_FN WChar *sysv_wcsrchr(const WChar *text, WChar value)
-{
-    const WChar *found = NULL;
-    for (;; text++) {
-        if (*text == value) {
-            found = text;
-        }
-        if (*text == 0) {
-            return (WChar *)found;
-        }
-    }
-}
-
-/* Fortify variants: the destination capacity is in elements. */
-LIBC_FN NORETURN void sysv___chk_fail(void);
-
-LIBC_FN WChar *sysv___wmemcpy_chk(WChar *to, const WChar *from, size_t count, size_t capacity)
-{
-    if (count > capacity) {
-        sysv___chk_fail();
-    }
-    return sysv_wmemcpy(to, from, count);
-}
-
-LIBC_FN WChar *sysv___wmemmove_chk(WChar *to, const WChar *from, size_t count, size_t capacity)
-{
-    if (count > capacity) {
-        sysv___chk_fail();
-    }
-    return sysv_wmemmove(to, from, count);
-}
-
-LIBC_FN WChar *sysv___wmemset_chk(WChar *to, WChar value, size_t count, size_t capacity)
-{
-    if (count > capacity) {
-        sysv___chk_fail();
-    }
-    return sysv_wmemset(to, value, count);
 }
 
 LIBC_FN size_t sysv___mbsrtowcs_chk(WChar *out, const char **source, size_t limit, MbState *state, size_t capacity)

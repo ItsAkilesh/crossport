@@ -33,6 +33,9 @@ void shim_winsock_init(void);
 /* Winsock descriptor behind `fd`, or NULL with errno set (EBADF or ENOTSOCK). */
 SocketState *shim_socket_state(int fd);
 
+/* After a failed call: true (having waited once) when the descriptor is blocking and the call only needs a retry. */
+int shim_socket_should_retry(int fd, SocketState *state, int is_call_nonblocking);
+
 /* Waits until the socket may have changed state, or the timeout passes. */
 void shim_socket_wait(SocketState *state, DWORD milliseconds);
 
