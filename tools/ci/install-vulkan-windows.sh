@@ -1,24 +1,33 @@
 #!/usr/bin/env bash
 # File: tools/ci/install-vulkan-windows.sh
-# Purpose: Give a hosted Windows runner a Vulkan loader and a software driver (Mesa lavapipe), both pinned and checksum-verified
+# Purpose: Give a hosted Windows runner a Vulkan loader (built from pinned Khronos sources) and a software driver (Mesa lavapipe)
 # Author: Akilesh
 # Date: 2026-10-29
 #
 # Usage: tools/ci/install-vulkan-windows.sh
-# Installs the Vulkan runtime (vulkan-1.dll) system-wide and exports VK_DRIVER_FILES to $GITHUB_ENV so
-# the loader uses only lavapipe. Hosted runners have no GPU, and CPU rendering is deterministic.
+# Builds vulkan-1.dll from the Khronos Vulkan-Loader at a pinned commit, downloads the pinned,
+# checksum-verified Mesa package for lavapipe, and exports PATH and VK_DRIVER_FILES to the workflow so
+# the loader is found and uses only lavapipe. Hosted runners have no GPU, and CPU rendering is deterministic.
+# The vendor installer is not used: it is a GUI installer and hangs on a headless runner.
 
 set -euo pipefail
 
-RUNTIME_URL="https://sdk.lunarg.com/sdk/download/1.3.296.0/windows/VulkanRT-1.3.296.0-Installer.exe"
-RUNTIME_SHA256="93a14d17f70bde4e5e2a4daf0af0e72b0fcb9693d84757ffd08255e5828d28ca"
+HEADERS_COMMIT="29f979ee5aa58b7b005f805ea8df7a855c39ff37" # Vulkan-Headers v1.3.296
+LOADER_COMMIT="4eaa6df4250693b4a2b654ca2464b25a299d94fe"  # Vulkan-Loader v1.3.296
 MESA_URL="https://github.com/pal1000/mesa-dist-win/releases/download/26.2.4/mesa3d-26.2.4-release-msvc.7z"
 MESA_SHA256="351fc8c8b695878ffb3eaa044b3ead08672a48b1a045e3c3e3975811df0f6695"
 SEVEN_ZIP="/c/Program Files/7-Zip/7z.exe"
-LOADER="/c/Windows/System32/vulkan-1.dll"
 
 work="${RUNNER_TEMP:-/tmp}/vulkan"
 mkdir -p "$work"
+
+# checkout <repository> <commit> <directory>: fetches exactly one commit and refuses anything else.
+checkout() {
+  git init --quiet "$3"
+  git -C "$3" fetch --quiet --depth 1 "https://github.com/KhronosGroup/$1.git" "$2"
+  git -C "$3" checkout --quiet FETCH_HEAD
+  test "$(git -C "$3" rev-parse HEAD)" = "$2" || { echo "unexpected commit for $1" >&2; exit 1; }
+}
 
 # download <url> <sha256> <output>: fetches a file and refuses it unless the checksum matches.
 download() {
@@ -29,17 +38,24 @@ download() {
   }
 }
 
-download "$RUNTIME_URL" "$RUNTIME_SHA256" "$work/runtime.exe"
-"$work/runtime.exe" /S
-test -f "$LOADER" || { echo "the Vulkan runtime did not install $LOADER" >&2; exit 1; }
+checkout Vulkan-Headers "$HEADERS_COMMIT" "$work/headers"
+checkout Vulkan-Loader "$LOADER_COMMIT" "$work/loader"
+cmake -S "$work/headers" -B "$work/headers-build" -DCMAKE_INSTALL_PREFIX="$work/headers-install" > /dev/null
+cmake --build "$work/headers-build" --target install --config Release > /dev/null
+cmake -S "$work/loader" -B "$work/loader-build" -G "Visual Studio 17 2022" -A x64 -DUPDATE_DEPS=OFF \
+  -DBUILD_TESTS=OFF -DVULKAN_HEADERS_INSTALL_DIR="$work/headers-install" > /dev/null
+cmake --build "$work/loader-build" --config Release > /dev/null
+loader="$(find "$work/loader-build" -name vulkan-1.dll | head -n 1)"
+test -n "$loader" || { echo "the Vulkan loader did not build" >&2; exit 1; }
 
 download "$MESA_URL" "$MESA_SHA256" "$work/mesa.7z"
 "$SEVEN_ZIP" x -y "-o$work/mesa" "$work/mesa.7z" > /dev/null
 icd="$work/mesa/x64/lvp_icd.x86_64.json"
 test -f "$icd" || { echo "lavapipe not found in the Mesa package" >&2; exit 1; }
 
-windows_icd="$(cygpath -w "$icd")"
-echo "using $windows_icd"
+echo "loader: $(cygpath -w "$loader")"
+echo "driver: $(cygpath -w "$icd")"
 if [[ -n "${GITHUB_ENV:-}" ]]; then
-  echo "VK_DRIVER_FILES=$windows_icd" >> "$GITHUB_ENV"
+  echo "VK_DRIVER_FILES=$(cygpath -w "$icd")" >> "$GITHUB_ENV"
+  cygpath -w "$(dirname "$loader")" >> "$GITHUB_PATH"
 fi
