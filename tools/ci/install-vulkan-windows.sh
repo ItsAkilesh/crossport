@@ -6,8 +6,8 @@
 #
 # Usage: tools/ci/install-vulkan-windows.sh
 # Builds vulkan-1.dll from the Khronos Vulkan-Loader at a pinned commit, downloads the pinned,
-# checksum-verified Mesa package for lavapipe, and exports PATH and VK_DRIVER_FILES to the workflow so
-# the loader is found and uses only lavapipe. Hosted runners have no GPU, and CPU rendering is deterministic.
+# checksum-verified Mesa package for lavapipe, registers lavapipe where the loader looks for drivers, and
+# adds the loader to the workflow PATH. Hosted runners have no GPU, and CPU rendering is deterministic.
 # The vendor installer is not used: it is a GUI installer and hangs on a headless runner.
 
 set -euo pipefail
@@ -53,9 +53,12 @@ download "$MESA_URL" "$MESA_SHA256" "$work/mesa.7z"
 icd="$work/mesa/x64/lvp_icd.x86_64.json"
 test -f "$icd" || { echo "lavapipe not found in the Mesa package" >&2; exit 1; }
 
+windows_icd="$(cygpath -w "$icd")"
 echo "loader: $(cygpath -w "$loader")"
-echo "driver: $(cygpath -w "$icd")"
-if [[ -n "${GITHUB_ENV:-}" ]]; then
-  echo "VK_DRIVER_FILES=$(cygpath -w "$icd")" >> "$GITHUB_ENV"
+echo "driver: $windows_icd"
+# Hosted runners run elevated, and the Vulkan loader then ignores VK_DRIVER_FILES (it only trusts the
+# registry for high-integrity processes), so the driver is registered where the loader looks for it.
+MSYS_NO_PATHCONV=1 reg add 'HKLM\SOFTWARE\Khronos\Vulkan\Drivers' /v "$windows_icd" /t REG_DWORD /d 0 /f > /dev/null
+if [[ -n "${GITHUB_PATH:-}" ]]; then
   cygpath -w "$(dirname "$loader")" >> "$GITHUB_PATH"
 fi
