@@ -140,27 +140,15 @@
     },
     {
       "id": "M6",
-      "title": "GUI",
+      "title": "Graphics core",
       "status": "next",
       "tasks": [
         {
-          "title": "C++ runtime support and C++ exceptions",
+          "title": "Groundwork: C++, descriptors, processes, libc breadth",
           "done": true
         },
         {
-          "title": "Event-loop descriptors, sockets, processes, mappings",
-          "done": true
-        },
-        {
-          "title": "One-step AppImage conversion and runtime libraries",
-          "done": true
-        },
-        {
-          "title": "Runtime pack decision",
-          "done": false
-        },
-        {
-          "title": "X11 core in process (drawing, properties, input)",
+          "title": "X11 in process (drawing, properties, input)",
           "done": false
         },
         {
@@ -168,7 +156,80 @@
           "done": false
         },
         {
-          "title": "Real GTK or Qt AppImage runs",
+          "title": "Fonts, XKB and XInput2 answers",
+          "done": false
+        },
+        {
+          "title": "SDL2 and GL samples run",
+          "done": false
+        }
+      ]
+    },
+    {
+      "id": "M7",
+      "title": "Toolkit applications",
+      "status": "planned",
+      "tasks": [
+        {
+          "title": "Runtime pack decision and build",
+          "done": false
+        },
+        {
+          "title": "dlopen of translated libraries",
+          "done": false
+        },
+        {
+          "title": "Real Qt AppImage runs",
+          "done": false
+        },
+        {
+          "title": "Real GTK AppImage runs",
+          "done": false
+        }
+      ]
+    },
+    {
+      "id": "M8",
+      "title": "Everyday use",
+      "status": "planned",
+      "tasks": [
+        {
+          "title": "Installer and launcher",
+          "done": false
+        },
+        {
+          "title": "File associations and uninstall",
+          "done": false
+        },
+        {
+          "title": "Code signing and reproducible output",
+          "done": false
+        },
+        {
+          "title": "Three apps installed with no terminal",
+          "done": false
+        }
+      ]
+    },
+    {
+      "id": "M9",
+      "title": "Hardening and breadth",
+      "status": "planned",
+      "tasks": [
+        {
+          "title": "Performance report",
+          "done": false
+        },
+        {
+          "title": "Security review and fuzzing",
+          "done": false
+        },
+        {
+          "title": "Crash diagnostics",
+          "done": false
+        },
+        {
+          "title": "50 AppImage corpus",
           "done": false
         }
       ]

@@ -64,7 +64,7 @@
 - Known limits: function pointers the program passes into Vulkan (allocation and debug callbacks) are not
   yet thunked in the driver-to-program direction.
 
-## Milestone 6: GUI
+## Milestone 6: Graphics core
 
 Groundwork done (measured on a real Qt AppImage, see docs/DESIGN.md section 2.10): C++ exceptions through
 translated code, descriptor kinds with pipes, eventfd, epoll, timerfd and sockets, child processes, file
@@ -72,35 +72,59 @@ mappings, wide characters and locales, iconv, the rest of the everyday libc (usa
 KeePassXC 50% to 80%), `crossport convert`, the desktop-entry fallback for shell-script launchers, and a
 runtime directory for host libraries (libstdc++ and similar).
 
-Still to do, in the order the measurements suggest:
+- **X11 in process:** an X server inside the shim behind libxcb and libX11. Drawing (pixmaps, graphics
+  contexts, `PutImage`, `CopyArea`, `GetImage`) on a DIB per window, properties, input events, cursors,
+  clipboard basics, and honest answers to extension queries. Xlib structures are mirrored by byte offset
+  and checked against the real headers on Linux CI.
+- **OpenGL and EGL:** `libGL`, `libGLX` and `libEGL` on WGL (or ANGLE), since toolkits probe for them.
+- **Fonts and text input:** fontconfig and freetype data, XKB keymaps (`libxkbcommon`), XInput2 answers.
+- **Exit criterion:** an SDL2 AppImage (software renderer) and a small GL sample run on Windows with
+  working input and match their Linux output where output is defined; Xlib and xcb samples are compared in
+  CI under Xvfb.
 
-1. **A decision on the runtime pack** (docs/DESIGN.md section 6): where the host libraries come from.
-2. **X11 core:** an in-process X server behind libxcb and libX11, with drawing (pixmaps, graphics
-   contexts, `PutImage`, `CopyArea`, `GetImage`) on a DIB per window, properties, input events and the
-   extension queries (reporting none). Xlib structures are mirrored by byte offset and checked against the
-   real headers on Linux CI. First target: an SDL2 or xcb program that draws in software.
-3. **OpenGL and EGL:** libGL, libGLX and libEGL on WGL (or ANGLE), since Qt and GTK probe for them.
-4. **Toolkit needs:** `dlopen` of translated bundled libraries (plugins), XKB, XInput2, RANDR, RENDER and
-   SHM answers, fontconfig data, D-Bus (Unix-domain sockets work), `fork`-free replacements for what
-   toolkits spawn.
-5. **Red zone:** a design answer for graphical programs (docs/DESIGN.md section 6).
-- **Exit criterion:** a real GTK or Qt AppImage runs with usable input and rendering.
+## Milestone 7: Toolkit applications
 
-## Beyond Milestone 6
+- **Runtime pack:** decide and build where host libraries come from (docs/DESIGN.md section 6), pinned and
+  checksum-verified, translated once and shipped with the translator.
+- **`dlopen` of translated libraries:** Qt and GTK load plugins at run time, so plugins in the AppDir are
+  translated too and `dlopen` finds them.
+- **Qt first** (the `xcb` platform plugin on the in-process X), then **GTK**, with D-Bus over Unix-domain
+  sockets, fontconfig, GSettings and icon themes as needed.
+- **The red zone:** a design answer for threads that receive window messages (docs/DESIGN.md section 6).
+- **Exit criterion:** a real Qt AppImage and a real GTK AppImage run with usable input and rendering, and
+  a regression suite of their startup and basic interaction runs in CI.
 
-Finishing M6 proves the approach on a real GUI application. It does not make Crossport a finished
-product. The milestones above are not equal in size (the GUI work alone was estimated at 6 to 18+
-months), so the progress graphic counts milestones, not effort. What remains after M6:
+## Milestone 8: Everyday use
 
-- **Compatibility breadth:** far more of the libc, graphics, audio, input, fontconfig, D-Bus and
-  toolkit-plugin surface, validated against a much larger corpus of real AppImages, including GUI apps.
-- **Packaging and everyday use:** a launcher or installer, file associations, updates, uninstall and
-  code signing, so a translated app feels like any other Windows application.
-- **Performance and robustness:** profiling the shim and rewritten code paths, crash diagnostics that map
-  back to the original ELF, and a security review of the translator and shim.
+- **Packaging:** a launcher or installer that turns an AppImage into a normal Windows application: Start
+  menu entry, icon, file associations, uninstall, per-user install without admin rights.
+- **Signing and updates:** code signing for the generated executables and DLLs, update checks, and a
+  reproducible translation so a given AppImage always yields the same bytes.
+- **First-run experience:** one drag-and-drop or one command; clear messages when an app uses something
+  unsupported (a report of what is missing rather than a crash).
+- **Exit criterion:** someone who has never seen Crossport installs and runs three different AppImages
+  from a signed installer with no terminal.
+
+## Milestone 9: Hardening and breadth
+
+- **Performance:** profile the shim and the rewritten code paths, remove avoidable copies, and measure
+  against native Linux on the same hardware.
+- **Security:** a review of the translator (hostile ELF and SquashFS input) and the shim (paths, sockets,
+  environment), fuzzing in CI, and least-privilege defaults.
+- **Crash diagnostics:** map crash addresses back to original ELF functions, and ship a symbolized crash
+  report.
+- **Corpus growth:** many more real AppImages, including audio, networking and database apps, each
+  with a differential or smoke test and the pass-rate ratchet.
+- **Exit criterion:** the pass-rate ratchet covers 50 or more AppImages, a fuzzing run of 24 hours finds
+  no crash in the translator, and the performance report is published.
+
+## Beyond Milestone 9
+
+The milestones are not equal in size (the graphics and toolkit work alone were estimated at 6 to 18+
+months), so the progress graphic counts milestones, not effort. After M9:
+
 - **Other targets:** macOS and Windows on ARM.
 - **Things deliberately out of scope until proven necessary:** applications that generate code at run
-  time (Electron, the JVM, LuaJIT), `fork` and full signal semantics, static and non-PIE binaries, and
-  `dlopen`.
+  time (Electron, the JVM, LuaJIT), `fork` and full signal semantics, static and non-PIE binaries.
 - **Upkeep:** glibc, toolkit and AppImage-format changes keep moving, so the corpus and CI have to keep
   running to catch drift.

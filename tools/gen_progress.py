@@ -18,7 +18,7 @@ from pathlib import Path
 WIDTH = 880
 PADDING = 24
 FOOTER_HEIGHT = 52
-FOOTER_TEXT = "Milestones differ greatly in size. M6 is a first real GUI app, not the finished product."
+FOOTER_TEXT = "Milestones differ greatly in size. Real toolkit apps arrive in M7; M8 and M9 make it a product."
 HEADER_Y = 38
 BAR_Y = 56
 BAR_HEIGHT = 14

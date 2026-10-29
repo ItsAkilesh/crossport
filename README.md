@@ -27,17 +27,17 @@
 [![CI](https://github.com/ItsAkilesh/crossport/actions/workflows/ci.yml/badge.svg)](https://github.com/ItsAkilesh/crossport/actions/workflows/ci.yml)
 [![Rust](https://img.shields.io/badge/tooling-rust-000000?logo=rust&logoColor=white)](https://www.rust-lang.org)
 [![Platforms](https://img.shields.io/badge/targets-linux%20%E2%86%92%20windows-0E7490)](#the-idea)
-[![Milestones](https://img.shields.io/badge/milestones-5%20of%207-1A7F37)](#what-you-get)
+[![Milestones](https://img.shields.io/badge/milestones-5%20of%2010-1A7F37)](#what-you-get)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 <p align="center">
-  <img src="docs/progress.svg" alt="Crossport progress: 5 of 7 milestones done" width="880">
+  <img src="docs/progress.svg" alt="Crossport progress: 5 of 10 milestones done" width="880">
 </p>
 
 <sub>Progress is generated from [docs/progress.json](docs/progress.json) by `python tools/gen_progress.py`.
 Each cell is one roadmap task; the full list is in [docs/ROADMAP.md](docs/ROADMAP.md).
-Milestones differ greatly in size, and finishing the last one proves the approach on a real GUI
-application rather than finishing the project. See "Beyond Milestone 6" in the roadmap.</sub>
+Milestones differ greatly in size; the graphics and toolkit milestones are the largest. See
+"Beyond Milestone 9" in the roadmap.</sub>
 
 Crossport takes an existing Linux AppImage and turns it into a native Windows application by
 translating the executable format and the operating system interface, not the machine code. The app
@@ -107,7 +107,10 @@ lives in [docs/ROADMAP.md](docs/ROADMAP.md).
 - [x] **Milestone 3:** thread-local storage and threads
 - [x] **Milestone 4:** a corpus of command-line AppImages (Lua, SQLite, jq)
 - [x] **Milestone 5:** Vulkan rendering in a window
-- [ ] **Milestone 6:** real GTK and Qt applications
+- [ ] **Milestone 6:** graphics core (X11 in process, OpenGL and EGL, SDL2 apps)
+- [ ] **Milestone 7:** real Qt and GTK applications
+- [ ] **Milestone 8:** everyday use (installer, file associations, signing)
+- [ ] **Milestone 9:** hardening and breadth (performance, security, a 50-app corpus)
 
 ## Contents
 
@@ -143,7 +146,8 @@ match their Linux output byte for byte on all 45 test invocations, and Vulkan pr
 through the Windows Vulkan loader (an offscreen triangle and an xcb window). Around them the shim now
 provides most of what everyday programs use: C++ exceptions, pipes, sockets, epoll, timers, child
 processes, file mappings, locales and iconv. `crossport convert` turns an AppImage into a runnable bundle
-in one step. Graphical toolkits (X11, OpenGL, Qt, GTK) are the next milestone; see docs/ROADMAP.md.
+in one step. The next milestone is the graphics core (an in-process X11, then OpenGL and EGL), followed by real Qt
+and GTK applications, an installer, and hardening; see docs/ROADMAP.md.
 
 The verification harness came first so every step has fast, objective feedback: a `difftest` runner
 records a program's exit code, stdout and stderr, and CI compares the Linux run against the Windows
