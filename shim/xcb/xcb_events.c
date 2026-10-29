@@ -44,7 +44,7 @@ void xcb_events_push(const XcbEvent *event)
 }
 
 /* Removes the oldest event into a heap block the program will free, or returns NULL when none is waiting. */
-static XcbEvent *pop_event(void)
+static SYSV XcbEvent *pop_event(void)
 {
     XcbEvent *event = NULL;
     AcquireSRWLockExclusive(&g_queue_lock);

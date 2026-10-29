@@ -19,6 +19,7 @@
 #define CLOCK_REALTIME_ID 0
 #define CLOCK_MONOTONIC_ID 1
 #define WAIT_SLICE_MS 50
+#define UNIX_EPOCH_100NS 116444736000000000ll
 
 /* struct itimerspec. */
 typedef struct {
@@ -28,18 +29,25 @@ typedef struct {
     int64_t value_nanoseconds;
 } ITimerSpec;
 
-LIBC_FN int sysv_clock_gettime(int clock, void *spec);
-
 static int64_t to_100ns(int64_t seconds, int64_t nanoseconds)
 {
     return seconds * UNITS_PER_SECOND + nanoseconds / NANOSECONDS_PER_100NS;
 }
 
+/* The time on the timer's clock in 100 ns units: wall-clock time since the Unix epoch, or the monotonic counter. */
 static int64_t now_100ns(int clock)
 {
-    int64_t spec[2] = {0, 0};
-    sysv_clock_gettime(clock, spec);
-    return to_100ns(spec[0], spec[1]);
+    if (clock == CLOCK_REALTIME_ID) {
+        FILETIME now;
+        GetSystemTimePreciseAsFileTime(&now);
+        return (int64_t)(((uint64_t)now.dwHighDateTime << 32) | now.dwLowDateTime) - UNIX_EPOCH_100NS;
+    }
+    LARGE_INTEGER counter;
+    LARGE_INTEGER frequency;
+    QueryPerformanceCounter(&counter);
+    QueryPerformanceFrequency(&frequency);
+    return (int64_t)((uint64_t)counter.QuadPart / (uint64_t)frequency.QuadPart * UNITS_PER_SECOND +
+                     (uint64_t)counter.QuadPart % (uint64_t)frequency.QuadPart * UNITS_PER_SECOND / (uint64_t)frequency.QuadPart);
 }
 
 LIBC_FN int sysv_timerfd_create(int clock, int flags)

@@ -193,7 +193,7 @@ static int flags_to_windows(int flags)
 }
 
 /* One Linux addrinfo node, address and name in a single allocation, copied from a Winsock node. */
-static LinuxAddrInfo *convert_node(const ADDRINFOA *source)
+static SYSV LinuxAddrInfo *convert_node(const ADDRINFOA *source)
 {
     size_t name_bytes = source->ai_canonname != NULL ? strlen(source->ai_canonname) + 1 : 0;
     size_t total = sizeof(LinuxAddrInfo) + sizeof(SOCKADDR_STORAGE) + name_bytes;

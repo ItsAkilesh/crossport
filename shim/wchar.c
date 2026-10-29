@@ -165,7 +165,7 @@ LIBC_FN int sysv_wctomb(char *out, WChar wide)
 }
 
 /* Converts up to `limit` characters (or until the terminator); `*source` is advanced as glibc does. */
-static size_t convert_multibyte(WChar *out, const char **source, size_t bytes, size_t limit, MbState *state)
+static SYSV size_t convert_multibyte(WChar *out, const char **source, size_t bytes, size_t limit, MbState *state)
 {
     size_t produced = 0;
     const char *at = *source;

@@ -16,4 +16,7 @@ void env_init(void);
 /* Applies crossport.env from the executable's directory (envfile.c); call after env_init. */
 void shim_apply_env_file(void);
 
+/* setenv for the shim's own (Microsoft-convention) code. */
+int shim_env_set(const char *name, const char *value, int overwrite);
+
 #endif

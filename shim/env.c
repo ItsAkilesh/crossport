@@ -124,6 +124,11 @@ static int store(const char *name, const char *value, int overwrite)
     return result;
 }
 
+int shim_env_set(const char *name, const char *value, int overwrite)
+{
+    return store(name, value, overwrite);
+}
+
 LIBC_FN int sysv_setenv(const char *name, const char *value, int overwrite)
 {
     return store(name, value, overwrite);

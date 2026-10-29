@@ -358,7 +358,7 @@ LIBC_FN int sysv_pclose(void *stream)
 }
 
 /* exec replaces the process image; here the new program runs as a child and this process then ends with its status. */
-static int run_instead(const char *path, char *const argv[], char *const envp[], int is_search)
+static SYSV int run_instead(const char *path, char *const argv[], char *const envp[], int is_search)
 {
     int pid = 0;
     int status = 0;

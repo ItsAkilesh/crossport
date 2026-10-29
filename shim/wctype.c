@@ -173,7 +173,7 @@ LIBC_FN int sysv_iswctype(uint32_t c, uint64_t kind)
     return is_wide_class(c, kind);
 }
 
-static uint32_t map_case(uint32_t c, DWORD flags)
+static SYSV uint32_t map_case(uint32_t c, DWORD flags)
 {
     if (c < ASCII_LIMIT) {
         return flags == LCMAP_UPPERCASE ? (uint32_t)sysv_toupper((int)c) : (uint32_t)sysv_tolower((int)c);

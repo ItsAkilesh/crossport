@@ -21,8 +21,6 @@
 #define MAX_LINE_BYTES 4096
 #define BUNDLE_TOKEN "${BUNDLE}"
 
-LIBC_FN int sysv_setenv(const char *name, const char *value, int overwrite);
-
 /* The directory of the running executable as a wide Windows path, without a trailing separator. */
 static int bundle_directory(wchar_t *out, size_t capacity)
 {
@@ -95,7 +93,7 @@ static void apply_line(char *line, const char *bundle)
     }
     *equals = '\0';
     if (expand(equals + 1, bundle, value, sizeof(value))) {
-        sysv_setenv(line, value, 0);
+        shim_env_set(line, value, 0);
     }
 }
 
