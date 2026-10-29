@@ -68,6 +68,8 @@ static void print_surface(const SDL_Surface *surface)
 
 int main(void)
 {
+    /* Unbuffered, so that what was printed before a hang survives the harness's timeout. */
+    setvbuf(stdout, NULL, _IONBF, 0);
     SDL_SetHint("SDL_VIDEODRIVER", "x11");
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         printf("init failed: %s\n", SDL_GetError());
