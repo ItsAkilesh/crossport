@@ -36,6 +36,7 @@ env:
   NATIVE_CASES: hello
   TRANSLATED_CASES: ${{ inputs.cases || 'hello_dyn two_libs tls_basic threads vulkan_triangle vulkan_window cxx_exceptions cxx_dynamic posix_io sockets process mmap_files event_loop libc_breadth xlib_draw sdl2_window' }}
   ABORT_CASES: canary_smash
+  CRASH_CASES: crash_null
   APPS: lua sqlite3 jq
   CARGO_PATHS: |
     ~/.cargo/registry/index
@@ -94,7 +95,7 @@ jobs:
         run: gcc -fsyntax-only -Wall -Wextra -Werror tests/shim/xcb_layout_check.c tests/shim/xlib_layout_check.c
       - name: Build and run corpus cases
         run: |
-          xvfb-run -a bash -c 'for corpus_case in $NATIVE_CASES $TRANSLATED_CASES $ABORT_CASES; do tools/run-case.sh "$corpus_case" linux; done'
+          xvfb-run -a bash -c 'for corpus_case in $NATIVE_CASES $TRANSLATED_CASES $ABORT_CASES $CRASH_CASES; do tools/run-case.sh "$corpus_case" linux; done'
       - name: Package the corpus apps and record their Linux results
         run: |
           for app in $APPS; do
@@ -206,7 +207,7 @@ jobs:
         run: tools/ci/install-vulkan-windows.sh
       - name: Translate the Linux ELF files and run them on Windows
         run: |
-          for corpus_case in $TRANSLATED_CASES $ABORT_CASES; do
+          for corpus_case in $TRANSLATED_CASES $ABORT_CASES $CRASH_CASES; do
             tools/run-translated.sh "$corpus_case"
           done
       - name: Show the translated results (single-case runs only)
@@ -222,6 +223,12 @@ jobs:
         run: |
           for corpus_case in $ABORT_CASES; do
             python3 tools/check_abort.py "results/$corpus_case-windows.json" "stack smashing detected"
+          done
+      - name: A crash must be reported with its exception kind, address and access
+        run: |
+          for corpus_case in $CRASH_CASES; do
+            python3 tools/check_abort.py "results/$corpus_case-windows.json" "access violation at" -1073741819
+            python3 tools/check_abort.py "results/$corpus_case-windows.json" "writing 0x0" -1073741819
           done
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
@@ -278,14 +285,17 @@ jobs:
       - name: Build difftest
         run: cargo build --release --locked --manifest-path tools/difftest/Cargo.toml
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        if: inputs.cases == ''
         with:
           name: apps-linux
           path: .
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        if: inputs.cases == ''
         with:
           name: apps-windows
           path: results/apps
       - name: Compare the corpus apps and enforce the pass-rate ratchet
+        if: inputs.cases == ''
         run: |
           python3 tools/corpus/compare_results.py --results results/apps --apps $APPS \
             --difftest tools/difftest/target/release/difftest \

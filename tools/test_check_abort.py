@@ -1,7 +1,7 @@
 """File: tools/test_check_abort.py
 Purpose: Tests for tools/check_abort.py: it must accept a real abort and reject every way a run can fail to abort
 Author: Akilesh
-Date: 2026-10-28
+Date: 2026-10-29
 """
 
 from __future__ import annotations
@@ -32,6 +32,11 @@ class CheckAbortTest(unittest.TestCase):
     def test_continuing_past_the_overflow_is_rejected(self) -> None:
         result = aborted() | {"stdout": "after the overflow: the stack protector failed\n"}
         self.assertTrue(any("continued" in p for p in check_abort.check(result, MESSAGE)))
+
+    def test_another_expected_exit_code_is_honoured(self) -> None:
+        crashed = {"exit_code": -1073741819, "stdout": "before\n", "stderr": "crossport: access violation at x+0x1\n"}
+        self.assertEqual(check_abort.check(crashed, "access violation", -1073741819), [])
+        self.assertTrue(check_abort.check(crashed, "access violation"))
 
     def test_a_signal_death_with_no_exit_code_is_rejected(self) -> None:
         result = aborted() | {"exit_code": None}

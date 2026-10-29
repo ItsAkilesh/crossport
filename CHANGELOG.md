@@ -5,6 +5,12 @@ being worked on. A feature commit that adds user-visible capability (a new flag,
 that runs) bumps the patch number; a fix does not. The version lives in `translator/Cargo.toml` and is
 bumped in the same commit as the change. Releases are tagged by the maintainer, not by automation.
 
+## 0.6.1
+
+- Crash reports: an unhandled exception in a translated program now prints its kind, the faulting module and
+  offset, the address and access type, and a rough call trail on stderr (shim/crash.c).
+- CI runs its jobs in parallel with caches, and a manual run can name a single corpus case.
+
 ## 0.6.0
 
 - `--stub-missing` for `translate` and `convert`: libraries and symbols that nobody provides are bound to

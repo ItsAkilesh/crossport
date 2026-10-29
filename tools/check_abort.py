@@ -2,9 +2,9 @@
 """File: tools/check_abort.py
 Purpose: Assert that a recorded run aborted the way a stack-protector failure must: exit 134 and a message on stderr
 Author: Akilesh
-Date: 2026-10-28
+Date: 2026-10-29
 
-Usage: python tools/check_abort.py <result.json> <expected stderr substring>
+Usage: python tools/check_abort.py <result.json> <expected stderr substring> [expected exit code]
 """
 
 from __future__ import annotations
@@ -16,11 +16,11 @@ from pathlib import Path
 ABORT_EXIT_CODE = 134  # 128 + SIGABRT, as a shell reports it
 
 
-def check(result: dict[str, object], expected_message: str) -> list[str]:
+def check(result: dict[str, object], expected_message: str, expected_exit_code: int = ABORT_EXIT_CODE) -> list[str]:
     """Returns a list of problems; empty means the run aborted as required."""
     problems = []
-    if result.get("exit_code") != ABORT_EXIT_CODE:
-        problems.append(f"exit code {result.get('exit_code')!r}, expected {ABORT_EXIT_CODE}")
+    if result.get("exit_code") != expected_exit_code:
+        problems.append(f"exit code {result.get('exit_code')!r}, expected {expected_exit_code}")
     stderr = result.get("stderr")
     if not isinstance(stderr, str) or expected_message not in stderr:
         problems.append(f"stderr {stderr!r} does not contain {expected_message!r}")
@@ -31,11 +31,11 @@ def check(result: dict[str, object], expected_message: str) -> list[str]:
 
 
 def main(argv: list[str]) -> int:
-    if len(argv) != 3:
+    if len(argv) not in (3, 4):
         print(__doc__, file=sys.stderr)
         return 2
     result = json.loads(Path(argv[1]).read_text(encoding="utf-8"))
-    problems = check(result, argv[2])
+    problems = check(result, argv[2], int(argv[3]) if len(argv) == 4 else ABORT_EXIT_CODE)
     for problem in problems:
         print(f"check_abort: {problem}", file=sys.stderr)
     return 1 if problems else 0

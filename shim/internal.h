@@ -25,4 +25,7 @@ NORETURN void shim_die(const char *message);
 /* Writes all of `data`, retrying on short writes. */
 BOOL shim_write_all(HANDLE handle, const char *data, size_t length);
 
+/* Installs the unhandled-exception filter that reports where a crash happened (crash.c). */
+void shim_crash_init(void);
+
 #endif

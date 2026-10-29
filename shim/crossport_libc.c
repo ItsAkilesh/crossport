@@ -2,7 +2,7 @@
  * File: shim/crossport_libc.c
  * Purpose: Startup of a translated program: load its libraries, bind imports, set up TLS, run constructors and main
  * Author: Akilesh
- * Date: 2026-10-28
+ * Date: 2026-10-29
  *
  * crossport_start is called by the PE entry stub with the Microsoft x64
  * convention; everything translated code calls uses sysv_abi (see internal.h).
@@ -176,6 +176,7 @@ EXPORT SYSV int __libc_start_main(MainFn main_fn, int argc, char **argv, void (*
 
 EXPORT void crossport_start(const StartInfo *info)
 {
+    shim_crash_init();
     validated(info);
     g_executable_base = (uint8_t *)GetModuleHandleW(NULL);
     load_modules(info);
