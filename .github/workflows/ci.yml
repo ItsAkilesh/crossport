@@ -70,6 +70,7 @@ jobs:
           cargo test --locked --manifest-path translator/Cargo.toml
           python3 -m unittest discover -s tools -p "test_*.py"
           (cd tools/corpus && python3 -m unittest discover -p "test_*.py")
+          (cd tools/ci && python3 -m unittest discover -p "test_*.py")
       - name: Save the Cargo cache
         if: always() && steps.cargo.outputs.cache-hit != 'true'
         uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
@@ -215,6 +216,7 @@ jobs:
         run: |
           for corpus_case in $TRANSLATED_CASES; do
             cat "results/$corpus_case-windows.json" || true
+            python3 tools/ci/symbolize.py "results/$corpus_case-windows.json" build/shim/crossport_libc.dll || true
           done
       - name: Stress the threaded program for races
         if: inputs.cases == ''
