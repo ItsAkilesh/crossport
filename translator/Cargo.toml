@@ -1,11 +1,11 @@
 # File: translator/Cargo.toml
 # Purpose: Manifest for the Crossport translator (ELF analysis and ELF-to-PE relinking)
 # Author: Akilesh
-# Date: 2026-10-28
+# Date: 2026-10-29
 
 [package]
 name = "crossport-translator"
-version = "0.1.0"
+version = "0.6.0"
 edition = "2021"
 license = "MIT"
 publish = false
