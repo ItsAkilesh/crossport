@@ -64,6 +64,16 @@ LIBC_FN int64_t sysv_pwrite64(int fd, const void *buffer, size_t count, int64_t 
     return positioned(fd, (void *)buffer, count, offset, 1);
 }
 
+LIBC_FN int64_t sysv_pread(int fd, void *buffer, size_t count, int64_t offset)
+{
+    return positioned(fd, buffer, count, offset, 0);
+}
+
+LIBC_FN int64_t sysv_pwrite(int fd, const void *buffer, size_t count, int64_t offset)
+{
+    return positioned(fd, (void *)buffer, count, offset, 1);
+}
+
 LIBC_FN int sysv_fstat(int fd, void *stat_buffer)
 {
     HANDLE handle = shim_fd_handle(fd);
@@ -153,4 +163,9 @@ LIBC_FN int64_t sysv_writev(int fd, const IoVec *vectors, int count)
         total += wrote;
     }
     return total;
+}
+
+LIBC_FN int sysv_ftruncate(int fd, int64_t length)
+{
+    return sysv_ftruncate64(fd, length);
 }

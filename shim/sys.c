@@ -1,11 +1,10 @@
 /*
  * File: shim/sys.c
- * Purpose: Process identity, system configuration, resource usage and anonymous memory mappings
+ * Purpose: Process identity, system configuration and resource usage
  * Author: Akilesh
  * Date: 2026-10-29
  *
- * There is no Unix user database, so the process runs as one fixed unprivileged user. Mappings of files
- * are not supported yet (callers fall back to reading); anonymous mappings use VirtualAlloc.
+ * There is no Unix user database, so the process runs as one fixed unprivileged user.
  */
 
 #include <string.h>
@@ -22,8 +21,6 @@
 #define RUSAGE_BYTES 144
 
 enum { SC_CLK_TCK = 2, SC_OPEN_MAX = 4, SC_PAGESIZE = 30, SC_NPROCESSORS_CONF = 83, SC_NPROCESSORS_ONLN = 84 };
-enum { MAP_ANONYMOUS = 0x20, PROT_WRITE = 2, PROT_EXEC = 4 };
-#define MAP_FAILED_VALUE ((void *)(intptr_t)-1)
 
 /* Linux struct passwd on x86-64. */
 typedef struct {
@@ -122,51 +119,4 @@ LIBC_FN int sysv_getrusage(int who, void *usage)
     write_timeval(fields, user);
     write_timeval(fields + 2, kernel);
     return 0;
-}
-
-static DWORD windows_protection(int protection)
-{
-    if (protection & PROT_EXEC) {
-        return (protection & PROT_WRITE) ? PAGE_EXECUTE_READWRITE : PAGE_EXECUTE_READ;
-    }
-    if (protection & PROT_WRITE) {
-        return PAGE_READWRITE;
-    }
-    return protection == 0 ? PAGE_NOACCESS : PAGE_READONLY;
-}
-
-LIBC_FN void *sysv_mmap64(void *address, size_t length, int protection, int flags, int fd, int64_t offset)
-{
-    (void)address;
-    (void)offset;
-    if (length == 0) {
-        shim_set_errno(LINUX_EINVAL);
-        return MAP_FAILED_VALUE;
-    }
-    if (!(flags & MAP_ANONYMOUS) || fd != -1) {
-        shim_set_errno(LINUX_ENODEV);
-        return MAP_FAILED_VALUE;
-    }
-    void *region = VirtualAlloc(NULL, length, MEM_RESERVE | MEM_COMMIT, windows_protection(protection));
-    if (region == NULL) {
-        shim_set_errno(LINUX_ENOMEM);
-        return MAP_FAILED_VALUE;
-    }
-    return region;
-}
-
-LIBC_FN int sysv_munmap(void *address, size_t length)
-{
-    (void)length;
-    return VirtualFree(address, 0, MEM_RELEASE) ? 0 : shim_fail(LINUX_EINVAL);
-}
-
-LIBC_FN void *sysv_mremap(void *address, size_t old_length, size_t new_length, int flags)
-{
-    (void)address;
-    (void)old_length;
-    (void)new_length;
-    (void)flags;
-    shim_set_errno(LINUX_ENOMEM);
-    return MAP_FAILED_VALUE;
 }
