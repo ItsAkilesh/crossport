@@ -9,7 +9,7 @@ use crossport_translator::error::TranslateError;
 use crossport_translator::naming::ModuleName;
 use crossport_translator::shim_exports::ShimExports;
 use crossport_translator::source::DirectorySource;
-use crossport_translator::translate::{translate, OutputFile};
+use crossport_translator::translate::{translate, Missing, OutputFile};
 use object::read::pe::{ImageNtHeaders, PeFile64};
 use object::{LittleEndian, NameOrOrdinal, Object, ObjectSection};
 
@@ -33,9 +33,15 @@ fn name(raw: &str) -> ModuleName {
 }
 
 fn translate_two_libs() -> Vec<OutputFile> {
-    translate(name("two_libs"), EXE.to_vec(), &fixtures(), &shim())
-        .expect("translates")
-        .files
+    translate(
+        name("two_libs"),
+        EXE.to_vec(),
+        &fixtures(),
+        &shim(),
+        Missing::Fail,
+    )
+    .expect("translates")
+    .files
 }
 
 fn find<'a>(files: &'a [OutputFile], file_name: &str) -> &'a [u8] {
@@ -216,9 +222,15 @@ fn translation_is_deterministic() {
 
 #[test]
 fn a_single_module_program_still_translates() {
-    let files = translate(name("hello_dyn"), HELLO.to_vec(), &fixtures(), &shim())
-        .expect("translates")
-        .files;
+    let files = translate(
+        name("hello_dyn"),
+        HELLO.to_vec(),
+        &fixtures(),
+        &shim(),
+        Missing::Fail,
+    )
+    .expect("translates")
+    .files;
     assert_eq!(files.len(), 1);
     assert_eq!(files[0].file_name, "hello_dyn.exe");
 }
@@ -226,7 +238,13 @@ fn a_single_module_program_still_translates() {
 #[test]
 fn missing_library_names_the_library() {
     let empty = DirectorySource::new(vec![std::env::temp_dir().join("crossport-no-such-dir")]);
-    let result = translate(name("two_libs"), EXE.to_vec(), &empty, &shim());
+    let result = translate(
+        name("two_libs"),
+        EXE.to_vec(),
+        &empty,
+        &shim(),
+        Missing::Fail,
+    );
     assert!(
         matches!(result, Err(TranslateError::MissingLibrary { name }) if name == "libgreet.so.1")
     );
@@ -236,16 +254,63 @@ fn missing_library_names_the_library() {
 fn a_symbol_nobody_provides_fails_at_translation_time() {
     let without_puts =
         ShimExports::from_names(["__libc_start_main", "crossport_start"].map(String::from));
-    let result = translate(name("two_libs"), EXE.to_vec(), &fixtures(), &without_puts);
+    let result = translate(
+        name("two_libs"),
+        EXE.to_vec(),
+        &fixtures(),
+        &without_puts,
+        Missing::Fail,
+    );
     assert!(
         matches!(result, Err(TranslateError::UnresolvedSymbols(ref symbols)) if symbols == &["puts".to_string()])
     );
 }
 
 #[test]
+fn a_symbol_nobody_provides_binds_to_the_unavailable_function_when_stubbing_is_allowed() {
+    let without_puts = ShimExports::from_names(
+        [
+            "__libc_start_main",
+            "crossport_start",
+            "crossport_unavailable",
+        ]
+        .map(String::from),
+    );
+    let translation = translate(
+        name("two_libs"),
+        EXE.to_vec(),
+        &fixtures(),
+        &without_puts,
+        Missing::Stub,
+    )
+    .expect("translates with a stub");
+    assert_eq!(translation.stubbed_symbols, ["puts".to_string()]);
+}
+
+#[test]
+fn stubbing_needs_the_shim_to_export_the_unavailable_function() {
+    let without_puts =
+        ShimExports::from_names(["__libc_start_main", "crossport_start"].map(String::from));
+    let result = translate(
+        name("two_libs"),
+        EXE.to_vec(),
+        &fixtures(),
+        &without_puts,
+        Missing::Stub,
+    );
+    assert!(matches!(result, Err(TranslateError::Unsupported(_))));
+}
+
+#[test]
 fn a_shim_without_the_start_function_is_rejected() {
     let broken = ShimExports::from_names(["puts".to_string()]);
-    let result = translate(name("two_libs"), EXE.to_vec(), &fixtures(), &broken);
+    let result = translate(
+        name("two_libs"),
+        EXE.to_vec(),
+        &fixtures(),
+        &broken,
+        Missing::Fail,
+    );
     assert!(matches!(result, Err(TranslateError::Unsupported(_))));
 }
 
@@ -269,7 +334,13 @@ fn replace_all(bytes: &mut [u8], from: &[u8], to: &[u8]) -> usize {
 fn a_dt_needed_that_tries_to_escape_the_library_directory_is_rejected() {
     let mut hostile = EXE.to_vec();
     assert!(replace_all(&mut hostile, b"libmath.so.1", b"../math.so.1") >= 1);
-    let result = translate(name("two_libs"), hostile, &fixtures(), &shim());
+    let result = translate(
+        name("two_libs"),
+        hostile,
+        &fixtures(),
+        &shim(),
+        Missing::Fail,
+    );
     assert!(
         matches!(result, Err(TranslateError::Unsupported(message)) if message.contains("plain file name"))
     );
@@ -280,7 +351,13 @@ fn mutated_executables_never_panic_the_translator() {
     for position in (0..EXE.len()).step_by(11) {
         let mut mutated = EXE.to_vec();
         mutated[position] ^= 0xFF;
-        let _ = translate(name("two_libs"), mutated, &fixtures(), &shim());
+        let _ = translate(
+            name("two_libs"),
+            mutated,
+            &fixtures(),
+            &shim(),
+            Missing::Fail,
+        );
     }
 }
 
@@ -299,6 +376,7 @@ fn translate_tls_basic() -> crossport_translator::translate::Translation {
         TLS_EXE.to_vec(),
         &tls_fixtures(),
         &tls_shim(),
+        Missing::Fail,
     )
     .expect("translates")
 }
@@ -387,7 +465,13 @@ fn mutated_thread_local_programs_never_panic_the_translator() {
     for position in (0..TLS_EXE.len()).step_by(13) {
         let mut mutated = TLS_EXE.to_vec();
         mutated[position] ^= 0xFF;
-        let _ = translate(name("tls_basic"), mutated, &tls_fixtures(), &tls_shim());
+        let _ = translate(
+            name("tls_basic"),
+            mutated,
+            &tls_fixtures(),
+            &tls_shim(),
+            Missing::Fail,
+        );
     }
 }
 
@@ -423,6 +507,7 @@ fn a_threaded_program_translates_and_imports_the_pthread_calls_from_the_shim() {
         THREADS_EXE.to_vec(),
         &threads_fixtures(),
         &pthread_shim(),
+        Missing::Fail,
     )
     .expect("translates");
     let shim_imports: Vec<String> = imports_of(&translation.files[0].bytes)
@@ -450,6 +535,7 @@ fn the_threaded_program_has_local_exec_accesses_and_the_library_only_canaries() 
         THREADS_EXE.to_vec(),
         &threads_fixtures(),
         &pthread_shim(),
+        Missing::Fail,
     )
     .expect("translates")
     .reports;
@@ -489,6 +575,7 @@ fn a_shim_missing_a_pthread_function_fails_at_translation_time() {
         THREADS_EXE.to_vec(),
         &threads_fixtures(),
         &without_join,
+        Missing::Fail,
     );
     assert!(
         matches!(result, Err(TranslateError::UnresolvedSymbols(ref symbols)) if symbols == &["pthread_join".to_string()])

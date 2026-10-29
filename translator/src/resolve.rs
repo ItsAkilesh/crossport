@@ -3,6 +3,8 @@
 // Author: Akilesh
 // Date: 2026-10-28
 
+use std::collections::HashSet;
+
 use crate::elf_model::{Definition, DynSymbol, SymbolBinding};
 use crate::error::TranslateError;
 use crate::graph::ModuleGraph;
@@ -19,6 +21,8 @@ pub enum Target {
     Library { module: usize },
     /// Provided by the shim DLL; bound through a PE import.
     Shim,
+    /// Provided by nobody, bound to the shim's "unavailable" function (see `Resolver::with_stubs`).
+    ShimStub,
     /// Weak and undefined everywhere: the slot becomes null.
     Null,
 }
@@ -33,11 +37,23 @@ pub struct TlsTarget {
 pub struct Resolver<'a> {
     graph: &'a ModuleGraph,
     shim: &'a ShimExports,
+    /// Symbols nobody provides that bind to the shim's unavailable function instead of failing.
+    stubbed: HashSet<String>,
 }
 
 impl<'a> Resolver<'a> {
     pub fn new(graph: &'a ModuleGraph, shim: &'a ShimExports) -> Self {
-        Self { graph, shim }
+        Self {
+            graph,
+            shim,
+            stubbed: HashSet::new(),
+        }
+    }
+
+    /// Lets the listed symbols, which no module or the shim defines, bind to the shim's unavailable function.
+    pub fn with_stubs(mut self, stubbed: HashSet<String>) -> Self {
+        self.stubbed = stubbed;
+        self
     }
 
     /// ELF semantics: the first module in global scope order (executable, then
@@ -146,6 +162,8 @@ impl<'a> Resolver<'a> {
             Ok(Target::Shim)
         } else if symbol.is_weak() {
             Ok(Target::Null)
+        } else if self.stubbed.contains(&symbol.name) {
+            Ok(Target::ShimStub)
         } else {
             Err(self.unresolved(importer, symbol))
         }

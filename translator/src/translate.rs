@@ -11,7 +11,7 @@ use crate::pe_writer;
 use crate::relink::relink_module;
 use crate::resolve::Resolver;
 use crate::rewrite::RewriteStats;
-use crate::shim_abi::START_SYMBOL;
+use crate::shim_abi::{START_SYMBOL, UNAVAILABLE_SYMBOL};
 use crate::shim_exports::ShimExports;
 use crate::source::LibrarySource;
 use crate::tls_layout::TlsLayout;
@@ -34,6 +34,17 @@ pub struct Translation {
     /// The executable is first, then libraries in discovery order.
     pub files: Vec<OutputFile>,
     pub reports: Vec<ModuleReport>,
+    /// With stubbing allowed: libraries that were not found and are left out.
+    pub missing_libraries: Vec<String>,
+    /// With stubbing allowed: symbols nobody provides, bound to the shim's unavailable function.
+    pub stubbed_symbols: Vec<String>,
+}
+
+/// Whether symbols and libraries nobody provides stop the translation (the default) or are stubbed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Missing {
+    Fail,
+    Stub,
 }
 
 /// Translates the executable and every library it needs.
@@ -42,18 +53,29 @@ pub fn translate(
     exe_data: Vec<u8>,
     source: &dyn LibrarySource,
     shim: &ShimExports,
+    on_missing: Missing,
 ) -> Result<Translation, TranslateError> {
     if !shim.provides(START_SYMBOL) {
         return Err(TranslateError::Unsupported(format!(
             "the shim does not export {START_SYMBOL}"
         )));
     }
-    let graph = graph::load(exe_name, exe_data, source)?;
+    let mut missing_libraries = Vec::new();
+    let graph = match on_missing {
+        Missing::Fail => graph::load(exe_name, exe_data, source)?,
+        Missing::Stub => graph::load_lenient(exe_name, exe_data, source, &mut missing_libraries)?,
+    };
     let missing = missing_symbols(&graph, shim);
-    if !missing.is_empty() {
+    if on_missing == Missing::Fail && !missing.is_empty() {
         return Err(TranslateError::UnresolvedSymbols(missing));
     }
-    let resolver = Resolver::new(&graph, shim);
+    if on_missing == Missing::Stub && !shim.provides(UNAVAILABLE_SYMBOL) {
+        return Err(TranslateError::Unsupported(format!(
+            "the shim does not export {UNAVAILABLE_SYMBOL}"
+        )));
+    }
+    let stubbed_symbols = missing.clone();
+    let resolver = Resolver::new(&graph, shim).with_stubs(missing.into_iter().collect());
     let tls = TlsLayout::compute(&graph.modules)?;
     let mut files = Vec::with_capacity(graph.modules.len());
     let mut reports = Vec::with_capacity(graph.modules.len());
@@ -73,5 +95,10 @@ pub fn translate(
             rewrite: relinked.stats,
         });
     }
-    Ok(Translation { files, reports })
+    Ok(Translation {
+        files,
+        reports,
+        missing_libraries,
+        stubbed_symbols,
+    })
 }

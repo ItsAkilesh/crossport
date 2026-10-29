@@ -7,6 +7,8 @@
 pub const SHIM_DLL: &str = "crossport_libc.dll";
 /// Shim function the executable's entry stub jumps to.
 pub const START_SYMBOL: &str = "crossport_start";
+/// The shim function that stands in for every symbol nobody provides, when stubbing is allowed.
+pub const UNAVAILABLE_SYMBOL: &str = "crossport_unavailable";
 /// Data symbol each translated DLL exports; it points at the module's start-info table.
 pub const INFO_SYMBOL: &str = "__crossport_info";
 

@@ -13,6 +13,13 @@
 
 #include "libc_abi.h"
 
+/* Every symbol the translator was told to stub (crossport translate --stub-missing) is bound to this: it
+ * ignores its arguments and returns 0, which reads as NULL, "no", or an empty result. */
+LIBC_FN int64_t sysv_crossport_unavailable(void)
+{
+    return 0;
+}
+
 #define STUB_FAIL(name) \
     LIBC_FN int64_t sysv_##name(void) \
     { \

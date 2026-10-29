@@ -80,6 +80,11 @@ LIBC_FN NORETURN void sysv__exit(int status)
     __builtin_unreachable();
 }
 
+LIBC_FN NORETURN void sysv__Exit(int status)
+{
+    sysv__exit(status);
+}
+
 LIBC_FN NORETURN void sysv_abort(void)
 {
     ExitProcess(ABORT_EXIT_CODE);

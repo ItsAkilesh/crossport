@@ -8,7 +8,7 @@ use crate::error::TranslateError;
 use crate::graph::ModuleGraph;
 use crate::pe_model::RVA_BIAS;
 use crate::resolve::{Resolver, Target, TlsTarget};
-use crate::shim_abi::SHIM_DLL;
+use crate::shim_abi::{SHIM_DLL, UNAVAILABLE_SYMBOL};
 use crate::startup::Binding;
 use crate::tls_layout::TlsLayout;
 
@@ -166,8 +166,13 @@ impl Patcher<'_, '_> {
                 });
                 Ok(())
             }
-            Target::Library { .. } | Target::Shim => {
+            Target::Library { .. } | Target::Shim | Target::ShimStub => {
                 let dll = self.dll_name(target)?;
+                let name = if target == Target::ShimStub {
+                    UNAVAILABLE_SYMBOL.to_string()
+                } else {
+                    name
+                };
                 self.out.import_bindings.push(ImportBinding {
                     slot_rva: rva32(slot)?,
                     dll,
@@ -202,7 +207,7 @@ impl Patcher<'_, '_> {
             Target::Library { module } => {
                 Ok(self.context.graph.modules[module].name.dll_file_name())
             }
-            Target::Shim => Ok(SHIM_DLL.to_string()),
+            Target::Shim | Target::ShimStub => Ok(SHIM_DLL.to_string()),
             _ => Err(TranslateError::Elf(
                 "internal: target is not an import".into(),
             )),

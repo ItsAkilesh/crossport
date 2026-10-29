@@ -11,7 +11,7 @@ use crossport_translator::error::TranslateError;
 use crossport_translator::naming::ModuleName;
 use crossport_translator::shim_exports::ShimExports;
 use crossport_translator::source::AppDirSource;
-use crossport_translator::translate::translate;
+use crossport_translator::translate::{translate, Missing};
 
 const EXE: &[u8] = include_bytes!("fixtures/two_libs/two_libs");
 const GREET: &[u8] = include_bytes!("fixtures/two_libs/libgreet.so.1");
@@ -41,7 +41,7 @@ fn shim() -> ShimExports {
 fn translate_in(root: &Path, executable: &Path) -> Result<usize, TranslateError> {
     let source = AppDirSource::new(root.to_path_buf(), executable.to_path_buf(), &[])?;
     let name = ModuleName::parse("two_libs").expect("valid");
-    translate(name, EXE.to_vec(), &source, &shim()).map(|t| t.files.len())
+    translate(name, EXE.to_vec(), &source, &shim(), Missing::Fail).map(|t| t.files.len())
 }
 
 #[test]

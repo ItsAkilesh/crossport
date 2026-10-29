@@ -31,6 +31,37 @@ LIBC_FN int64_t sysv___readlinkat_chk(int dirfd, const char *path, char *buffer,
     return sysv_readlink(path, buffer, count);
 }
 
+LIBC_FN size_t sysv_mbstowcs(int32_t *out, const char *source, size_t limit);
+
+LIBC_FN size_t sysv___mbstowcs_chk(int32_t *out, const char *source, size_t limit, size_t capacity)
+{
+    if (out != NULL && limit > capacity) {
+        sysv___chk_fail();
+    }
+    return sysv_mbstowcs(out, source, limit);
+}
+
+/* wcsncpy copies at most `count` wide characters and pads with zeros up to `count`. */
+LIBC_FN int32_t *sysv_wcsncpy(int32_t *to, const int32_t *from, size_t count)
+{
+    size_t i = 0;
+    for (; i < count && from[i] != 0; i++) {
+        to[i] = from[i];
+    }
+    for (; i < count; i++) {
+        to[i] = 0;
+    }
+    return to;
+}
+
+LIBC_FN int32_t *sysv___wcsncpy_chk(int32_t *to, const int32_t *from, size_t count, size_t capacity)
+{
+    if (count > capacity) {
+        sysv___chk_fail();
+    }
+    return sysv_wcsncpy(to, from, count);
+}
+
 LIBC_FN int sysv___open_2(const char *path, int flags)
 {
     return sysv_open(path, flags, 0);

@@ -14,6 +14,7 @@ use crossport_translator::error::TranslateError;
 use crossport_translator::naming::ModuleName;
 use crossport_translator::shim_exports::ShimExports;
 use crossport_translator::source::{read_bounded, AppDirSource, DirectorySource, LibrarySource};
+use crossport_translator::translate::Missing;
 use crossport_translator::{bundle, coverage, graph, translate};
 
 const EXIT_ERROR: u8 = 2;
@@ -55,7 +56,8 @@ fn execute(action: Action) -> Result<(), TranslateError> {
             shim,
             out,
             runtime_dirs,
-        } => convert_image(&image, &shim, &out, runtime_dirs),
+            missing,
+        } => convert_image(&image, &shim, &out, runtime_dirs, missing),
         Action::Translate {
             elf,
             shim,
@@ -63,7 +65,8 @@ fn execute(action: Action) -> Result<(), TranslateError> {
             lib_dirs,
             appdir,
             runtime_dirs,
-        } => run_translation(&elf, &shim, &out, (lib_dirs, runtime_dirs), appdir),
+            missing,
+        } => run_translation(&elf, &shim, &out, (lib_dirs, runtime_dirs), appdir, missing),
     }
 }
 
@@ -205,6 +208,7 @@ fn run_translation(
     out: &Path,
     (lib_dirs, runtime_dirs): (Vec<PathBuf>, Vec<PathBuf>),
     appdir: Option<PathBuf>,
+    missing: Missing,
 ) -> Result<(), TranslateError> {
     let source = library_source(elf, appdir, lib_dirs, &runtime_dirs)?;
     let stem = elf
@@ -217,7 +221,18 @@ fn run_translation(
         read_file(elf)?,
         source.as_ref(),
         &exports,
+        missing,
     )?;
+    for library in &translation.missing_libraries {
+        println!("not found, left out: {library}");
+    }
+    if !translation.stubbed_symbols.is_empty() {
+        println!(
+            "{} symbols nobody provides are bound to a stub that returns 0:",
+            translation.stubbed_symbols.len()
+        );
+        println!("  {}", translation.stubbed_symbols.join(" "));
+    }
     let executable = bundle::write_bundle(&translation.files, shim, out)?;
     println!(
         "wrote {} ({} modules)",
@@ -243,6 +258,7 @@ fn convert_image(
     shim: &Path,
     out: &Path,
     runtime_dirs: Vec<PathBuf>,
+    missing: Missing,
 ) -> Result<(), TranslateError> {
     let appdir = out.join(APPDIR_NAME);
     let unpacked = appimage::unpack(image, &appdir, &Limits::default())?;
@@ -257,6 +273,7 @@ fn convert_image(
         out,
         (Vec::new(), runtime_dirs),
         Some(appdir),
+        missing,
     )?;
     let env_path = bundle::write_env_file(out, &[("APPDIR", "${BUNDLE}/appdir")])?;
     println!("wrote {}", env_path.display());

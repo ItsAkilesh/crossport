@@ -257,3 +257,38 @@ LIBC_FN int sysv_execvpe(const char *file, char *const argv[], char *const envp[
 {
     return run_instead(file, argv, envp, 1);
 }
+
+#define MAX_EXEC_ARGUMENTS 64
+
+/* The argument list of execl and friends: every argument up to the terminating NULL, collected into `list`. */
+static SYSV int collect_arguments(const char *first, __builtin_sysv_va_list arguments, char **list)
+{
+    int count = 0;
+    const char *argument = first;
+    while (argument != NULL && count < MAX_EXEC_ARGUMENTS - 1) {
+        list[count++] = (char *)argument;
+        argument = __builtin_va_arg(arguments, const char *);
+    }
+    list[count] = NULL;
+    return argument == NULL ? 0 : -1;
+}
+
+LIBC_FN int sysv_execl(const char *path, const char *first, ...)
+{
+    char *list[MAX_EXEC_ARGUMENTS];
+    __builtin_sysv_va_list arguments;
+    __builtin_sysv_va_start(arguments, first);
+    int status = collect_arguments(first, arguments, list);
+    __builtin_sysv_va_end(arguments);
+    return status == 0 ? run_instead(path, list, NULL, 0) : shim_fail(LINUX_E2BIG);
+}
+
+LIBC_FN int sysv_execlp(const char *file, const char *first, ...)
+{
+    char *list[MAX_EXEC_ARGUMENTS];
+    __builtin_sysv_va_list arguments;
+    __builtin_sysv_va_start(arguments, first);
+    int status = collect_arguments(first, arguments, list);
+    __builtin_sysv_va_end(arguments);
+    return status == 0 ? run_instead(file, list, NULL, 1) : shim_fail(LINUX_E2BIG);
+}

@@ -6,10 +6,11 @@
 use std::path::PathBuf;
 
 use crate::error::TranslateError;
+use crate::translate::Missing;
 
 const USAGE: &str = "usage:\n  crossport unpack <app.AppImage> --out <new-or-empty-dir>\n  crossport analyze <elf>\n  crossport coverage --shim <crossport_libc.dll> [--appdir <dir>] [--lib-dir <dir>]... [--runtime <dir>]... [--allow-missing] <elf>...
-  crossport translate <elf> --shim <crossport_libc.dll> --out <dir> [--lib-dir <dir>]... [--appdir <dir>] [--runtime <dir>]...
-  crossport convert <app.AppImage> --shim <crossport_libc.dll> --out <new-or-empty-dir> [--runtime <dir>]...";
+  crossport translate <elf> --shim <crossport_libc.dll> --out <dir> [--lib-dir <dir>]... [--appdir <dir>] [--runtime <dir>]... [--stub-missing]
+  crossport convert <app.AppImage> --shim <crossport_libc.dll> --out <new-or-empty-dir> [--runtime <dir>]... [--stub-missing]";
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Action {
@@ -37,6 +38,8 @@ pub enum Action {
         out: PathBuf,
         /// Directories of libraries the AppImage expects from its host (libstdc++ and the like).
         runtime_dirs: Vec<PathBuf>,
+        /// Bind what nobody provides to a stub instead of failing (see `--stub-missing`).
+        missing: Missing,
     },
     Translate {
         elf: PathBuf,
@@ -47,6 +50,8 @@ pub enum Action {
         appdir: Option<PathBuf>,
         /// Directories of host libraries (libstdc++ and the like) searched after the AppDir.
         runtime_dirs: Vec<PathBuf>,
+        /// Libraries and symbols nobody provides: fail (default) or bind to a stub that returns 0.
+        missing: Missing,
     },
 }
 
@@ -71,8 +76,13 @@ pub fn parse(args: &[String]) -> Result<Action, TranslateError> {
 fn parse_convert(image: &str, flags: &[String]) -> Result<Action, TranslateError> {
     let (mut shim, mut out) = (None, None);
     let mut runtime_dirs = Vec::new();
+    let mut missing = Missing::Fail;
     let mut remaining = flags.iter();
     while let Some(flag) = remaining.next() {
+        if flag == "--stub-missing" {
+            missing = Missing::Stub;
+            continue;
+        }
         let value = PathBuf::from(remaining.next().ok_or_else(usage)?);
         match flag.as_str() {
             "--shim" if shim.is_none() => shim = Some(value),
@@ -87,6 +97,7 @@ fn parse_convert(image: &str, flags: &[String]) -> Result<Action, TranslateError
             shim,
             out,
             runtime_dirs,
+            missing,
         }),
         _ => Err(usage()),
     }
@@ -98,8 +109,13 @@ fn parse_translate(elf: &str, flags: &[String]) -> Result<Action, TranslateError
     let mut lib_dirs = Vec::new();
     let mut appdir = None;
     let mut runtime_dirs = Vec::new();
+    let mut missing = Missing::Fail;
     let mut remaining = flags.iter();
     while let Some(flag) = remaining.next() {
+        if flag == "--stub-missing" {
+            missing = Missing::Stub;
+            continue;
+        }
         let value = PathBuf::from(remaining.next().ok_or_else(usage)?);
         match flag.as_str() {
             "--shim" if shim.is_none() => shim = Some(value),
@@ -118,6 +134,7 @@ fn parse_translate(elf: &str, flags: &[String]) -> Result<Action, TranslateError
             lib_dirs,
             appdir,
             runtime_dirs,
+            missing,
         }),
         _ => Err(usage()),
     }
@@ -190,6 +207,7 @@ mod tests {
                 shim: PathBuf::from("s.dll"),
                 out: PathBuf::from("o"),
                 runtime_dirs: vec![PathBuf::from("r1"), PathBuf::from("r2")],
+                missing: Missing::Fail,
             }
         );
         assert!(
@@ -197,6 +215,26 @@ mod tests {
             "needs a shim"
         );
         assert!(parse(&args(&["convert", "a", "--shim", "s", "--bogus", "x"])).is_err());
+    }
+
+    #[test]
+    fn stub_missing_is_a_flag_without_a_value() {
+        let action = parse(&args(&[
+            "translate",
+            "p",
+            "--shim",
+            "s",
+            "--stub-missing",
+            "--out",
+            "o",
+        ]));
+        assert!(matches!(
+            action.expect("valid"),
+            Action::Translate {
+                missing: Missing::Stub,
+                ..
+            }
+        ));
     }
 
     #[test]
@@ -277,6 +315,7 @@ mod tests {
                 lib_dirs: vec![PathBuf::from("l1"), PathBuf::from("l2")],
                 appdir: None,
                 runtime_dirs: Vec::new(),
+                missing: Missing::Fail,
             }
         );
     }
@@ -302,6 +341,7 @@ mod tests {
                 lib_dirs: vec![],
                 appdir: Some(PathBuf::from("app")),
                 runtime_dirs: Vec::new(),
+                missing: Missing::Fail,
             }
         );
         assert!(parse(&args(&[
