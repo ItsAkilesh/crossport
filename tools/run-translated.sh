@@ -2,7 +2,7 @@
 # File: tools/run-translated.sh
 # Purpose: Translate a Linux ELF corpus binary to a Windows bundle, run it and record its result
 # Author: Akilesh
-# Date: 2026-10-28
+# Date: 2026-10-29
 #
 # Usage: tools/run-translated.sh <case>
 #   <case> corpus case name; the ELF and its libraries are read from build/elf/<case>/
@@ -34,7 +34,7 @@ rm -rf "$bundle_dir"
 
 cargo build --release --locked --manifest-path "$root/tools/difftest/Cargo.toml"
 cargo build --release --locked --manifest-path "$root/translator/Cargo.toml"
-bash "$root/tools/build-shim.sh" > /dev/null
+[[ -f "$shim_dir/crossport_libc.dll" ]] || bash "$root/tools/build-shim.sh" > /dev/null
 
 "$root/translator/target/release/crossport.exe" translate "$elf" \
   --shim "$shim_dir/crossport_libc.dll" --lib-dir "$elf_dir" --out "$bundle_dir"

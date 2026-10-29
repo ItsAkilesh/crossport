@@ -2,7 +2,7 @@
   File: docs/ROADMAP.md
   Purpose: Milestones and exit criteria for Crossport
   Author: Akilesh
-  Date: 2026-10-28
+  Date: 2026-10-29
 -->
 
 # Crossport Roadmap
@@ -43,17 +43,47 @@
 - **Exit criterion:** all 45 invocations produce byte-identical stdout, stderr, exit code and files on
   Linux and on Windows, enforced in CI by a ratchet (`tests/corpus/baseline.json`): a test that passes
   there may never fail again. Tier 1 is these three apps.
-- Known limits, to be widened by later corpus growth: no `fork`, `popen` or `system`, no file-backed
-  `mmap`, no asynchronous signals, local time is UTC, and scanf reads strings only.
+- Known limits at the end of the milestone (several lifted since, see Milestone 6 groundwork): no `fork`,
+  `popen` or `system`, no file-backed `mmap`, no asynchronous signals, local time is UTC, and scanf reads
+  strings only.
 
-## Milestone 5: Vulkan
+## Milestone 5: Vulkan (done)
 
-- Vulkan passthrough with a minimal window.
-- **Exit criterion:** a Vulkan sample renders correctly.
+- `libvulkan.so.1` is provided by the shim: 600+ entry points generated from the pinned Vulkan registry
+  (`tools/gen-vulkan-thunks.py`) forward to the Windows loader (`vulkan-1.dll`), which is loaded on first
+  use. `vkGetInstanceProcAddr` and `vkGetDeviceProcAddr` return the shim's own thunks.
+- A minimal window: `libxcb.so.1` is provided by the shim on top of Win32 windows (connection, screens,
+  atoms, window requests, and key, mouse, expose, configure and close events), and `VK_KHR_xcb_surface`
+  is implemented on top of `VK_KHR_win32_surface`.
+- Two samples: `vulkan_triangle` renders a triangle offscreen and prints driver-independent results
+  (colour probes in sixteenths and a hash of which pixels the triangle covers); `vulkan_window` opens an
+  xcb window and presents 30 frames.
+- **Exit criterion:** both samples render and present correctly on Windows, compared with Linux in CI
+  (a software Vulkan driver on both: Mesa lavapipe, with the Khronos loader built from pinned sources on
+  Windows) and on a real GPU on the development machine.
+- Known limits: function pointers the program passes into Vulkan (allocation and debug callbacks) are not
+  yet thunked in the driver-to-program direction.
 
 ## Milestone 6: GUI
 
-- X11 / Wayland client translation onto Win32 windowing.
+Groundwork done (measured on a real Qt AppImage, see docs/DESIGN.md section 2.10): C++ exceptions through
+translated code, descriptor kinds with pipes, eventfd, epoll, timerfd and sockets, child processes, file
+mappings, wide characters and locales, iconv, the rest of the everyday libc (usage-weighted coverage of
+KeePassXC 50% to 80%), `crossport convert`, the desktop-entry fallback for shell-script launchers, and a
+runtime directory for host libraries (libstdc++ and similar).
+
+Still to do, in the order the measurements suggest:
+
+1. **A decision on the runtime pack** (docs/DESIGN.md section 6): where the host libraries come from.
+2. **X11 core:** an in-process X server behind libxcb and libX11, with drawing (pixmaps, graphics
+   contexts, `PutImage`, `CopyArea`, `GetImage`) on a DIB per window, properties, input events and the
+   extension queries (reporting none). Xlib structures are mirrored by byte offset and checked against the
+   real headers on Linux CI. First target: an SDL2 or xcb program that draws in software.
+3. **OpenGL and EGL:** libGL, libGLX and libEGL on WGL (or ANGLE), since Qt and GTK probe for them.
+4. **Toolkit needs:** `dlopen` of translated bundled libraries (plugins), XKB, XInput2, RANDR, RENDER and
+   SHM answers, fontconfig data, D-Bus (Unix-domain sockets work), `fork`-free replacements for what
+   toolkits spawn.
+5. **Red zone:** a design answer for graphical programs (docs/DESIGN.md section 6).
 - **Exit criterion:** a real GTK or Qt AppImage runs with usable input and rendering.
 
 ## Beyond Milestone 6
