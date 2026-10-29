@@ -27,6 +27,9 @@ pub const SHIM_PROVIDED_LIBRARIES: &[&str] = &[
     "libvulkan.so.1",
     // The X11 wire library is provided by the shim on top of Win32 windows.
     "libxcb.so.1",
+    // The resolver and utility libraries are folded into the shim as well.
+    "libresolv.so.2",
+    "libutil.so.1",
 ];
 pub const MAX_MODULES: usize = 256;
 /// Total bytes of ELF input across all modules.

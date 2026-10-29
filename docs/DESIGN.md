@@ -102,14 +102,47 @@ What it showed, and what has been done about it:
   `.eh_frame_hdr`, whose address the translator records in the start info (version 4). The tables are
   position independent, so the unwinder reads them in place. `cxx_exceptions` tests it with the C++
   runtime linked statically.
-- **Descriptors are no longer only files.** Event loops need pipes, eventfd, dup, fcntl, ioctl, poll and
-  select. A descriptor now has a kind (file, pipe, event) that decides how it is read and waited on. A
-  Win32 event serves eventfds, and pipes and consoles, which have none, are polled in short slices.
-  Sockets, timerfd, epoll and signalfd are the next kinds. `posix_io` tests it.
-- **Smaller pieces:** `dlopen`, `dlsym`, `dlerror` and `dladdr` answer for the shim's own libraries (`dlopen`
-  of bundled libraries is still out of scope), `aligned_alloc`, `posix_memalign` and `memalign` (page-backed
-  above 16-byte alignment), read-write locks, and the `_FORTIFY_SOURCE` variants of the string, read, poll
-  and select calls.
+- **Descriptors are no longer only files.** Event loops need pipes, eventfd, dup, fcntl, ioctl, poll,
+  select, epoll, timerfd and sockets. A descriptor now has a kind (file, pipe, event, socket, epoll,
+  timer) that decides how it is read, written and waited on. Win32 events serve eventfds, timerfds and
+  sockets; pipes and consoles, which have none, are polled in short slices. epoll is built on the same
+  poll engine and delivers level-triggered events (EPOLLONESHOT is honoured). Sockets are Winsock sockets
+  kept non-blocking, with blocking emulated by waiting on the socket's event; Unix-domain paths go
+  through the path mapper. `posix_io`, `sockets` and `event_loop` test them.
+- **Child processes.** `fork` has no efficient Windows counterpart, so it fails with ENOSYS. The spawn
+  family maps onto `CreateProcess`: `posix_spawn` and `posix_spawnp` with file actions for descriptors 0
+  to 2, `waitpid`, `kill` (signals other than 0 terminate the process and are reported to `waitpid`),
+  `system` and `popen` through `cmd.exe /c`, and `exec*` as "run the program, then exit with its
+  status". Arguments are quoted so they read back identically; a child given its own environment still
+  gets `SystemRoot`. `process` tests it.
+- **File mappings.** `mmap` supports files (shared and private views, offsets that are not a multiple of
+  Windows' 64 KiB granularity, `msync`, `mprotect`) and anonymous memory (`mremap`, `MADV_DONTNEED`).
+  Unmapping part of a file view is accepted but does nothing. `mmap_files` tests it.
+- **Wide characters and locales.** The shim's locale is one built-in UTF-8 locale. Multibyte and wide
+  conversion, `isw*`/`tow*`, `locale_t` objects and the `_l` variants, `nl_langinfo`, and `iconv` between
+  UTF-8, ASCII, Latin-1, UTF-16 and UTF-32 are implemented, which is what libstdc++ needs.
+- **Breadth.** Measuring libstdc++, libgcc_s and KeePassXC (84 modules with a runtime pack of 30 Ubuntu
+  libraries) found everyday functions still missing (strtok, getopt, getline, asprintf, qsort_r,
+  drand48, tsearch, hsearch, single-precision libm, user and group lookups, name services) and they were
+  added, with `libc_breadth` comparing them against glibc. Functions with no Windows counterpart
+  (inotify, mounts, xattrs, SysV IPC) answer ENOSYS, or accept and ignore harmless requests, in
+  `stubs.c`. With them, libstdc++ 12 and 14 and libgcc_s have no missing symbols, and KeePassXC's
+  usage-weighted coverage went from 50% to 67%; what remains is X11, GL and EGL.
+- **One step from AppImage to bundle.** `crossport convert app.AppImage --shim ... --out dir` unpacks,
+  finds the program (through the desktop entry when AppRun is a script), translates it and its
+  libraries, and writes `crossport.env`, which the shim applies at start (`APPDIR` and any variables a
+  launcher would have set; `${BUNDLE}` is the bundle directory). The shim also sets `HOME`, `USER` and
+  `LOGNAME` when Windows does not. Host libraries the AppImage lacks (libstdc++ and similar) come from
+  `--runtime <dir>`, searched after the AppDir.
+- **The shim must stand alone.** It is linked with `-static-libgcc` so it needs no MinGW runtime DLL (it
+  did, until a child process started with a bare environment failed to load it), and it never uses
+  compiler TLS (emulated TLS calls pthread functions that resolve to the shim's own SysV exports).
+  Microsoft-convention code does not call SysV functions: older GCC releases crash compiling that mix.
+- **Smaller pieces:** `dlopen`, `dlsym`, `dlerror` and `dladdr` answer for the shim's own libraries
+  (`dlopen` of bundled libraries is still out of scope), `aligned_alloc`, `posix_memalign` and
+  `memalign` (page-backed above 16-byte alignment), read-write locks, condition variables with
+  monotonic clocks, random numbers (`getrandom`, `arc4random`), and the `_FORTIFY_SOURCE` variants of
+  the string, read, poll, scanf and select calls.
 
 ## 3. Shim ABI
 
@@ -184,10 +217,19 @@ Built before the translator, because agents and humans both need fast, objective
 ### Open
 
 - **Host libraries (needed for Milestone 6).** Two ways to supply a library an AppImage expects from its
-  host. (a) The shim implements it (libc, libvulkan and libxcb are done; libX11 and libGL are the Windows
-  graphics glue and must be native anyway). (b) A runtime pack: Crossport ships pre-translated builds of
-  portable libraries (libstdc++, libgcc_s, zlib, freetype, harfbuzz, fontconfig, expat, libpng) built from
-  pinned upstream sources and translated by the same pipeline, so they cost no new translator code and are
-  tested like the corpus. The recommendation is (a) for anything that touches the operating system and (b)
-  for everything else. Not decided; needs a decision before the Qt and GTK work starts.
-- Red zone: SysV code uses the 128 bytes below `rsp`, which Windows can overwrite during exception and APC dispatch. Milestone 1 builds the corpus with `-mno-red-zone`; real binaries will need a design answer before Milestone 4.
+  host. (a) The shim implements it (libc, libvulkan, libxcb and libresolv are done; libX11 and libGL are
+  the Windows graphics glue and must be native anyway). (b) A runtime pack: Linux copies of portable
+  libraries (libstdc++, libgcc_s, zlib, freetype, harfbuzz, fontconfig, glib, openssl, ...) that the
+  translator translates like any bundled library. Mechanism (b) works today: `--runtime <dir>` adds
+  directories searched after the AppDir, and a runtime pack of 30 Ubuntu 22.04 libraries plus the
+  libstdc++ and libgcc_s from 22.04 and 24.04 translated and covered by the shim. What is not decided is
+  where the pack comes from: the recommendation is pinned, checksum-verified Ubuntu packages (the newest
+  libstdc++ and libgcc_s, because an AppImage built with a newer GCC needs the newer symbols, and the
+  oldest LTS for the rest), fetched by a script like `tools/ci/install-vulkan-windows.sh`, with (a) for
+  anything that touches the operating system. Needs a decision before Qt and GTK work continues.
+- **Red zone.** SysV code uses the 128 bytes below `rsp`, which Windows can overwrite when it dispatches an
+  exception or a user-mode APC on the thread. The corpus is built with `-mno-red-zone`, but real
+  AppImages are not, and Milestone 4 did not need an answer because the corpus programs run no APCs. A
+  design answer is still needed before graphical applications, which receive window messages and I/O
+  completions on their threads: the likely one is to run translated code only on threads that never
+  enter an alertable wait, and to deliver everything else on separate shim threads.
