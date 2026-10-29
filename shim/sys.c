@@ -1,12 +1,11 @@
 /*
  * File: shim/sys.c
- * Purpose: Process identity, system configuration, resource usage, anonymous memory mappings and unsupported process spawning
+ * Purpose: Process identity, system configuration, resource usage and anonymous memory mappings
  * Author: Akilesh
- * Date: 2026-10-28
+ * Date: 2026-10-29
  *
  * There is no Unix user database, so the process runs as one fixed unprivileged user. Mappings of files
- * are not supported yet (callers fall back to reading); anonymous mappings use VirtualAlloc. popen and
- * system fail with ENOSYS rather than guessing how a Linux shell command line maps to Windows.
+ * are not supported yet (callers fall back to reading); anonymous mappings use VirtualAlloc.
  */
 
 #include <string.h>
@@ -170,26 +169,4 @@ LIBC_FN void *sysv_mremap(void *address, size_t old_length, size_t new_length, i
     (void)flags;
     shim_set_errno(LINUX_ENOMEM);
     return MAP_FAILED_VALUE;
-}
-
-LIBC_FN int sysv_system(const char *command)
-{
-    if (command == NULL) {
-        return 0;
-    }
-    return shim_fail(LINUX_ENOSYS);
-}
-
-LIBC_FN void *sysv_popen(const char *command, const char *mode)
-{
-    (void)command;
-    (void)mode;
-    shim_set_errno(LINUX_ENOSYS);
-    return NULL;
-}
-
-LIBC_FN int sysv_pclose(void *stream)
-{
-    (void)stream;
-    return shim_fail(LINUX_ECHILD);
 }

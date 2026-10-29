@@ -7,6 +7,7 @@
 # Usage: tools/build-shim.sh
 # Output: build/shim/crossport_libc.dll
 # Needs: a mingw-w64 gcc and python3 on a Windows host.
+# libgcc is linked statically: the DLL must not depend on a MinGW runtime DLL, which a user's machine lacks.
 
 set -euo pipefail
 
@@ -20,7 +21,7 @@ py=python3
 "$py" "$root/tools/gen-shim-def.py" "$out/crossport_libc.def" "$root/shim" "$generated"
 sources=$(find "$root/shim" "$generated" -name '*.c' | sort)
 # shellcheck disable=SC2086
-gcc -O2 -Wall -Wextra -Werror -fno-builtin -fno-tree-loop-distribute-patterns -shared \
+gcc -O2 -Wall -Wextra -Werror -fno-builtin -fno-tree-loop-distribute-patterns -shared -static-libgcc \
   -I "$root/shim" -I "$root/shim/vulkan" -I "$root/shim/xcb" \
   -o "$out/crossport_libc.dll" $sources "$out/crossport_libc.def" -lbcrypt -lsynchronization -lshell32 -lws2_32
 echo "$out/crossport_libc.dll"

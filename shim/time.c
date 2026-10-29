@@ -111,6 +111,12 @@ LIBC_FN int sysv_nanosleep(const int64_t *request, int64_t *remaining)
     return 0;
 }
 
+LIBC_FN unsigned sysv_sleep(unsigned seconds)
+{
+    Sleep(seconds * 1000u);
+    return 0;
+}
+
 LIBC_FN int sysv_usleep(unsigned microseconds)
 {
     Sleep((microseconds + 999) / 1000);
