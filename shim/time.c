@@ -2,7 +2,7 @@
  * File: shim/time.c
  * Purpose: Clocks, sleeping, and UTC calendar conversion (gmtime, timegm, mktime); local time is UTC
  * Author: Akilesh
- * Date: 2026-10-28
+ * Date: 2026-10-29
  *
  * Local time zones are not implemented: localtime and mktime behave as UTC, which is what a glibc
  * system with TZ=UTC or no zone data does. The corpus pins TZ=UTC.
@@ -108,6 +108,12 @@ LIBC_FN int sysv_nanosleep(const int64_t *request, int64_t *remaining)
     if (remaining != NULL) {
         remaining[0] = remaining[1] = 0;
     }
+    return 0;
+}
+
+LIBC_FN int sysv_usleep(unsigned microseconds)
+{
+    Sleep((microseconds + 999) / 1000);
     return 0;
 }
 

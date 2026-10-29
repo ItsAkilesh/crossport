@@ -1,18 +1,11 @@
 /*
  * File: shim/posix_fd.c
- * Purpose: Descriptor-based POSIX calls: open, close, read, write, pread, pwrite, lseek, fstat, isatty, fcntl and friends
+ * Purpose: Descriptor-based POSIX calls: open, close, read, write, pread, pwrite, lseek, fstat, isatty and friends
  * Author: Akilesh
- * Date: 2026-10-28
+ * Date: 2026-10-29
  */
 
 #include "fd.h"
-
-enum { F_DUPFD = 0, F_GETFD = 1, F_SETFD = 2, F_GETFL = 3, F_SETFL = 4, F_GETLK = 5, F_SETLK = 6, F_SETLKW = 7 };
-enum { LOCK_UNLOCKED = 2 }; /* F_UNLCK */
-
-typedef struct {
-    int16_t l_type;
-} FlockHead;
 
 LIBC_FN int sysv_open(const char *path, int flags, int mode)
 {
@@ -112,40 +105,6 @@ LIBC_FN int sysv_ftruncate64(int fd, int64_t length)
     int ok = SetEndOfFile(handle);
     shim_fd_seek(fd, saved, LINUX_SEEK_SET);
     return ok ? 0 : shim_fail_from_win();
-}
-
-/*
- * Advisory record locks (F_SETLK and friends) are accepted and always succeed: a translated program
- * runs as one process here, so there is no other locker to exclude.
- */
-LIBC_FN int sysv_fcntl64(int fd, int command, uint64_t argument)
-{
-    HANDLE handle = shim_fd_handle(fd);
-    if (handle == INVALID_HANDLE_VALUE) {
-        return -1;
-    }
-    switch (command) {
-    case F_GETFD:
-    case F_SETFD:
-    case F_SETFL:
-        return 0;
-    case F_GETFL:
-        return LINUX_O_RDWR;
-    case F_DUPFD: {
-        HANDLE copy;
-        return DuplicateHandle(GetCurrentProcess(), handle, GetCurrentProcess(), &copy, 0, FALSE, DUPLICATE_SAME_ACCESS)
-                   ? shim_fd_adopt(copy, 0)
-                   : shim_fail_from_win();
-    }
-    case F_GETLK:
-        ((FlockHead *)(uintptr_t)argument)->l_type = LOCK_UNLOCKED;
-        return 0;
-    case F_SETLK:
-    case F_SETLKW:
-        return 0;
-    default:
-        return shim_fail(LINUX_EINVAL);
-    }
 }
 
 LIBC_FN int sysv_fchmod(int fd, unsigned mode)

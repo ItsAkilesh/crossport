@@ -2,7 +2,7 @@
  * File: shim/fd.c
  * Purpose: Linux file descriptors over Win32 handles: open, read, write, seek and close
  * Author: Akilesh
- * Date: 2026-10-28
+ * Date: 2026-10-29
  */
 
 #include "fd.h"
@@ -12,6 +12,10 @@ typedef struct {
     int is_in_use;
     int is_append;
     int is_standard; /* the process's own stdin/stdout/stderr: never really closed */
+    int is_nonblocking;
+    int access_mode;
+    FdKind kind;
+    void *state; /* kind-specific data owned by the descriptor (for example an EventState) */
 } FdEntry;
 
 static FdEntry g_table[SHIM_MAX_FDS];
@@ -24,26 +28,55 @@ void fd_init(void)
         g_table[fd].handle = GetStdHandle(ids[fd]);
         g_table[fd].is_in_use = g_table[fd].handle != NULL && g_table[fd].handle != INVALID_HANDLE_VALUE;
         g_table[fd].is_standard = 1;
+        g_table[fd].access_mode = fd == 0 ? LINUX_O_RDONLY : LINUX_O_WRONLY;
+        g_table[fd].kind = (g_table[fd].is_in_use && GetFileType(g_table[fd].handle) == FILE_TYPE_PIPE) ? FD_KIND_PIPE
+                                                                                                          : FD_KIND_FILE;
     }
 }
 
 /* Takes the lowest free descriptor, as POSIX requires. */
-int shim_fd_adopt(HANDLE handle, int flags)
+int shim_fd_adopt_kind(FdKind kind, HANDLE handle, void *state, int flags)
 {
     int result = shim_fail(LINUX_EMFILE);
     AcquireSRWLockExclusive(&g_lock);
     for (int fd = 0; fd < SHIM_MAX_FDS; fd++) {
         if (!g_table[fd].is_in_use) {
-            g_table[fd].handle = handle;
-            g_table[fd].is_in_use = 1;
-            g_table[fd].is_append = (flags & LINUX_O_APPEND) != 0;
-            g_table[fd].is_standard = 0;
+            g_table[fd] = (FdEntry){.handle = handle, .is_in_use = 1, .is_append = (flags & LINUX_O_APPEND) != 0,
+                                    .is_nonblocking = (flags & LINUX_O_NONBLOCK) != 0,
+                                    .access_mode = flags & LINUX_O_ACCMODE, .kind = kind, .state = state};
             result = fd;
             break;
         }
     }
     ReleaseSRWLockExclusive(&g_lock);
     return result;
+}
+
+/* Puts a descriptor at a chosen number (dup2), closing whatever was there. */
+int shim_fd_adopt_at(int target, FdKind kind, HANDLE handle, void *state, int flags)
+{
+    if (target < 0 || target >= SHIM_MAX_FDS) {
+        return shim_fail(LINUX_EBADF);
+    }
+    FdEntry previous;
+    AcquireSRWLockExclusive(&g_lock);
+    previous = g_table[target];
+    g_table[target] = (FdEntry){.handle = handle, .is_in_use = 1, .is_append = (flags & LINUX_O_APPEND) != 0,
+                                .is_nonblocking = (flags & LINUX_O_NONBLOCK) != 0,
+                                .access_mode = flags & LINUX_O_ACCMODE, .kind = kind, .state = state};
+    ReleaseSRWLockExclusive(&g_lock);
+    if (previous.is_in_use && !previous.is_standard) {
+        CloseHandle(previous.handle);
+        if (previous.kind == FD_KIND_EVENT) {
+            HeapFree(GetProcessHeap(), 0, previous.state);
+        }
+    }
+    return target;
+}
+
+int shim_fd_adopt(HANDLE handle, int flags)
+{
+    return shim_fd_adopt_kind(FD_KIND_FILE, handle, NULL, flags);
 }
 
 static int lookup(int fd, FdEntry *copy)
@@ -61,6 +94,39 @@ HANDLE shim_fd_handle(int fd)
 {
     FdEntry entry;
     return lookup(fd, &entry) == 0 ? entry.handle : INVALID_HANDLE_VALUE;
+}
+
+FdKind shim_fd_kind(int fd)
+{
+    FdEntry entry;
+    return lookup(fd, &entry) == 0 ? entry.kind : FD_KIND_FILE;
+}
+
+void *shim_fd_state(int fd)
+{
+    FdEntry entry;
+    return lookup(fd, &entry) == 0 ? entry.state : NULL;
+}
+
+int shim_fd_flags(int fd)
+{
+    FdEntry entry;
+    if (lookup(fd, &entry) != 0) {
+        return -1;
+    }
+    return entry.access_mode | (entry.is_append ? LINUX_O_APPEND : 0) | (entry.is_nonblocking ? LINUX_O_NONBLOCK : 0);
+}
+
+int shim_fd_set_nonblocking(int fd, int is_nonblocking)
+{
+    FdEntry entry;
+    if (lookup(fd, &entry) != 0) {
+        return -1;
+    }
+    AcquireSRWLockExclusive(&g_lock);
+    g_table[fd].is_nonblocking = is_nonblocking;
+    ReleaseSRWLockExclusive(&g_lock);
+    return 0;
 }
 
 static DWORD access_for(int flags)
@@ -124,6 +190,11 @@ int shim_fd_close(int fd)
     AcquireSRWLockExclusive(&g_lock);
     g_table[fd].is_in_use = 0;
     ReleaseSRWLockExclusive(&g_lock);
+    if (entry.kind == FD_KIND_EVENT) {
+        CloseHandle(entry.handle);
+        HeapFree(GetProcessHeap(), 0, entry.state);
+        return 0;
+    }
     return (entry.is_standard || CloseHandle(entry.handle)) ? 0 : shim_fail_from_win();
 }
 
@@ -132,6 +203,12 @@ int64_t shim_fd_read(int fd, void *buffer, size_t count)
     FdEntry entry;
     if (lookup(fd, &entry) != 0) {
         return -1;
+    }
+    if (entry.kind == FD_KIND_EVENT) {
+        return shim_event_read(fd, buffer, count);
+    }
+    if (entry.kind == FD_KIND_PIPE && entry.is_nonblocking && (shim_fd_ready(fd, 1) & 1) == 0) {
+        return shim_fail(LINUX_EAGAIN);
     }
     DWORD chunk = count > 0x40000000u ? 0x40000000u : (DWORD)count;
     DWORD got = 0;
@@ -147,6 +224,9 @@ int64_t shim_fd_write(int fd, const void *buffer, size_t count)
     FdEntry entry;
     if (lookup(fd, &entry) != 0) {
         return -1;
+    }
+    if (entry.kind == FD_KIND_EVENT) {
+        return shim_event_write(fd, buffer, count);
     }
     const uint8_t *bytes = (const uint8_t *)buffer;
     size_t done = 0;

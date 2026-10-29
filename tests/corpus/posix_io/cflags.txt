@@ -1,0 +1,1 @@
+-fPIE -pie -fstack-protector-all -mno-red-zone -fcf-protection=none -fno-plt -pthread -Wl,-z,now

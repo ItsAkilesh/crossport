@@ -15,7 +15,7 @@ permissions:
 
 env:
   NATIVE_CASES: hello
-  TRANSLATED_CASES: hello_dyn two_libs tls_basic threads vulkan_triangle vulkan_window cxx_exceptions
+  TRANSLATED_CASES: hello_dyn two_libs tls_basic threads vulkan_triangle vulkan_window cxx_exceptions posix_io
   ABORT_CASES: canary_smash
   APPS: lua sqlite3 jq
 
