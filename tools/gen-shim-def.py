@@ -8,7 +8,7 @@
 #
 # A function written `LIBC_FN type sysv_name(...)` is exported as `name`; data declared
 # `LIBC_DATA(type, name)` is exported as `name` (DATA). math.c defines many functions through the
-# MATH1(name), MATH2(name), NARROW(name, kind), WIDE(name, kind) and STUB_FAIL/STUB_NULL/STUB_ZERO(name) macros, which are listed here by scanning their
+# MATH1/MATH2/MATHF1/MATHF2(name), NARROW(name, kind), WIDE(name, kind) and STUB_FAIL/STUB_NULL/STUB_ZERO(name) macros, which are listed here by scanning their
 # invocations.
 
 import re
@@ -17,7 +17,7 @@ from pathlib import Path
 
 FUNCTION = re.compile(r"^LIBC_FN\b[^;{(]*?\bsysv_(\w+)\s*\(", re.MULTILINE)
 DATA = re.compile(r"^LIBC_DATA\([^,]+,\s*(\w+)\)", re.MULTILINE)
-MACRO_FUNCTION = re.compile(r"\b(?:MATH[12]\((\w+)\)|(?:NARROW|WIDE)\((\w+),|STUB_(?:FAIL|NULL|ZERO)\((\w+)\))")
+MACRO_FUNCTION = re.compile(r"\b(?:MATHF?[12]\((\w+)\)|(?:NARROW|WIDE)\((\w+),|STUB_(?:FAIL|NULL|ZERO)\((\w+)\))")
 MACRO_PARAMETER = "name"
 # Data symbols the C library also exports under other names.
 DATA_ALIASES = {"environ": ["__environ", "_environ"]}

@@ -24,6 +24,9 @@ typedef void (SYSV *InitFn)(int, char **, char **);
 typedef void (SYSV *FiniFn)(void);
 
 /* Dependencies first, the executable last: the order constructors run in. */
+/* Records argv[0] in the globals programs read (misc3.c). */
+void shim_set_program_name(char *full);
+
 static LoadedModule g_modules[MAX_MODULES + 1];
 static size_t g_module_count;
 static uint8_t *g_executable_base;
@@ -142,6 +145,9 @@ EXPORT SYSV int __libc_start_main(MainFn main_fn, int argc, char **argv, void (*
     (void)rtld_fini;
     (void)stack_end;
     char **envp = argv + argc + 1;
+    if (argc > 0) {
+        shim_set_program_name(argv[0]);
+    }
     for (size_t i = 0; i < g_module_count; i++) {
         run_init(&g_modules[i], argc, argv, envp);
     }

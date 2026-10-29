@@ -1,6 +1,6 @@
 /*
  * File: shim/envfile.c
- * Purpose: Apply the bundle's crossport.env (environment a Linux launcher script would have set) at program start
+ * Purpose: Set HOME, USER and LOGNAME if missing, and apply the bundle's crossport.env (what a launcher script would have set)
  * Author: Akilesh
  * Date: 2026-10-29
  *
@@ -97,8 +97,23 @@ static void apply_line(char *line, const char *bundle)
     }
 }
 
+/* The variables Linux programs expect to exist and Windows does not set: HOME, USER and LOGNAME. */
+static void apply_defaults(void)
+{
+    wchar_t wide[SHIM_PATH_MAX];
+    char text[SHIM_PATH_MAX];
+    if (GetEnvironmentVariableW(L"USERPROFILE", wide, SHIM_PATH_MAX) > 0 && shim_wide_to_linux_path(wide, text, sizeof(text)) == 0) {
+        shim_env_set("HOME", text, 0);
+    }
+    if (GetEnvironmentVariableW(L"USERNAME", wide, SHIM_PATH_MAX) > 0 && shim_wide_to_utf8(wide, text, sizeof(text)) == 0) {
+        shim_env_set("USER", text, 0);
+        shim_env_set("LOGNAME", text, 0);
+    }
+}
+
 void shim_apply_env_file(void)
 {
+    apply_defaults();
     wchar_t directory[SHIM_PATH_MAX];
     wchar_t path[SHIM_PATH_MAX];
     char bundle[SHIM_PATH_MAX];

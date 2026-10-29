@@ -2,7 +2,7 @@
  * File: shim/sync.c
  * Purpose: pthread mutexes, condition variables and pthread_once on Win32 synchronisation primitives
  * Author: Akilesh
- * Date: 2026-10-28
+ * Date: 2026-10-29
  *
  * Layouts follow glibc's x86-64 ABI so static initialisers work unchanged: an
  * all-zero object is a valid normal mutex or condition variable, and the
@@ -32,10 +32,17 @@ typedef struct {
 _Static_assert(sizeof(Mutex) <= 40, "Mutex must fit in pthread_mutex_t");
 _Static_assert(__builtin_offsetof(Mutex, kind) == 16, "kind must be where glibc's static initialisers put it");
 
-/* Overlays the 48-byte pthread_cond_t. */
+/* Overlays the 48-byte pthread_cond_t. The clock a timed wait measures its deadline on is 0 (realtime) or 1 (monotonic). */
 typedef struct {
     CONDITION_VARIABLE variable;
+    int32_t clock;
 } Cond;
+
+typedef struct {
+    int32_t clock;
+} CondAttr;
+
+enum { CLOCK_REALTIME_ID = 0, CLOCK_MONOTONIC_ID = 1 };
 
 typedef struct {
     int32_t kind;
@@ -135,10 +142,37 @@ EXPORT SYSV int pthread_mutex_unlock(Mutex *mutex)
     return 0;
 }
 
-EXPORT SYSV int pthread_cond_init(Cond *cond, const void *attr)
+EXPORT SYSV int pthread_cond_init(Cond *cond, const CondAttr *attr)
+{
+    InitializeConditionVariable(&cond->variable);
+    cond->clock = attr != NULL ? attr->clock : CLOCK_REALTIME_ID;
+    return 0;
+}
+
+EXPORT SYSV int pthread_condattr_init(CondAttr *attr)
+{
+    attr->clock = CLOCK_REALTIME_ID;
+    return 0;
+}
+
+EXPORT SYSV int pthread_condattr_destroy(CondAttr *attr)
 {
     (void)attr;
-    InitializeConditionVariable(&cond->variable);
+    return 0;
+}
+
+EXPORT SYSV int pthread_condattr_setclock(CondAttr *attr, int clock)
+{
+    if (clock != CLOCK_REALTIME_ID && clock != CLOCK_MONOTONIC_ID) {
+        return EINVAL_CODE;
+    }
+    attr->clock = clock;
+    return 0;
+}
+
+EXPORT SYSV int pthread_condattr_getclock(const CondAttr *attr, int *clock)
+{
+    *clock = attr->clock;
     return 0;
 }
 
@@ -190,13 +224,28 @@ EXPORT SYSV int pthread_cond_wait(Cond *cond, Mutex *mutex)
 #define NANOSECONDS_PER_SECOND 1000000000ull
 #define NANOSECONDS_PER_MILLISECOND 1000000ull
 
-/* Milliseconds from now until the absolute CLOCK_REALTIME deadline, rounded up; zero if it has passed. */
-static DWORD milliseconds_until(const TimeSpec *deadline)
+/* The time now on `clock` in nanoseconds: since the Unix epoch, or the monotonic performance counter. */
+static uint64_t nanoseconds_now(int clock)
 {
+    if (clock == CLOCK_MONOTONIC_ID) {
+        LARGE_INTEGER counter;
+        LARGE_INTEGER frequency;
+        QueryPerformanceCounter(&counter);
+        QueryPerformanceFrequency(&frequency);
+        uint64_t whole = (uint64_t)counter.QuadPart / (uint64_t)frequency.QuadPart;
+        uint64_t part = (uint64_t)counter.QuadPart % (uint64_t)frequency.QuadPart;
+        return whole * NANOSECONDS_PER_SECOND + part * NANOSECONDS_PER_SECOND / (uint64_t)frequency.QuadPart;
+    }
     FILETIME file_time;
     GetSystemTimePreciseAsFileTime(&file_time);
     uint64_t ticks = ((uint64_t)file_time.dwHighDateTime << 32) | file_time.dwLowDateTime;
-    uint64_t now = (ticks - UNIX_EPOCH_AS_FILETIME) * NANOSECONDS_PER_TICK;
+    return (ticks - UNIX_EPOCH_AS_FILETIME) * NANOSECONDS_PER_TICK;
+}
+
+/* Milliseconds from now until the absolute deadline on `clock`, rounded up; zero if it has passed. */
+static DWORD milliseconds_until(int clock, const TimeSpec *deadline)
+{
+    uint64_t now = nanoseconds_now(clock);
     uint64_t target = (uint64_t)deadline->seconds * NANOSECONDS_PER_SECOND + (uint64_t)deadline->nanoseconds;
     if (target <= now) {
         return 0;
@@ -210,7 +259,16 @@ EXPORT SYSV int pthread_cond_timedwait(Cond *cond, Mutex *mutex, const TimeSpec 
     if (deadline->nanoseconds < 0 || deadline->nanoseconds >= (int64_t)NANOSECONDS_PER_SECOND) {
         return EINVAL_CODE;
     }
-    return wait_on(cond, mutex, milliseconds_until(deadline));
+    return wait_on(cond, mutex, milliseconds_until(cond->clock, deadline));
+}
+
+EXPORT SYSV int pthread_cond_clockwait(Cond *cond, Mutex *mutex, int clock, const TimeSpec *deadline)
+{
+    if (deadline->nanoseconds < 0 || deadline->nanoseconds >= (int64_t)NANOSECONDS_PER_SECOND ||
+        (clock != CLOCK_REALTIME_ID && clock != CLOCK_MONOTONIC_ID)) {
+        return EINVAL_CODE;
+    }
+    return wait_on(cond, mutex, milliseconds_until(clock, deadline));
 }
 
 /* pthread_once_t is one int: 0 = not started, 1 = running, 2 = done. */
