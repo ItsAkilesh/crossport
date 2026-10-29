@@ -2,7 +2,7 @@
  * File: shim/exit.c
  * Purpose: Process termination: exit, atexit handlers, abort and assertion failure, in glibc's order
  * Author: Akilesh
- * Date: 2026-10-28
+ * Date: 2026-10-29
  */
 
 #include "libc_abi.h"
@@ -24,6 +24,7 @@ static SRWLOCK g_handlers_lock = SRWLOCK_INIT;
 
 /* Implemented in crossport_libc.c. Flushing stdio between the two is the caller's job. */
 void shim_run_destructors(void);
+void shim_run_thread_destructors(void);
 NORETURN void shim_finish(int status);
 
 LIBC_FN int sysv___cxa_atexit(ExitHandler handler, void *argument, void *dso)
@@ -49,6 +50,7 @@ LIBC_FN int sysv_atexit(void (SYSV *handler)(void))
 /* Handlers run last-registered first; one that registers another sees it run too. */
 NORETURN void shim_exit(int status)
 {
+    shim_run_thread_destructors();
     for (;;) {
         ExitEntry entry = {NULL, NULL};
         AcquireSRWLockExclusive(&g_handlers_lock);

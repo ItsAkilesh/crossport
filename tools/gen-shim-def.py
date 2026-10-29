@@ -8,7 +8,8 @@
 #
 # A function written `LIBC_FN type sysv_name(...)` is exported as `name`; data declared
 # `LIBC_DATA(type, name)` is exported as `name` (DATA). math.c defines many functions through the
-# MATH1(name) and MATH2(name) macros, which are listed here by scanning their invocations.
+# MATH1(name), MATH2(name), NARROW(name, kind) and WIDE(name, kind) macros, which are listed here by scanning their
+# invocations.
 
 import re
 import sys
@@ -16,7 +17,7 @@ from pathlib import Path
 
 FUNCTION = re.compile(r"^LIBC_FN\b[^;{(]*?\bsysv_(\w+)\s*\(", re.MULTILINE)
 DATA = re.compile(r"^LIBC_DATA\([^,]+,\s*(\w+)\)", re.MULTILINE)
-MACRO_FUNCTION = re.compile(r"\bMATH[12]\((\w+)\)")
+MACRO_FUNCTION = re.compile(r"\b(?:MATH[12]\((\w+)\)|(?:NARROW|WIDE)\((\w+),)")
 MACRO_PARAMETER = "name"
 # Data symbols the C library also exports under other names.
 DATA_ALIASES = {"environ": ["__environ", "_environ"]}
@@ -25,7 +26,7 @@ DATA_ALIASES = {"environ": ["__environ", "_environ"]}
 def scan(source: str) -> tuple[set[str], set[str]]:
     """Returns the exported function names and data names found in one source file."""
     functions = set(FUNCTION.findall(source))
-    functions |= {name for name in MACRO_FUNCTION.findall(source) if name != MACRO_PARAMETER}
+    functions |= {name for groups in MACRO_FUNCTION.findall(source) for name in groups if name and name != MACRO_PARAMETER}
     return functions, set(DATA.findall(source))
 
 

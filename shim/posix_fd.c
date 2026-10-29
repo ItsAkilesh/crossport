@@ -119,3 +119,38 @@ LIBC_FN int sysv_fchown(int fd, unsigned owner, unsigned group)
     (void)group;
     return shim_fd_handle(fd) == INVALID_HANDLE_VALUE ? -1 : 0;
 }
+
+/* struct iovec. */
+typedef struct {
+    void *base;
+    size_t length;
+} IoVec;
+
+LIBC_FN int64_t sysv_readv(int fd, const IoVec *vectors, int count)
+{
+    int64_t total = 0;
+    for (int i = 0; i < count; i++) {
+        int64_t got = shim_fd_read(fd, vectors[i].base, vectors[i].length);
+        if (got < 0) {
+            return total > 0 ? total : -1;
+        }
+        total += got;
+        if ((size_t)got < vectors[i].length) {
+            break;
+        }
+    }
+    return total;
+}
+
+LIBC_FN int64_t sysv_writev(int fd, const IoVec *vectors, int count)
+{
+    int64_t total = 0;
+    for (int i = 0; i < count; i++) {
+        int64_t wrote = shim_fd_write(fd, vectors[i].base, vectors[i].length);
+        if (wrote < 0) {
+            return total > 0 ? total : -1;
+        }
+        total += wrote;
+    }
+    return total;
+}
