@@ -79,7 +79,7 @@
     {
       "id": "M4",
       "title": "CLI corpus",
-      "status": "active",
+      "status": "done",
       "tasks": [
         {
           "title": "Differential runner: args, stdin, files, timeouts",
@@ -99,22 +99,22 @@
         },
         {
           "title": "Corpus of non-JIT CLI AppImages",
-          "done": false
+          "done": true
         },
         {
           "title": "Shim coverage grown in order of usage",
-          "done": false
+          "done": true
         },
         {
           "title": "Target pass rate reached",
-          "done": false
+          "done": true
         }
       ]
     },
     {
       "id": "M5",
       "title": "Vulkan",
-      "status": "planned",
+      "status": "next",
       "tasks": [
         {
           "title": "Vulkan passthrough with a minimal window",

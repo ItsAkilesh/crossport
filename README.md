@@ -105,7 +105,7 @@ lives in [docs/ROADMAP.md](docs/ROADMAP.md).
 - [x] **Milestone 1:** translate a dynamically linked "hello world"
 - [x] **Milestone 2:** shared libraries relinked into DLLs
 - [x] **Milestone 3:** thread-local storage and threads
-- [ ] **Milestone 4:** a corpus of command-line AppImages
+- [x] **Milestone 4:** a corpus of command-line AppImages (Lua, SQLite, jq)
 - [ ] **Milestone 5:** Vulkan rendering in a window
 - [ ] **Milestone 6:** real GTK and Qt applications
 
@@ -138,8 +138,9 @@ starting with command-line tools, then Vulkan and GUI applications.
 
 ## Status
 
-Early. Milestones 0 to 3 are done and Milestone 4 is under way (AppImage unpacking, AppDir library
-search and a libc coverage tool exist; the real-app corpus and a much larger libc are next). A Linux executable and the shared libraries it bundles are
+Early. Milestones 0 to 4 are done: real AppImages of Lua, SQLite and jq are unpacked, translated and
+match their Linux output byte for byte on all 45 test invocations (see docs/ROADMAP.md for the known
+limits). A Linux executable and the shared libraries it bundles are
 translated into a native Windows `.exe`, one DLL per library and a small shim DLL, and the result
 passes a byte-for-byte differential test against the original in CI, including constructor and
 destructor order, cross-library calls, shared data, function-pointer tables, all four ELF

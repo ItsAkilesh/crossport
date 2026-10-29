@@ -31,16 +31,20 @@
 - pthreads on Windows threads.
 - **Exit criterion:** a multithreaded test suite using thread-local variables passes.
 
-## Milestone 4: CLI corpus (in progress)
+## Milestone 4: CLI corpus (done)
 
-- Corpus of non-JIT CLI AppImages.
-- Shim coverage prioritized by usage frequency.
-- **Exit criterion:** a target pass rate on the corpus, to be set once the corpus exists.
-- **Done so far:** the differential runner (arguments, stdin, environment, directory, timeout, produced
-  files), the AppImage unpacker, `RUNPATH`/`$ORIGIN` library search confined to the AppDir, and the
-  `crossport coverage` tool that reports which libc symbols a set of programs needs.
-- **Still to do:** build the real-app corpus, take the baseline, grow the shim in order of usage and set
-  the target (proposed: all of tier 1, at least 90% of invocations overall).
+- Corpus of non-JIT CLI AppImages: Lua 5.4.7, SQLite 3.46.1 (shell) and jq 1.7.1, each built from pinned
+  upstream sources and packaged as a real type 2 AppImage, with 45 test invocations (arguments, stdin,
+  files, exit codes, error output).
+- Shim coverage prioritized by usage frequency: `crossport coverage` measured the gap (206 libc symbols),
+  and the shim now provides a glibc-compatible C library (stdio with glibc's `FILE` layout, printf and
+  sscanf, strtod, libm, time, directories, signals, setjmp, mappings) that covers 100% of what the three
+  apps import.
+- **Exit criterion:** all 45 invocations produce byte-identical stdout, stderr, exit code and files on
+  Linux and on Windows, enforced in CI by a ratchet (`tests/corpus/baseline.json`): a test that passes
+  there may never fail again. Tier 1 is these three apps.
+- Known limits, to be widened by later corpus growth: no `fork`, `popen` or `system`, no file-backed
+  `mmap`, no asynchronous signals, local time is UTC, and scanf reads strings only.
 
 ## Milestone 5: Vulkan
 
