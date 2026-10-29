@@ -22,7 +22,8 @@ static ExitEntry g_handlers[MAX_EXIT_HANDLERS];
 static size_t g_handler_count;
 static SRWLOCK g_handlers_lock = SRWLOCK_INIT;
 
-/* Implemented in crossport_libc.c: runs module destructors and ends the process. */
+/* Implemented in crossport_libc.c. Flushing stdio between the two is the caller's job. */
+void shim_run_destructors(void);
 NORETURN void shim_finish(int status);
 
 LIBC_FN int sysv___cxa_atexit(ExitHandler handler, void *argument, void *dso)
@@ -60,6 +61,7 @@ NORETURN void shim_exit(int status)
         }
         entry.handler(entry.argument);
     }
+    shim_run_destructors();
     stdio_flush_all();
     shim_finish(status);
 }

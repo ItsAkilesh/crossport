@@ -115,11 +115,15 @@ static void run_fini(const LoadedModule *module)
     }
 }
 
-NORETURN void shim_finish(int status)
+void shim_run_destructors(void)
 {
     for (size_t i = g_module_count; i > 0; i--) {
         run_fini(&g_modules[i - 1]);
     }
+}
+
+NORETURN void shim_finish(int status)
+{
     ExitProcess((UINT)status);
     __builtin_unreachable();
 }
