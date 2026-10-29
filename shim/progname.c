@@ -8,6 +8,7 @@
 #include <string.h>
 
 #include "libc_abi.h"
+#include "startinfo.h"
 
 #define SIGRTMIN_VALUE 34
 #define SIGRTMAX_VALUE 64
@@ -40,10 +41,10 @@ void shim_set_program_name(char *full)
     for (char *at = full; *at != '\0'; at++) {
         base = (*at == '/' || *at == '\\') ? at + 1 : base;
     }
-    crossport_data___progname = base;
-    crossport_data___progname_full = full;
-    crossport_data_program_invocation_name = full;
-    crossport_data_program_invocation_short_name = base;
+    *(char **)shim_data_home(&crossport_data___progname) = base;
+    *(char **)shim_data_home(&crossport_data___progname_full) = full;
+    *(char **)shim_data_home(&crossport_data_program_invocation_name) = full;
+    *(char **)shim_data_home(&crossport_data_program_invocation_short_name) = base;
 }
 
 LIBC_FN int sysv___libc_current_sigrtmin(void)

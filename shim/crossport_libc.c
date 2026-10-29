@@ -37,6 +37,26 @@ const LoadedModule *shim_loaded_modules(size_t *count)
     return g_modules;
 }
 
+/*
+ * Data the program reads (optind, errno-like globals) lives in the executable as a copy of the shim's
+ * variable. A shim function that writes such a variable must write the executable's copy, so this
+ * finds it: the copy whose source is `shim_address`, or `shim_address` itself when none is.
+ */
+void *shim_data_home(void *shim_address)
+{
+    if (g_module_count == 0) {
+        return shim_address;
+    }
+    const LoadedModule *exe = &g_modules[g_module_count - 1];
+    const CopyRecord *copies = info_copies(exe->info);
+    for (uint32_t i = 0; i < exe->info->copy_count; i++) {
+        if (*(void **)(exe->base + copies[i].iat_rva) == shim_address) {
+            return exe->base + copies[i].dest_rva;
+        }
+    }
+    return shim_address;
+}
+
 static const StartInfo *validated(const StartInfo *info)
 {
     if (info == NULL || info->magic != INFO_MAGIC || info->version != INFO_VERSION ||

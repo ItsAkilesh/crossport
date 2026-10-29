@@ -11,6 +11,7 @@
 #include <string.h>
 
 #include "libc_abi.h"
+#include "startinfo.h"
 
 LIBC_DATA(char *, optarg);
 LIBC_DATA(int, optind) = 1;
@@ -34,6 +35,24 @@ LIBC_FN char *sysv_getenv(const char *name);
 LIBC_FN int sysv_fprintf(void *stream, const char *format, ...);
 extern void *crossport_data_stderr;
 
+static char **p_optarg = &crossport_data_optarg;
+static int *p_optind = &crossport_data_optind;
+static int *p_opterr = &crossport_data_opterr;
+static int *p_optopt = &crossport_data_optopt;
+
+/* The program's copies of the four globals, found on first use. */
+static SYSV void locate_globals(void)
+{
+    static int is_done;
+    if (!is_done) {
+        p_optarg = (char **)shim_data_home(&crossport_data_optarg);
+        p_optind = (int *)shim_data_home(&crossport_data_optind);
+        p_opterr = (int *)shim_data_home(&crossport_data_opterr);
+        p_optopt = (int *)shim_data_home(&crossport_data_optopt);
+        is_done = 1;
+    }
+}
+
 static const char *g_place = "";
 static int g_nonoption_start = -1;
 static int g_nonoption_end = -1;
@@ -42,7 +61,7 @@ enum { FLAG_PERMUTE = 1, FLAG_ALLARGS = 2, FLAG_LONGONLY = 4 };
 
 static SYSV void report(const char *program, const char *message, const char *detail)
 {
-    if (crossport_data_opterr) {
+    if ((*p_opterr)) {
         sysv_fprintf(crossport_data_stderr, "%s: %s %s\n", program, message, detail);
     }
 }
@@ -67,10 +86,10 @@ static SYSV void permute(int start, int middle, int end, char **argv)
 static SYSV int finish(int argc, char **argv)
 {
     if (g_nonoption_end != -1) {
-        permute(g_nonoption_start, g_nonoption_end, crossport_data_optind, argv);
-        crossport_data_optind -= g_nonoption_end - g_nonoption_start;
+        permute(g_nonoption_start, g_nonoption_end, (*p_optind), argv);
+        (*p_optind) -= g_nonoption_end - g_nonoption_start;
     } else if (g_nonoption_start != -1) {
-        crossport_data_optind = g_nonoption_start;
+        (*p_optind) = g_nonoption_start;
     }
     (void)argc;
     g_nonoption_start = g_nonoption_end = -1;
@@ -81,7 +100,7 @@ static SYSV int finish(int argc, char **argv)
 /* A long option named at g_place (after "--"); returns the option value, or '?' / ':' on errors. */
 static SYSV int long_option(int argc, char **argv, const char *options, const LongOption *longs, int *index, int flags)
 {
-    char *current = argv[crossport_data_optind];
+    char *current = argv[(*p_optind)];
     const char *name = g_place;
     size_t length = strcspn(name, "=");
     const LongOption *match = NULL;
@@ -101,27 +120,27 @@ static SYSV int long_option(int argc, char **argv, const char *options, const Lo
     }
     (void)options;
     (void)flags;
-    crossport_data_optind++;
+    (*p_optind)++;
     if (match == NULL || is_ambiguous) {
         report(argv[0], is_ambiguous ? "option is ambiguous:" : "unrecognized option", current);
-        crossport_data_optopt = 0;
+        (*p_optopt) = 0;
         g_place = "";
         return '?';
     }
     if (name[length] == '=') {
         if (match->has_argument == NO_ARGUMENT) {
             report(argv[0], "option doesn't take an argument:", match->name);
-            crossport_data_optopt = match->value;
+            (*p_optopt) = match->value;
             g_place = "";
             return '?';
         }
-        crossport_data_optarg = (char *)name + length + 1;
+        (*p_optarg) = (char *)name + length + 1;
     } else if (match->has_argument == REQUIRED_ARGUMENT) {
-        if (crossport_data_optind < argc) {
-            crossport_data_optarg = argv[crossport_data_optind++];
+        if ((*p_optind) < argc) {
+            (*p_optarg) = argv[(*p_optind)++];
         } else {
             report(argv[0], "option requires an argument:", match->name);
-            crossport_data_optopt = match->value;
+            (*p_optopt) = match->value;
             g_place = "";
             return ':';
         }
@@ -144,69 +163,69 @@ static SYSV int short_option(int argc, char **argv, const char *options)
     const char *spec = letter == ':' ? NULL : strchr(options, letter);
     int is_last = g_place[0] == '\0';
     if (spec == NULL) {
-        crossport_data_optopt = letter;
-        crossport_data_optind += is_last;
+        (*p_optopt) = letter;
+        (*p_optind) += is_last;
         g_place = is_last ? "" : g_place;
         report(argv[0], "invalid option --", (char[]){(char)letter, '\0'});
         return '?';
     }
     if (spec[1] != ':') {
-        crossport_data_optind += is_last;
+        (*p_optind) += is_last;
         return letter;
     }
     if (!is_last) {
-        crossport_data_optarg = (char *)g_place;
-        crossport_data_optind++;
+        (*p_optarg) = (char *)g_place;
+        (*p_optind)++;
         g_place = "";
         return letter;
     }
-    crossport_data_optind++;
+    (*p_optind)++;
     g_place = "";
     if (spec[2] == ':') {
         return letter;
     }
-    if (crossport_data_optind < argc) {
-        crossport_data_optarg = argv[crossport_data_optind++];
+    if ((*p_optind) < argc) {
+        (*p_optarg) = argv[(*p_optind)++];
         return letter;
     }
-    crossport_data_optopt = letter;
+    (*p_optopt) = letter;
     report(argv[0], "option requires an argument --", (char[]){(char)letter, '\0'});
     return options[0] == ':' ? ':' : '?';
 }
 
 static SYSV int scan(int argc, char **argv, const char *options, const LongOption *longs, int *index, int flags)
 {
-    if (crossport_data_optind == 0) {
-        crossport_data_optind = 1;
+    if ((*p_optind) == 0) {
+        (*p_optind) = 1;
         g_place = "";
         g_nonoption_start = g_nonoption_end = -1;
     }
-    crossport_data_optarg = NULL;
+    (*p_optarg) = NULL;
     for (;;) {
         if (g_place[0] == '\0') {
-            if (crossport_data_optind >= argc) {
+            if ((*p_optind) >= argc) {
                 return finish(argc, argv);
             }
-            const char *word = argv[crossport_data_optind];
+            const char *word = argv[(*p_optind)];
             if (word[0] != '-' || word[1] == '\0') {
                 if (!(flags & FLAG_PERMUTE)) {
                     return END_OF_OPTIONS;
                 }
                 if (g_nonoption_start == -1) {
-                    g_nonoption_start = crossport_data_optind;
+                    g_nonoption_start = (*p_optind);
                 } else if (g_nonoption_end != -1) {
-                    permute(g_nonoption_start, g_nonoption_end, crossport_data_optind, argv);
-                    g_nonoption_start = crossport_data_optind - (g_nonoption_end - g_nonoption_start);
+                    permute(g_nonoption_start, g_nonoption_end, (*p_optind), argv);
+                    g_nonoption_start = (*p_optind) - (g_nonoption_end - g_nonoption_start);
                     g_nonoption_end = -1;
                 }
-                crossport_data_optind++;
+                (*p_optind)++;
                 continue;
             }
             if (g_nonoption_start != -1 && g_nonoption_end == -1) {
-                g_nonoption_end = crossport_data_optind;
+                g_nonoption_end = (*p_optind);
             }
             if (word[1] == '-' && word[2] == '\0') {
-                crossport_data_optind++;
+                (*p_optind)++;
                 return finish(argc, argv);
             }
             g_place = word + 1;
@@ -224,6 +243,7 @@ static SYSV int scan(int argc, char **argv, const char *options, const LongOptio
 
 static SYSV int dispatch(int argc, char **argv, const char *options, const LongOption *longs, int *index, int is_long_only)
 {
+    locate_globals();
     int flags = is_long_only ? FLAG_LONGONLY : 0;
     if (options != NULL && options[0] == '+') {
         options++;

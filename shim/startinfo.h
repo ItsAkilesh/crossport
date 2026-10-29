@@ -72,6 +72,9 @@ typedef struct {
 /* The modules of this process, dependencies first and the executable last (defined in crossport_libc.c). */
 const LoadedModule *shim_loaded_modules(size_t *count);
 
+/* The address a shim data variable has for the program: its own copy in the executable, if it made one. */
+void *shim_data_home(void *shim_address);
+
 static inline const Binding *info_iat_bindings(const StartInfo *info)
 {
     return (const Binding *)(info + 1);
