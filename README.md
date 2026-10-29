@@ -21,17 +21,17 @@
 > only affordable way to be everywhere at once. So let us make the other way affordable: build it
 > once, run it natively on every desktop, and keep the browser for browsing.
 >
-> <sub>Crossport is a working name and the project is at an early stage. Nothing here translates a
-> real application yet. See the status below.</sub>
+> <sub>Crossport is a working name and the project is at an early stage. It translates real command-line
+> AppImages and Vulkan programs; graphical toolkit applications are the next step. See the status below.</sub>
 
 [![CI](https://github.com/ItsAkilesh/crossport/actions/workflows/ci.yml/badge.svg)](https://github.com/ItsAkilesh/crossport/actions/workflows/ci.yml)
 [![Rust](https://img.shields.io/badge/tooling-rust-000000?logo=rust&logoColor=white)](https://www.rust-lang.org)
 [![Platforms](https://img.shields.io/badge/targets-linux%20%E2%86%92%20windows-0E7490)](#the-idea)
-[![Milestones](https://img.shields.io/badge/milestones-4%20of%207-1A7F37)](#what-you-get)
+[![Milestones](https://img.shields.io/badge/milestones-5%20of%207-1A7F37)](#what-you-get)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 <p align="center">
-  <img src="docs/progress.svg" alt="Crossport progress: 4 of 7 milestones done" width="880">
+  <img src="docs/progress.svg" alt="Crossport progress: 5 of 7 milestones done" width="880">
 </p>
 
 <sub>Progress is generated from [docs/progress.json](docs/progress.json) by `python tools/gen_progress.py`.
@@ -106,7 +106,7 @@ lives in [docs/ROADMAP.md](docs/ROADMAP.md).
 - [x] **Milestone 2:** shared libraries relinked into DLLs
 - [x] **Milestone 3:** thread-local storage and threads
 - [x] **Milestone 4:** a corpus of command-line AppImages (Lua, SQLite, jq)
-- [ ] **Milestone 5:** Vulkan rendering in a window
+- [x] **Milestone 5:** Vulkan rendering in a window
 - [ ] **Milestone 6:** real GTK and Qt applications
 
 ## Contents
@@ -138,14 +138,12 @@ starting with command-line tools, then Vulkan and GUI applications.
 
 ## Status
 
-Early. Milestones 0 to 4 are done: real AppImages of Lua, SQLite and jq are unpacked, translated and
-match their Linux output byte for byte on all 45 test invocations (see docs/ROADMAP.md for the known
-limits). A Linux executable and the shared libraries it bundles are
-translated into a native Windows `.exe`, one DLL per library and a small shim DLL, and the result
-passes a byte-for-byte differential test against the original in CI, including constructor and
-destructor order, cross-library calls, shared data, function-pointer tables, all four ELF
-thread-local storage models, stack canaries and real multithreading. The rest of libc, the AppImage
-unpacker and graphics are still ahead.
+Early. Milestones 0 to 5 are done. Real AppImages of Lua, SQLite and jq are unpacked, translated and
+match their Linux output byte for byte on all 45 test invocations, and Vulkan programs render and present
+through the Windows Vulkan loader (an offscreen triangle and an xcb window). Around them the shim now
+provides most of what everyday programs use: C++ exceptions, pipes, sockets, epoll, timers, child
+processes, file mappings, locales and iconv. `crossport convert` turns an AppImage into a runnable bundle
+in one step. Graphical toolkits (X11, OpenGL, Qt, GTK) are the next milestone; see docs/ROADMAP.md.
 
 The verification harness came first so every step has fast, objective feedback: a `difftest` runner
 records a program's exit code, stdout and stderr, and CI compares the Linux run against the Windows

@@ -114,25 +114,57 @@
     {
       "id": "M5",
       "title": "Vulkan",
-      "status": "next",
+      "status": "done",
       "tasks": [
         {
-          "title": "Vulkan passthrough with a minimal window",
-          "done": false
+          "title": "Vulkan entry points forwarded to the Windows loader",
+          "done": true
         },
         {
-          "title": "Vulkan sample renders correctly",
-          "done": false
+          "title": "Minimal window: libxcb on Win32 windows",
+          "done": true
+        },
+        {
+          "title": "xcb surfaces on Win32 surfaces",
+          "done": true
+        },
+        {
+          "title": "Offscreen sample matches Linux",
+          "done": true
+        },
+        {
+          "title": "Windowed sample presents frames",
+          "done": true
         }
       ]
     },
     {
       "id": "M6",
       "title": "GUI",
-      "status": "planned",
+      "status": "next",
       "tasks": [
         {
-          "title": "X11 and Wayland clients on Win32 windowing",
+          "title": "C++ runtime support and C++ exceptions",
+          "done": true
+        },
+        {
+          "title": "Event-loop descriptors, sockets, processes, mappings",
+          "done": true
+        },
+        {
+          "title": "One-step AppImage conversion and runtime libraries",
+          "done": true
+        },
+        {
+          "title": "Runtime pack decision",
+          "done": false
+        },
+        {
+          "title": "X11 core in process (drawing, properties, input)",
+          "done": false
+        },
+        {
+          "title": "OpenGL and EGL",
           "done": false
         },
         {
