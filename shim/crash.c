@@ -122,12 +122,23 @@ static int is_code_address(uint64_t address)
            page.State == MEM_COMMIT && page.Type == MEM_IMAGE && (page.Protect & EXECUTABLE_PAGE_BITS) != 0;
 }
 
+/* The end of the readable memory around the stack pointer, so the scan never reads a guard or unmapped page. */
+static const uint64_t *readable_end(uint64_t stack_pointer)
+{
+    MEMORY_BASIC_INFORMATION region;
+    const uint64_t *none = (const uint64_t *)(uintptr_t)stack_pointer;
+    if (VirtualQuery((LPCVOID)(uintptr_t)stack_pointer, &region, sizeof(region)) != sizeof(region) ||
+        region.State != MEM_COMMIT || (region.Protect & (PAGE_GUARD | PAGE_NOACCESS)) != 0) {
+        return none;
+    }
+    return (const uint64_t *)((const uint8_t *)region.BaseAddress + region.RegionSize);
+}
+
 /* Words on the stack that point into executable module code: a rough, unverified call trail. */
 static void print_trail(uint64_t stack_pointer)
 {
-    const NT_TIB *thread = (const NT_TIB *)NtCurrentTeb();
     const uint64_t *word = (const uint64_t *)(uintptr_t)stack_pointer;
-    const uint64_t *limit = (const uint64_t *)thread->StackBase;
+    const uint64_t *limit = readable_end(stack_pointer);
     int printed = 0;
     for (int scanned = 0; word < limit && scanned < TRAIL_SCAN_WORDS && printed < TRAIL_LINES; scanned++, word++) {
         if (is_code_address(*word)) {
