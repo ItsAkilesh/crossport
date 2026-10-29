@@ -212,7 +212,8 @@ LIBC_FN int sysv_XGetWindowProperty(XlDisplay *display, XlId window, XlId proper
         size_t wanted = (size_t)length * WORD_BYTES;
         size_t taken = is_wrong_type ? 0 : (wanted < available ? wanted : available);
         taken -= taken % ((size_t)entry->format / BITS_PER_BYTE);
-        *bytes_after = available - taken;
+        /* Xorg reports the property's size in items, not bytes, when the requested type does not match. */
+        *bytes_after = is_wrong_type ? entry->size / ((size_t)entry->format / BITS_PER_BYTE) : available - taken;
         if (!is_wrong_type) {
             size_t count = 0;
             *data = client_form(entry, start < entry->size ? start : entry->size, taken, &count);
