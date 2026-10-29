@@ -127,8 +127,30 @@ Built before the translator, because agents and humans both need fast, objective
 - **Milestone 5 window surface (decided 2026-10-29):** a minimal xcb shim (connect, create window, map)
   backed by one Win32 window, with `VK_KHR_xcb_surface` implemented on top of `VK_KHR_win32_surface`. It
   is the seed of the Milestone 6 X11 work.
-- **Milestone 5 CI driver (decided 2026-10-29):** a pinned, checksum-verified SwiftShader build plus the
-  Khronos loader, because hosted Windows runners have no GPU and CPU rendering is deterministic.
+- **Milestone 5 CI driver (decided 2026-10-29, revised the same day):** Mesa lavapipe on both runners,
+  because hosted runners have no GPU. SwiftShader was the first choice, but it publishes no binaries, so
+  it would have meant building it from source on both operating systems. Linux gets lavapipe from the
+  distribution packages; Windows gets the LunarG Vulkan runtime (the loader) and the mesa-dist-win
+  lavapipe build, each pinned and checksum-verified by `tools/ci/install-vulkan-windows.sh`. The two
+  Mesa versions can differ, so the sample prints only driver-independent output: colour probes in
+  sixteenths and a hash of which pixels the triangle covers.
+
+### 2.9 Milestone 5 implementation notes
+
+- **Entry points.** `libvulkan.so.1` is provided by the shim. `tools/gen-vulkan-thunks.py` reads the
+  pinned registry (`third_party/vulkan/vk.xml`) and emits one `LIBC_FN` thunk per command, which calls the
+  real entry point in `vulkan-1.dll`. Vulkan's types are fixed width, so the only difference between the
+  two sides is the calling convention, and the thunk bridges that. Registry types map to ABI classes
+  (pointers, 32 and 64-bit integers, floats); a command that takes a struct by value fails generation.
+- **Loading.** `vulkan-1.dll` is loaded on first use, so programs that never use Vulkan do not need it.
+  Core commands are bound from the loader's exports; extension commands come from
+  `vkGetInstanceProcAddr` with the first instance the program created. With no loader, result-returning
+  commands fail with `VK_ERROR_INITIALIZATION_FAILED`.
+- **GetProcAddr.** `vkGetInstanceProcAddr` and `vkGetDeviceProcAddr` return the shim's SysV thunks, never
+  the real Microsoft-convention pointers, and return null for anything the real loader does not provide.
+- **Known limit.** Function pointers the program passes into Vulkan (allocation callbacks, the debug
+  messenger callback) are called by the driver with the Microsoft convention and are not yet thunked in
+  that direction.
 
 ### Open
 

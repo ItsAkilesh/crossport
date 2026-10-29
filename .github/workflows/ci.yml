@@ -1,7 +1,7 @@
 # File: .github/workflows/ci.yml
 # Purpose: Build and run corpus cases on Linux and Windows, then diff the results
 # Author: Akilesh
-# Date: 2026-10-28
+# Date: 2026-10-29
 
 name: ci
 
@@ -15,7 +15,7 @@ permissions:
 
 env:
   NATIVE_CASES: hello
-  TRANSLATED_CASES: hello_dyn two_libs tls_basic threads
+  TRANSLATED_CASES: hello_dyn two_libs tls_basic threads vulkan_triangle
   ABORT_CASES: canary_smash
   APPS: lua sqlite3 jq
 
@@ -37,6 +37,8 @@ jobs:
           cargo test --locked --manifest-path translator/Cargo.toml
           python3 -m unittest discover -s tools -p "test_*.py"
           (cd tools/corpus && python3 -m unittest discover -p "test_*.py")
+      - name: Install the Vulkan build tools and a software driver
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq glslang-tools libvulkan-dev mesa-vulkan-drivers
       - name: Build and run corpus cases
         run: |
           for corpus_case in $NATIVE_CASES $TRANSLATED_CASES $ABORT_CASES; do
@@ -93,6 +95,8 @@ jobs:
         with:
           name: elf-corpus
           path: build/elf
+      - name: Install a Vulkan loader and a software driver
+        run: tools/ci/install-vulkan-windows.sh
       - name: Translate the Linux ELF files and run them on Windows
         run: |
           for corpus_case in $TRANSLATED_CASES $ABORT_CASES; do
