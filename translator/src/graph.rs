@@ -1,7 +1,7 @@
 // File: translator/src/graph.rs
 // Purpose: Load the executable and every bundled library it needs into a module graph with a safe initialisation order
 // Author: Akilesh
-// Date: 2026-10-28
+// Date: 2026-10-29
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -23,6 +23,8 @@ pub const SHIM_PROVIDED_LIBRARIES: &[&str] = &[
     "librt.so.1",
     // The math library is implemented by the shim as well.
     "libm.so.6",
+    // The Vulkan loader is forwarded to the Windows loader (vulkan-1.dll) by the shim.
+    "libvulkan.so.1",
 ];
 pub const MAX_MODULES: usize = 256;
 /// Total bytes of ELF input across all modules.

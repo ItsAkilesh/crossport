@@ -2,9 +2,9 @@
 # File: tools/gen-shim-def.py
 # Purpose: Generate the shim DLL's .def file: every LIBC_FN function is exported as its real name, every LIBC_DATA symbol too
 # Author: Akilesh
-# Date: 2026-10-28
+# Date: 2026-10-29
 #
-# Usage: gen-shim-def.py <shim-dir> <output.def>
+# Usage: gen-shim-def.py <output.def> <dir>...  (each directory is scanned recursively for *.c)
 #
 # A function written `LIBC_FN type sysv_name(...)` is exported as `name`; data declared
 # `LIBC_DATA(type, name)` is exported as `name` (DATA). math.c defines many functions through the
@@ -39,16 +39,16 @@ def render(functions: set[str], data: set[str]) -> str:
 
 
 def main(argv: list[str]) -> int:
-    if len(argv) != 3:
-        print("usage: gen-shim-def.py <shim-dir> <output.def>", file=sys.stderr)
+    if len(argv) < 3:
+        print("usage: gen-shim-def.py <output.def> <dir>...", file=sys.stderr)
         return 2
     functions: set[str] = set()
     data: set[str] = set()
-    for path in sorted(Path(argv[1]).glob("*.c")):
+    for path in sorted(p for directory in argv[2:] for p in Path(directory).rglob("*.c")):
         found_functions, found_data = scan(path.read_text(encoding="utf-8"))
         functions |= found_functions
         data |= found_data
-    Path(argv[2]).write_text(render(functions, data), encoding="utf-8")
+    Path(argv[1]).write_text(render(functions, data), encoding="utf-8")
     return 0
 
 
