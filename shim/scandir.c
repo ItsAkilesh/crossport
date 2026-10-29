@@ -44,7 +44,7 @@ LIBC_FN int sysv_versionsort(const Dirent64 **first, const Dirent64 **second)
     return sysv_strverscmp((*first)->d_name, (*second)->d_name);
 }
 
-static int scan_directory(void *directory, Dirent64 ***names, DirFilter filter, DirCompare compare)
+static SYSV int scan_directory(void *directory, Dirent64 ***names, DirFilter filter, DirCompare compare)
 {
     size_t count = 0;
     size_t capacity = 16;
