@@ -1,7 +1,7 @@
 // File: translator/src/appimage/extract.rs
 // Purpose: Extract an AppImage's SquashFS payload to a directory under strict size, path and collision limits
 // Author: Akilesh
-// Date: 2026-10-28
+// Date: 2026-10-29
 
 use std::collections::{HashMap, HashSet};
 use std::fs::{self, File, OpenOptions};
@@ -10,6 +10,7 @@ use std::path::{Path, PathBuf};
 
 use backhand::{FilesystemReader, InnerNode};
 
+use super::desktop;
 use super::header::{squashfs_offset, PREFIX_BYTES};
 use super::paths::{case_key, resolve_link, safe_components};
 use crate::error::TranslateError;
@@ -305,8 +306,9 @@ impl<'a> Extraction<'a> {
         Ok(())
     }
 
-    /// `AppRun` must be, or resolve to, an ELF program. Shell-script launchers need a shell, which
-    /// Crossport does not provide, so they are refused with a clear message.
+    /// `AppRun` must be, or resolve to, an ELF program. A shell-script launcher needs a shell, which
+    /// Crossport does not provide, so the program its desktop entry names is used instead; with none,
+    /// the image is refused with a clear message.
     fn check_apprun(&self) -> Result<Vec<String>, TranslateError> {
         let apprun = self.destination(&[APPRUN.to_string()]);
         let mut magic = [0u8; 4];
@@ -315,6 +317,11 @@ impl<'a> Extraction<'a> {
             return Err(TranslateError::Unsupported(
                 "the AppImage has no usable AppRun".into(),
             ));
+        }
+        if magic[..2] == *b"#!" {
+            if let Some(program) = desktop::find_program(self.root) {
+                return Ok(program);
+            }
         }
         if magic != ELF_MAGIC {
             let reason = if magic[..2] == *b"#!" {

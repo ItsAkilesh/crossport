@@ -1,8 +1,9 @@
 // File: translator/src/appimage/mod.rs
 // Purpose: Unpack an AppImage (type 2) into an AppDir without running it, rejecting anything unsafe
 // Author: Akilesh
-// Date: 2026-10-28
+// Date: 2026-10-29
 
+mod desktop;
 mod extract;
 mod header;
 pub(crate) mod paths;
