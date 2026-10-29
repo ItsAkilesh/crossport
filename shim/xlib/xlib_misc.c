@@ -28,6 +28,7 @@ LIBC_FN void *sysv_malloc(size_t size);
 LIBC_FN void *sysv_calloc(size_t count, size_t size);
 LIBC_FN void sysv_free(void *block);
 LIBC_FN int sysv_XStoreName(XlDisplay *display, XlId window, const char *name);
+LIBC_FN int sysv_XUnmapWindow(XlDisplay *display, XlId window);
 LIBC_FN XlId sysv_XCreatePixmap(XlDisplay *display, XlId parent, unsigned width, unsigned height, unsigned depth);
 
 typedef struct {
@@ -220,12 +221,11 @@ LIBC_FN int sysv_XSetTransientForHint(XlDisplay *display, XlId window, XlId pare
     return 1;
 }
 
+/* Unmapping is what withdrawing does here: it must also report UnmapNotify, which clients such as SDL2 wait for. */
 LIBC_FN int sysv_XWithdrawWindow(XlDisplay *display, XlId window, int screen)
 {
     (void)screen;
-    xl_next_request(display);
-    sysv_xcb_unmap_window(NULL, (XcbId)window);
-    return 1;
+    return sysv_XUnmapWindow(display, window);
 }
 
 LIBC_FN XlId sysv_XCreateFontCursor(XlDisplay *display, unsigned shape)
