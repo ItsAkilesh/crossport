@@ -66,7 +66,7 @@ void threads_init_main(void)
 {
     Thread *main_thread = new_thread();
     if (main_thread == NULL) {
-        shim_fail("crossport: cannot allocate the main thread object\n");
+        shim_die("crossport: cannot allocate the main thread object\n");
     }
     *tls_tcb_word(TCB_THREAD_OFFSET) = main_thread;
 }
@@ -96,7 +96,7 @@ static DWORD WINAPI thread_main(LPVOID parameter)
     return 0;
 }
 
-EXPORT SYSV int pthread_create(unsigned long *out, const Attr *attr, StartRoutine start, void *argument)
+EXPORT SYSV int pthread_create(uint64_t *out, const Attr *attr, StartRoutine start, void *argument)
 {
     Thread *thread = new_thread();
     if (thread == NULL) {
@@ -107,7 +107,7 @@ EXPORT SYSV int pthread_create(unsigned long *out, const Attr *attr, StartRoutin
     thread->argument = argument;
     thread->state = is_detached ? STATE_DETACHED : STATE_RUNNING;
     size_t stack_bytes = (attr != NULL && attr->stack_bytes != 0) ? attr->stack_bytes : DEFAULT_STACK_BYTES;
-    *out = (unsigned long)(uintptr_t)thread; /* before the thread can run and possibly free itself */
+    *out = (uint64_t)(uintptr_t)thread; /* before the thread can run and possibly free itself */
     HANDLE handle = CreateThread(NULL, stack_bytes, thread_main, thread, STACK_SIZE_PARAM_IS_A_RESERVATION, NULL);
     if (handle == NULL) {
         free_thread(thread);
@@ -127,7 +127,7 @@ static int is_joinable(const Thread *thread)
            (thread->state == STATE_RUNNING || thread->state == STATE_FINISHED);
 }
 
-EXPORT SYSV int pthread_join(unsigned long id, void **result)
+EXPORT SYSV int pthread_join(uint64_t id, void **result)
 {
     Thread *thread = (Thread *)(uintptr_t)id;
     if (thread == NULL || thread->magic != THREAD_MAGIC) {
@@ -149,7 +149,7 @@ EXPORT SYSV int pthread_join(unsigned long id, void **result)
     return 0;
 }
 
-EXPORT SYSV int pthread_detach(unsigned long id)
+EXPORT SYSV int pthread_detach(uint64_t id)
 {
     Thread *thread = (Thread *)(uintptr_t)id;
     if (thread == NULL || thread->magic != THREAD_MAGIC || thread->handle == NULL) {
@@ -168,12 +168,12 @@ EXPORT SYSV int pthread_detach(unsigned long id)
     return EINVAL_CODE;
 }
 
-EXPORT SYSV unsigned long pthread_self(void)
+EXPORT SYSV uint64_t pthread_self(void)
 {
-    return (unsigned long)(uintptr_t)current_thread();
+    return (uint64_t)(uintptr_t)current_thread();
 }
 
-EXPORT SYSV int pthread_equal(unsigned long left, unsigned long right)
+EXPORT SYSV int pthread_equal(uint64_t left, uint64_t right)
 {
     return left == right;
 }

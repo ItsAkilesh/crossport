@@ -44,7 +44,7 @@ static uint64_t g_canary;
 static void generate_canary(void)
 {
     if (BCryptGenRandom(NULL, (PUCHAR)&g_canary, sizeof(g_canary), BCRYPT_USE_SYSTEM_PREFERRED_RNG) != 0) {
-        shim_fail("crossport: cannot gather randomness for the stack canary\n");
+        shim_die("crossport: cannot gather randomness for the stack canary\n");
     }
     g_canary &= ~0xFFull; /* a zero low byte stops string overflows from copying the canary */
 }
@@ -64,7 +64,7 @@ static void patch_module(const LoadedModule *module)
         DWORD previous;
         uint8_t *stubs = module->base + info->stubs_rva;
         if (!VirtualProtect(stubs, info->stubs_size, PAGE_EXECUTE_READ, &previous)) {
-            shim_fail("crossport: cannot make the thread-local stubs executable\n");
+            shim_die("crossport: cannot make the thread-local stubs executable\n");
         }
         FlushInstructionCache(GetCurrentProcess(), stubs, info->stubs_size);
     }
@@ -81,14 +81,14 @@ void tls_init(const LoadedModule *modules, size_t count)
     }
     g_slot = TlsAlloc();
     if (g_slot == TLS_OUT_OF_INDEXES || g_slot >= MAX_WINDOWS_TLS_SLOTS) {
-        shim_fail("crossport: no free inline Windows TLS slot (the process uses 64 already)\n");
+        shim_die("crossport: no free inline Windows TLS slot (the process uses 64 already)\n");
     }
     generate_canary();
     for (size_t i = 0; i < count; i++) {
         patch_module(&modules[i]);
     }
     if (tls_attach_thread() == NULL) {
-        shim_fail("crossport: cannot allocate the main thread's TLS block\n");
+        shim_die("crossport: cannot allocate the main thread's TLS block\n");
     }
 }
 
@@ -145,7 +145,7 @@ EXPORT SYSV void *__tls_get_addr(const TlsIndex *index)
 {
     uint8_t *thread_pointer = tls_thread_pointer();
     if (thread_pointer == NULL) {
-        shim_fail("crossport: thread-local access on a thread without a TLS block\n");
+        shim_die("crossport: thread-local access on a thread without a TLS block\n");
     }
     return thread_pointer + index->module + index->offset;
 }

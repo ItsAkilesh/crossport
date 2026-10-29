@@ -20,7 +20,7 @@
 #define SHIM_STARTUP_FAILURE_EXIT_CODE 127
 
 /* Writes a message to stderr and ends the process. Never returns. */
-NORETURN void shim_fail(const char *message);
+NORETURN void shim_die(const char *message);
 
 /* Writes all of `data`, retrying on short writes. */
 BOOL shim_write_all(HANDLE handle, const char *data, size_t length);

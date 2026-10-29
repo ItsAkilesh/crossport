@@ -10,22 +10,18 @@
 
 #include <string.h>
 
-#include "internal.h"
+#include "env_internal.h"
+#include "args.h"
+#include "libc_abi.h"
 #include "startinfo.h"
+#include "stdio_internal.h"
 #include "threads.h"
 #include "tls.h"
 
-#define INITIAL_STACK_SLOTS 8
-#define AT_NULL 0
 
 typedef int (SYSV *MainFn)(int, char **, char **);
 typedef void (SYSV *InitFn)(int, char **, char **);
 typedef void (SYSV *FiniFn)(void);
-
-typedef struct {
-    uint64_t slots[INITIAL_STACK_SLOTS];
-    char program_path[MAX_PATH];
-} InitialStack;
 
 /* Dependencies first, the executable last: the order constructors run in. */
 static LoadedModule g_modules[MAX_MODULES + 1];
@@ -38,7 +34,7 @@ static const StartInfo *validated(const StartInfo *info)
         info->iat_binding_count > MAX_RECORDS || info->exe_binding_count > MAX_RECORDS ||
         info->copy_count > MAX_RECORDS || info->slot_fixup_count > MAX_RECORDS ||
         info->module_count > MAX_MODULES) {
-        shim_fail("crossport: bad start info\n");
+        shim_die("crossport: bad start info\n");
     }
     return info;
 }
@@ -51,7 +47,7 @@ static void load_modules(const StartInfo *executable)
         const char *name = (const char *)(g_executable_base + names[i]);
         HMODULE handle = LoadLibraryExA(name, NULL, LOAD_LIBRARY_SEARCH_APPLICATION_DIR);
         if (handle == NULL) {
-            shim_fail("crossport: cannot load a bundled library\n");
+            shim_die("crossport: cannot load a bundled library\n");
         }
         const StartInfo *info = validated((const StartInfo *)(void *)GetProcAddress(handle, INFO_SYMBOL));
         g_modules[g_module_count].info = info;
@@ -119,12 +115,13 @@ static void run_fini(const LoadedModule *module)
     }
 }
 
-static void finish(int status)
+NORETURN void shim_finish(int status)
 {
     for (size_t i = g_module_count; i > 0; i--) {
         run_fini(&g_modules[i - 1]);
     }
     ExitProcess((UINT)status);
+    __builtin_unreachable();
 }
 
 EXPORT SYSV int __libc_start_main(MainFn main_fn, int argc, char **argv, void (*init)(void),
@@ -138,18 +135,7 @@ EXPORT SYSV int __libc_start_main(MainFn main_fn, int argc, char **argv, void (*
     for (size_t i = 0; i < g_module_count; i++) {
         run_init(&g_modules[i], argc, argv, envp);
     }
-    finish(main_fn(argc, argv, envp));
-    return 0;
-}
-
-/* Build the stack the kernel would hand to _start: argc, argv, envp, auxv. */
-static void fill_initial_stack(InitialStack *stack)
-{
-    memset(stack, 0, sizeof(*stack));
-    GetModuleFileNameA(NULL, stack->program_path, MAX_PATH);
-    stack->slots[0] = 1;
-    stack->slots[1] = (uint64_t)(uintptr_t)stack->program_path;
-    stack->slots[4] = AT_NULL;
+    shim_exit(main_fn(argc, argv, envp));
 }
 
 EXPORT void crossport_start(const StartInfo *info)
@@ -159,20 +145,29 @@ EXPORT void crossport_start(const StartInfo *info)
     load_modules(info);
     tls_init(g_modules, g_module_count);
     threads_init_main();
+    fd_init();
+    stdio_init();
+    env_init();
     for (size_t i = 0; i < g_module_count; i++) {
         bind_module(&g_modules[i]);
     }
     perform_copies(&g_modules[g_module_count - 1]);
 
-    _Alignas(16) InitialStack stack;
-    fill_initial_stack(&stack);
+    size_t slot_count = 0;
+    uint64_t *template_block = args_build_stack(&slot_count);
     void *entry = g_executable_base + info->entry_rva;
-    /* Switch to the initial stack block and enter the ELF _start (rdx = 0: no rtld_fini). */
-    __asm__ volatile("mov %0, %%rsp\n\t"
+    /* Copy the block onto the thread's stack, then enter the ELF _start (rdx = 0: no rtld_fini). */
+    __asm__ volatile("mov %%rcx, %%rax\n\t"
+                     "shl $3, %%rax\n\t"
+                     "sub %%rax, %%rsp\n\t"
+                     "and $-16, %%rsp\n\t"
+                     "mov %%rsp, %%rdi\n\t"
+                     "cld\n\t"
+                     "rep movsq\n\t"
                      "xor %%edx, %%edx\n\t"
-                     "jmp *%1"
+                     "jmp *%2"
                      :
-                     : "b"(&stack), "c"(entry)
-                     : "memory");
+                     : "S"(template_block), "c"(slot_count), "b"(entry)
+                     : "rax", "rdi", "memory");
     __builtin_unreachable();
 }

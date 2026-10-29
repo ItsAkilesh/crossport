@@ -5,7 +5,7 @@
  * Date: 2026-10-28
  */
 
-#include "internal.h"
+#include "libc_abi.h"
 #include "threads.h"
 #include "tls.h"
 
@@ -115,5 +115,5 @@ void keys_run_destructors(void)
 
 EXPORT SYSV int *__errno_location(void)
 {
-    return (int *)tls_tcb_word(TCB_ERRNO_OFFSET);
+    return shim_errno_ptr();
 }
