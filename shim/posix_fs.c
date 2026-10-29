@@ -119,13 +119,8 @@ LIBC_FN char *sysv_getcwd(char *buffer, size_t size)
 {
     wchar_t wide[SHIM_PATH_MAX];
     char text[SHIM_PATH_MAX];
-    if (GetCurrentDirectoryW(SHIM_PATH_MAX, wide) == 0 || shim_wide_to_utf8(wide, text, sizeof(text)) != 0) {
+    if (GetCurrentDirectoryW(SHIM_PATH_MAX, wide) == 0 || shim_wide_to_linux_path(wide, text, sizeof(text)) != 0) {
         return NULL;
-    }
-    for (char *at = text; *at != '\0'; at++) {
-        if (*at == '\\') {
-            *at = '/';
-        }
     }
     size_t length = strlen(text) + 1;
     if (buffer == NULL) {
@@ -156,11 +151,8 @@ LIBC_FN char *sysv_realpath(const char *path, char *resolved)
         shim_set_errno(LINUX_ENOENT);
         return NULL;
     }
-    if (shim_wide_to_utf8(full, text, sizeof(text)) != 0) {
+    if (shim_wide_to_linux_path(full, text, sizeof(text)) != 0) {
         return NULL;
-    }
-    for (char *at = text; *at != '\0'; at++) {
-        *at = *at == '\\' ? '/' : *at;
     }
     size_t length = strlen(text) + 1;
     char *out = resolved != NULL ? resolved : (char *)HeapAlloc(GetProcessHeap(), 0, length);

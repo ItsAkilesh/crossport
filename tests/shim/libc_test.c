@@ -16,12 +16,31 @@
 #include <windows.h>
 
 #define SYSV __attribute__((sysv_abi))
-#define SHIM_FUNCTIONS(X)     X(int, snprintf, (char *, size_t, const char *, ...))     X(int, sscanf, (const char *, const char *, ...))     X(double, strtod, (const char *, char **))     X(int64_t, strtol, (const char *, char **, int))     X(size_t, strftime, (char *, size_t, const char *, const void *))     X(void *, gmtime_r, (const int64_t *, void *))     X(void, qsort, (void *, size_t, size_t, int (SYSV *)(const void *, const void *)))     X(size_t, strlen, (const char *))     X(char *, strchr, (const char *, int))     X(char *, strrchr, (const char *, int))     X(char *, strstr, (const char *, const char *))     X(size_t, strcspn, (const char *, const char *))     X(int, strcasecmp, (const char *, const char *))     X(void *, memmove, (void *, const void *, size_t))     X(int, memcmp, (const void *, const void *, size_t))
+#define SHIM_FUNCTIONS(X) \
+    X(int, snprintf, (char *, size_t, const char *, ...)) \
+    X(int, sscanf, (const char *, const char *, ...)) \
+    X(double, strtod, (const char *, char **)) \
+    X(int64_t, strtol, (const char *, char **, int)) \
+    X(size_t, strftime, (char *, size_t, const char *, const void *)) \
+    X(void *, gmtime_r, (const int64_t *, void *)) \
+    X(void, qsort, (void *, size_t, size_t, int (SYSV *)(const void *, const void *))) \
+    X(size_t, strlen, (const char *)) \
+    X(char *, strchr, (const char *, int)) \
+    X(char *, strrchr, (const char *, int)) \
+    X(char *, strstr, (const char *, const char *)) \
+    X(size_t, strcspn, (const char *, const char *)) \
+    X(int, strcasecmp, (const char *, const char *)) \
+    X(void *, memmove, (void *, const void *, size_t)) \
+    X(int, memcmp, (const void *, const void *, size_t)) \
+    X(char *, getcwd, (char *, size_t))
 
 #define DECLARE(ret, name, params) static ret (SYSV *shim_##name) params;
 SHIM_FUNCTIONS(DECLARE)
 
-#define LOAD(ret, name, params)     if ((shim_##name = (void *)GetProcAddress(module, #name)) == NULL) {         return #name;     }
+#define LOAD(ret, name, params) \
+    if ((shim_##name = (void *)GetProcAddress(module, #name)) == NULL) { \
+        return #name; \
+    }
 
 /* Binds every function by name; returns the first missing name, or NULL. */
 static const char *load_all(HMODULE module)
@@ -218,6 +237,15 @@ static void test_strings_and_memory(void)
     CHECK(shim_memcmp("abc", "abd", 3) < 0 && shim_memcmp("abc", "abc", 3) == 0);
 }
 
+/* Linux programs split absolute paths at '/', so a Windows drive must appear as the first component. */
+static void test_working_directory_is_an_absolute_linux_path(void)
+{
+    char directory[512];
+    CHECK(shim_getcwd(directory, sizeof(directory)) == directory);
+    CHECK(directory[0] == '/' && directory[2] == ':' && directory[3] == '/');
+    CHECK(shim_strchr(directory, '\\') == NULL);
+}
+
 int main(void)
 {
     HMODULE module = LoadLibraryA("crossport_libc.dll");
@@ -234,6 +262,7 @@ int main(void)
     test_time();
     test_qsort_is_stable();
     test_strings_and_memory();
+    test_working_directory_is_an_absolute_linux_path();
     report("%d checks, %d failures\n", g_checks, g_failures);
     return g_failures == 0 ? 0 : 1;
 }

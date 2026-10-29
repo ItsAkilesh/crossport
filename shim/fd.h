@@ -24,6 +24,8 @@ enum { LINUX_SEEK_SET = 0, LINUX_SEEK_CUR = 1, LINUX_SEEK_END = 2 };
 /* Linux paths to wide Windows paths (see path.c). Returns 0, or -1 with errno set. */
 int shim_path_to_wide(const char *linux_path, wchar_t *out, size_t out_count);
 int shim_wide_to_utf8(const wchar_t *wide, char *out, size_t out_size);
+/* Absolute Windows path in the form Linux programs expect: slashes, and the drive as the first component (/C:/dir). */
+int shim_wide_to_linux_path(const wchar_t *wide, char *out, size_t out_size);
 
 /* Makes the three standard descriptors; called once at startup. */
 void fd_init(void);

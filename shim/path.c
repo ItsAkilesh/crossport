@@ -56,6 +56,12 @@ static int map_virtual(const char *path, wchar_t *out, size_t out_count)
     return 1;
 }
 
+/* True for "X:" at the start of a path: a drive letter and a colon. */
+static int is_drive_prefix(const wchar_t *text)
+{
+    return ((text[0] >= L'A' && text[0] <= L'Z') || (text[0] >= L'a' && text[0] <= L'z')) && text[1] == L':';
+}
+
 int shim_path_to_wide(const char *linux_path, wchar_t *out, size_t out_count)
 {
     if (linux_path == NULL || *linux_path == '\0') {
@@ -73,6 +79,9 @@ int shim_path_to_wide(const char *linux_path, wchar_t *out, size_t out_count)
             *at = SEPARATOR_WINDOWS;
         }
     }
+    if (out[0] == SEPARATOR_WINDOWS && is_drive_prefix(out + 1)) {
+        MoveMemory(out, out + 1, ((size_t)lstrlenW(out + 1) + 1) * sizeof(wchar_t));
+    }
     return 0;
 }
 
@@ -84,6 +93,27 @@ int shim_path_to_windows(const char *linux_path, char *out, size_t out_size)
     }
     return WideCharToMultiByte(CP_UTF8, 0, wide, -1, out, (int)out_size, NULL, NULL) > 0 ? 0
                                                                                            : shim_fail(LINUX_ENAMETOOLONG);
+}
+
+int shim_wide_to_linux_path(const wchar_t *wide, char *out, size_t out_size)
+{
+    char text[SHIM_PATH_MAX];
+    if (shim_wide_to_utf8(wide, text, sizeof(text)) != 0) {
+        return -1;
+    }
+    int is_drive = ((text[0] >= 'A' && text[0] <= 'Z') || (text[0] >= 'a' && text[0] <= 'z')) && text[1] == ':';
+    size_t prefix = is_drive ? 1 : 0;
+    size_t length = strlen(text) + 1;
+    if (length + prefix > out_size) {
+        return shim_fail(LINUX_ENAMETOOLONG);
+    }
+    if (is_drive) {
+        out[0] = SEPARATOR_LINUX;
+    }
+    for (size_t i = 0; i < length; i++) {
+        out[prefix + i] = text[i] == SEPARATOR_WINDOWS ? SEPARATOR_LINUX : text[i];
+    }
+    return 0;
 }
 
 int shim_wide_to_utf8(const wchar_t *wide, char *out, size_t out_size)
