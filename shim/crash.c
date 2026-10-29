@@ -4,11 +4,12 @@
  * Author: Akilesh
  * Date: 2026-10-29
  *
- * Two hooks report a crash once. Translated code has no Windows unwind data, so the system cannot find a handler for
- * a fault inside it and ends the process without running the unhandled-exception filter. A vectored handler, which
- * runs before any unwinding, therefore reports faults whose address is inside a translated module (and only those,
- * so exceptions other libraries raise and handle internally are never reported). The unhandled-exception filter
- * reports the rest, for example a fault in the shim itself. Both use plain Win32 calls only and write straight to
+ * Two hooks report a crash once. Translated code has no Windows unwind data, so the system cannot unwind through it
+ * to find a handler, and it ends the process without running the unhandled-exception filter, whether the fault is
+ * in the translated code or in a shim function it called. A vectored handler, which runs before any unwinding,
+ * therefore reports faults whose address is inside a translated module or the shim (and only those, so exceptions
+ * other libraries raise and handle internally are never reported). The unhandled-exception filter reports what
+ * still reaches it. Both use plain Win32 calls only and write straight to
  * the standard error handle, because the process is in an unknown state. Offsets are relative to the module (a bundled DLL or the executable), which is what maps a
  * crash back to the translated code. The process still ends with the exception code as its exit status.
  */
@@ -160,12 +161,17 @@ static int is_fatal_code(DWORD code)
     return exception_name(code) != NULL;
 }
 
-static int is_in_translated_module(uint64_t address)
+/* True when the address is in a translated module or in the shim itself: the code whose faults nobody else reports. */
+static int is_in_our_code(uint64_t address)
 {
     HMODULE module = NULL;
+    HMODULE shim = NULL;
     DWORD flags = GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT;
     if (!GetModuleHandleExA(flags, (LPCSTR)(uintptr_t)address, &module)) {
         return 0;
+    }
+    if (GetModuleHandleExA(flags, (LPCSTR)(uintptr_t)shim_crash_init, &shim) && module == shim) {
+        return 1;
     }
     size_t count = 0;
     const LoadedModule *modules = shim_loaded_modules(&count);
@@ -195,10 +201,10 @@ static LONG WINAPI report_crash(EXCEPTION_POINTERS *info)
     return EXCEPTION_CONTINUE_SEARCH;
 }
 
-static LONG WINAPI trap_translated_fault(EXCEPTION_POINTERS *info)
+static LONG WINAPI trap_own_fault(EXCEPTION_POINTERS *info)
 {
     if (is_fatal_code(info->ExceptionRecord->ExceptionCode) &&
-        is_in_translated_module((uint64_t)(uintptr_t)info->ExceptionRecord->ExceptionAddress)) {
+        is_in_our_code((uint64_t)(uintptr_t)info->ExceptionRecord->ExceptionAddress)) {
         report(info);
     }
     return EXCEPTION_CONTINUE_SEARCH;
@@ -206,6 +212,6 @@ static LONG WINAPI trap_translated_fault(EXCEPTION_POINTERS *info)
 
 void shim_crash_init(void)
 {
-    AddVectoredExceptionHandler(IS_FIRST_HANDLER, trap_translated_fault);
+    AddVectoredExceptionHandler(IS_FIRST_HANDLER, trap_own_fault);
     SetUnhandledExceptionFilter(report_crash);
 }
