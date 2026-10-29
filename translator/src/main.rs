@@ -1,7 +1,7 @@
 // File: translator/src/main.rs
 // Purpose: crossport command-line entry point; exit code 0 = success, 2 = error
 // Author: Akilesh
-// Date: 2026-10-28
+// Date: 2026-10-29
 
 use std::fs::File;
 use std::path::{Path, PathBuf};
@@ -39,7 +39,8 @@ fn execute(action: Action) -> Result<(), TranslateError> {
             elfs,
             lib_dirs,
             appdir,
-        } => show_coverage(&shim, &elfs, &lib_dirs, appdir.as_deref()),
+            allow_missing,
+        } => show_coverage(&shim, &elfs, &lib_dirs, appdir.as_deref(), allow_missing),
         Action::Translate {
             elf,
             shim,
@@ -73,9 +74,11 @@ fn show_coverage(
     elfs: &[PathBuf],
     lib_dirs: &[PathBuf],
     appdir: Option<&Path>,
+    allow_missing: bool,
 ) -> Result<(), TranslateError> {
     let exports = ShimExports::from_dll(&read_file(shim)?)?;
     let mut programs = Vec::with_capacity(elfs.len());
+    let mut missing_libraries = Vec::new();
     for elf in elfs {
         let stem = elf
             .file_stem()
@@ -83,13 +86,17 @@ fn show_coverage(
             .unwrap_or(DEFAULT_PROGRAM_NAME);
         let loaded = library_source(elf, appdir.map(Path::to_path_buf), lib_dirs.to_vec())
             .and_then(|source| {
-                graph::load(
-                    ModuleName::sanitized(stem)?,
-                    read_file(elf)?,
-                    source.as_ref(),
-                )
+                let (name, bytes) = (ModuleName::sanitized(stem)?, read_file(elf)?);
+                if allow_missing {
+                    graph::load_lenient(name, bytes, source.as_ref(), &mut missing_libraries)
+                } else {
+                    graph::load(name, bytes, source.as_ref())
+                }
             });
         programs.push((stem.to_string(), loaded));
+    }
+    for library in &missing_libraries {
+        println!("not found (left out of the measurement): {library}");
     }
     print_coverage(&coverage::measure(programs, &exports));
     Ok(())

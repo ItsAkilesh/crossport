@@ -1,13 +1,13 @@
 // File: translator/src/cli.rs
 // Purpose: Parse command-line arguments into a typed Action
 // Author: Akilesh
-// Date: 2026-10-28
+// Date: 2026-10-29
 
 use std::path::PathBuf;
 
 use crate::error::TranslateError;
 
-const USAGE: &str = "usage:\n  crossport unpack <app.AppImage> --out <new-or-empty-dir>\n  crossport analyze <elf>\n  crossport coverage --shim <crossport_libc.dll> [--appdir <dir>] [--lib-dir <dir>]... <elf>...
+const USAGE: &str = "usage:\n  crossport unpack <app.AppImage> --out <new-or-empty-dir>\n  crossport analyze <elf>\n  crossport coverage --shim <crossport_libc.dll> [--appdir <dir>] [--lib-dir <dir>]... [--allow-missing] <elf>...
   crossport translate <elf> --shim <crossport_libc.dll> --out <dir> [--lib-dir <dir>]... [--appdir <dir>]";
 
 #[derive(Debug, PartialEq, Eq)]
@@ -24,6 +24,8 @@ pub enum Action {
         elfs: Vec<PathBuf>,
         lib_dirs: Vec<PathBuf>,
         appdir: Option<PathBuf>,
+        /// Measure even when some libraries are missing (host libraries the AppDir does not bundle).
+        allow_missing: bool,
     },
     Translate {
         elf: PathBuf,
@@ -83,6 +85,7 @@ fn parse_translate(elf: &str, flags: &[String]) -> Result<Action, TranslateError
 fn parse_coverage(args: &[String]) -> Result<Action, TranslateError> {
     let (mut shim, mut appdir) = (None, None);
     let (mut elfs, mut lib_dirs) = (Vec::new(), Vec::new());
+    let mut allow_missing = false;
     let mut remaining = args.iter();
     while let Some(argument) = remaining.next() {
         match argument.as_str() {
@@ -93,6 +96,7 @@ fn parse_coverage(args: &[String]) -> Result<Action, TranslateError> {
                 appdir = Some(PathBuf::from(remaining.next().ok_or_else(usage)?))
             }
             "--lib-dir" => lib_dirs.push(PathBuf::from(remaining.next().ok_or_else(usage)?)),
+            "--allow-missing" => allow_missing = true,
             flag if flag.starts_with("--") => return Err(usage()),
             elf => elfs.push(PathBuf::from(elf)),
         }
@@ -103,6 +107,7 @@ fn parse_coverage(args: &[String]) -> Result<Action, TranslateError> {
             elfs,
             lib_dirs,
             appdir,
+            allow_missing,
         }),
         _ => Err(usage()),
     }
@@ -153,6 +158,7 @@ mod tests {
                 elfs: vec![PathBuf::from("a"), PathBuf::from("b")],
                 lib_dirs: vec![PathBuf::from("l")],
                 appdir: Some(PathBuf::from("app")),
+                allow_missing: false,
             }
         );
         assert!(

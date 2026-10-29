@@ -86,6 +86,26 @@ pub fn load(
     exe_data: Vec<u8>,
     source: &dyn LibrarySource,
 ) -> Result<ModuleGraph, TranslateError> {
+    load_collecting(exe_name, exe_data, source, None)
+}
+
+/// Like `load`, but a library that cannot be found is recorded in `missing` and left out of the graph
+/// instead of failing. For analysis of programs whose host libraries are not in the AppDir.
+pub fn load_lenient(
+    exe_name: ModuleName,
+    exe_data: Vec<u8>,
+    source: &dyn LibrarySource,
+    missing: &mut Vec<String>,
+) -> Result<ModuleGraph, TranslateError> {
+    load_collecting(exe_name, exe_data, source, Some(missing))
+}
+
+fn load_collecting(
+    exe_name: ModuleName,
+    exe_data: Vec<u8>,
+    source: &dyn LibrarySource,
+    mut missing: Option<&mut Vec<String>>,
+) -> Result<ModuleGraph, TranslateError> {
     let mut modules = vec![Module::new(exe_name, exe_data, source.executable_origin())?];
     let mut dependencies: Vec<Vec<usize>> = Vec::new();
     let mut index_by_name: HashMap<String, usize> = HashMap::new();
@@ -106,13 +126,24 @@ pub fn load(
             let name = ModuleName::parse(raw)?;
             let index = match index_by_name.get(&name.case_folded()) {
                 Some(&index) => index,
-                None => add_library(
+                None => match add_library(
                     &mut modules,
                     &mut index_by_name,
                     &mut total_bytes,
                     name,
                     (source, &context),
-                )?,
+                ) {
+                    Ok(index) => index,
+                    Err(TranslateError::MissingLibrary { name }) if missing.is_some() => {
+                        if let Some(list) = missing.as_deref_mut() {
+                            if !list.contains(&name) {
+                                list.push(name);
+                            }
+                        }
+                        continue;
+                    }
+                    Err(error) => return Err(error),
+                },
             };
             edges.push(index);
         }
@@ -312,5 +343,26 @@ mod tests {
         let order = initialization_order(&[vec![1, 2], vec![3], vec![3], vec![]], &modules)
             .expect("acyclic");
         assert_eq!(order, [3, 1, 2, 0]);
+    }
+
+    #[test]
+    fn lenient_loading_records_missing_libraries_and_keeps_going() {
+        let program = include_bytes!("../tests/fixtures/two_libs/two_libs").to_vec();
+        let mut missing = Vec::new();
+        let graph = load_lenient(
+            ModuleName::parse("two_libs").expect("valid"),
+            program.clone(),
+            &MemorySource(Map::new()),
+            &mut missing,
+        )
+        .expect("a missing library is not an error here");
+        assert_eq!(graph.modules.len(), 1);
+        assert!(!missing.is_empty());
+        let strict = load(
+            ModuleName::parse("two_libs").expect("valid"),
+            program,
+            &MemorySource(Map::new()),
+        );
+        assert!(matches!(strict, Err(TranslateError::MissingLibrary { .. })));
     }
 }
