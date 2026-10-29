@@ -64,6 +64,9 @@ typedef struct {
 
 /* The poll engine behind poll, select and epoll: fills revents and returns how many are ready (or -1). */
 int64_t shim_poll(ShimPollFd *fds, uint64_t count, int64_t timeout_ms);
+/* Marks a descriptor as fed by Win32 window messages (an X connection): while it is polled, the engine calls
+ * `pump` to dispatch pending messages and also wakes when one arrives. `pump` makes the descriptor readable. */
+void shim_poll_set_message_source(int fd, void (SYSV *pump)(void));
 
 /* A timerfd: a waitable timer that counts expirations. */
 typedef struct {

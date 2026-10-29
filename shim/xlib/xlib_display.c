@@ -11,6 +11,7 @@
 
 #include <string.h>
 
+#include "fd.h"
 #include "xlib_internal.h"
 
 #define VENDOR_NAME "Crossport"
@@ -33,6 +34,11 @@ LIBC_FN int sysv_eventfd(unsigned initial, int flags);
 LIBC_FN int sysv_close(int fd);
 LIBC_FN char *sysv_strdup(const char *text);
 LIBC_FN uint32_t sysv_xcb_generate_id(void *connection);
+LIBC_FN int sysv_eventfd_write(int fd, uint64_t value);
+LIBC_FN int sysv_eventfd_read(int fd, uint64_t *value);
+
+/* The display whose descriptor the poll engine pumps messages for. */
+static XlDisplay *g_display;
 
 XlDisplayData *xl_display_data(XlDisplay *display)
 {
@@ -49,6 +55,30 @@ SYSV XlId xl_allocate_id(XlDisplay *display)
 {
     (void)display;
     return sysv_xcb_generate_id(NULL);
+}
+
+SYSV void xl_sync_descriptor(XlDisplay *display)
+{
+    XlDisplayData *data = xl_display_data(display);
+    int is_pending = data->queue_count > 0 || xcb_events_pending();
+    if (is_pending == data->is_signalled) {
+        return;
+    }
+    uint64_t counter = 1;
+    if (is_pending) {
+        sysv_eventfd_write(display->fd, 1);
+    } else {
+        sysv_eventfd_read(display->fd, &counter);
+    }
+    data->is_signalled = is_pending;
+}
+
+static void SYSV pump_display(void)
+{
+    xcb_events_pump();
+    if (g_display != NULL) {
+        xl_sync_descriptor(g_display);
+    }
 }
 
 static XlId SYSV allocate_for_macro(XlDisplay *display)
@@ -106,12 +136,18 @@ LIBC_FN XlDisplay *sysv_XOpenDisplay(const char *name)
     init_display(data);
     xcb_events_register_class();
     xcb_events_set_hooks(xl_paint_window, xl_size_window);
+    g_display = &data->pub;
+    shim_poll_set_message_source(data->pub.fd, pump_display);
     return &data->pub;
 }
 
 LIBC_FN int sysv_XCloseDisplay(XlDisplay *display)
 {
     XlDisplayData *data = xl_display_data(display);
+    if (g_display == display) {
+        shim_poll_set_message_source(-1, NULL);
+        g_display = NULL;
+    }
     sysv_close(display->fd);
     sysv_free(data->queue);
     sysv_free(data);

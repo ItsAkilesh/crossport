@@ -226,6 +226,7 @@ SYSV void xl_events_fill(XlDisplay *display, int should_wait)
             should_block = 0;
         }
     }
+    xl_sync_descriptor(display);
 }
 
 SYSV int xl_events_take(XlDisplay *display, XlEventMatch matches, void *context, XlEvent *out, int should_remove)
@@ -244,6 +245,7 @@ SYSV int xl_events_take(XlDisplay *display, XlEventMatch matches, void *context,
             }
             data->queue_count--;
             display->queue_length = (int32_t)data->queue_count;
+            xl_sync_descriptor(display);
         }
         return 1;
     }

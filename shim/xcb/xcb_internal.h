@@ -54,6 +54,9 @@ void xcb_events_push(const XcbEvent *event);
 void xcb_events_register_class(void);
 /* Moves the oldest event into `out`; when none is waiting, `should_wait` blocks until one arrives. Returns 0 for none. */
 int xcb_events_take(XcbEvent *out, int should_wait);
+/* Dispatches the calling thread's pending window messages, and tells whether events are queued. */
+void xcb_events_pump(void);
+int xcb_events_pending(void);
 /* A layer above xcb (Xlib) that keeps pixel buffers for windows paints them and follows their size. */
 typedef int (*XcbPaintHook)(HWND window);
 typedef void (*XcbSizeHook)(HWND window, int width, int height);

@@ -13,8 +13,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/select.h>
 
 #include <X11/Xlib.h>
+#include <X11/Xatom.h>
 #include <X11/Xutil.h>
 
 #define WIDTH 200
@@ -179,13 +181,59 @@ static void print_keys(Display *display, Window window)
     print_key(display, window, 111, 0);
 }
 
+static void print_property(Display *display, Window window, Atom property, long offset, long length, Atom required)
+{
+    Atom type = None;
+    int format = 0;
+    unsigned long count = 0;
+    unsigned long after = 0;
+    unsigned char *data = NULL;
+    int status = XGetWindowProperty(display, window, property, offset, length, False, required, &type, &format, &count,
+                                    &after, &data);
+    printf("property: status=%d type=%lu format=%d count=%lu after=%lu", status, type, format, count, after);
+    for (unsigned long i = 0; data != NULL && i < count && format == 32; i++) {
+        printf(" %ld", ((long *)data)[i]);
+    }
+    if (data != NULL && format == 8) {
+        printf(" text=%s", (char *)data);
+    }
+    printf("\n");
+    if (data != NULL) {
+        XFree(data);
+    }
+}
+
+static void check_properties(Display *display, Window window)
+{
+    Atom numbers = XInternAtom(display, "CROSSPORT_NUMBERS", False);
+    Atom text = XInternAtom(display, "CROSSPORT_TEXT", False);
+    long first[] = {1, 2, 3};
+    long more[] = {4};
+    print_property(display, window, numbers, 0, 8, AnyPropertyType);
+    XChangeProperty(display, window, numbers, XA_CARDINAL, 32, PropModeReplace, (unsigned char *)first, 3);
+    XChangeProperty(display, window, numbers, XA_CARDINAL, 32, PropModeAppend, (unsigned char *)more, 1);
+    print_property(display, window, numbers, 0, 8, AnyPropertyType);
+    print_property(display, window, numbers, 1, 1, XA_CARDINAL);
+    print_property(display, window, numbers, 0, 8, XA_STRING);
+    XChangeProperty(display, window, text, XA_STRING, 8, PropModeReplace, (const unsigned char *)"hello", 5);
+    print_property(display, window, text, 0, 8, XA_STRING);
+    XDeleteProperty(display, window, numbers);
+    print_property(display, window, numbers, 0, 8, AnyPropertyType);
+}
+
 static void send_to_self(Display *display, Window window)
 {
     XEvent sent = {.xclient = {.type = ClientMessage, .window = window, .format = 32,
                                .message_type = XInternAtom(display, "CROSSPORT_TEST", False)}};
     sent.xclient.data.l[0] = 1234;
     XSendEvent(display, window, False, NoEventMask, &sent);
-    XSync(display, False);
+    XFlush(display);
+    fd_set readable;
+    FD_ZERO(&readable);
+    FD_SET(ConnectionNumber(display), &readable);
+    struct timeval wait = {.tv_sec = 5};
+    int ready = select(ConnectionNumber(display) + 1, &readable, NULL, NULL, &wait);
+    printf("wake: select=%d pending=%d\n", ready, XPending(display) > 0);
     XEvent received;
     do {
         XNextEvent(display, &received);
@@ -214,6 +262,7 @@ int main(void)
     XSync(display, False);
     print_pixels(display, window);
     print_keys(display, window);
+    check_properties(display, window);
     send_to_self(display, window);
     XDestroyWindow(display, window);
     XCloseDisplay(display);

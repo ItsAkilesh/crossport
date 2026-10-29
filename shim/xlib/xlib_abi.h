@@ -194,6 +194,17 @@ typedef struct {
     int32_t detail;
 } XlFocusEvent;
 
+typedef struct {
+    int32_t type;
+    uint64_t serial;
+    int32_t send_event;
+    XlDisplay *display;
+    XlId window;
+    XlId atom;
+    uint64_t time;
+    int32_t state;
+} XlPropertyEvent;
+
 /* EnterNotify and LeaveNotify. */
 typedef struct {
     int32_t type;
@@ -260,6 +271,7 @@ typedef union {
     XlInputEvent input;
     XlExposeEvent expose;
     XlFocusEvent focus;
+    XlPropertyEvent property;
     XlCrossingEvent crossing;
     XlStructureEvent structure;
     XlConfigureEvent configure;
@@ -383,6 +395,7 @@ _Static_assert(sizeof(XlImage) == 136, "XImage is 136 bytes");
 _Static_assert(offsetof(XlImage, f) == 88, "XImage function table is at 88");
 _Static_assert(sizeof(XlAnyEvent) == 40, "XAnyEvent is 40 bytes");
 _Static_assert(sizeof(XlInputEvent) == 96, "XKeyEvent is 96 bytes");
+_Static_assert(sizeof(XlPropertyEvent) == 64, "XPropertyEvent is 64 bytes");
 _Static_assert(sizeof(XlFocusEvent) == 48, "XFocusChangeEvent is 48 bytes");
 _Static_assert(sizeof(XlCrossingEvent) == 104, "XCrossingEvent is 104 bytes");
 _Static_assert(sizeof(XlExposeEvent) == 64, "XExposeEvent is 64 bytes");

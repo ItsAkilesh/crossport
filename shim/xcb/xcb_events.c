@@ -296,6 +296,19 @@ static void pump_messages(void)
     }
 }
 
+void xcb_events_pump(void)
+{
+    pump_messages();
+}
+
+int xcb_events_pending(void)
+{
+    AcquireSRWLockShared(&g_queue_lock);
+    int has_events = g_count > 0;
+    ReleaseSRWLockShared(&g_queue_lock);
+    return has_events;
+}
+
 int xcb_events_take(XcbEvent *out, int should_wait)
 {
     for (;;) {

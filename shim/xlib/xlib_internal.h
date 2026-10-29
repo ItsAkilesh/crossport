@@ -88,11 +88,15 @@ typedef struct {
     size_t queue_count;
     size_t queue_capacity;
     uint32_t next_resource;
+    int is_signalled;
 } XlDisplayData;
 
 XlDisplayData *xl_display_data(XlDisplay *display);
 uint64_t xl_next_request(XlDisplay *display);
 SYSV XlId xl_allocate_id(XlDisplay *display);
+
+/* Makes the display's descriptor readable exactly while events are waiting (here or in the process-wide queue). */
+SYSV void xl_sync_descriptor(XlDisplay *display);
 
 /* Event queue: converts what the Win32 side produced and keeps what the program has not read yet. */
 SYSV void xl_events_fill(XlDisplay *display, int should_wait);

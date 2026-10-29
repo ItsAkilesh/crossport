@@ -24,9 +24,7 @@
 #define IS_UNMAPPED 0
 #define IS_VIEWABLE 2
 #define MODE_REPLACE 0
-#define FORMAT_32 32
 #define FORMAT_8 8
-#define MAX_PROTOCOLS 16
 
 LIBC_FN void *sysv_malloc(size_t size);
 
@@ -234,45 +232,6 @@ LIBC_FN int sysv_XStoreName(XlDisplay *display, XlId window, const char *name)
     sysv_xcb_change_property(NULL, MODE_REPLACE, (XcbId)window, XCB_ATOM_WM_NAME, XCB_ATOM_STRING, FORMAT_8,
                              (uint32_t)strlen(name), name);
     return 1;
-}
-
-LIBC_FN int sysv_XChangeProperty(XlDisplay *display, XlId window, XlId property, XlId type, int format, int mode,
-                                 const unsigned char *data, int count)
-{
-    xl_next_request(display);
-    uint32_t packed[MAX_PROTOCOLS];
-    const void *payload = data;
-    if (format == FORMAT_32 && count > 0 && count <= MAX_PROTOCOLS) {
-        /* Format-32 data arrives as an array of C longs (8 bytes each); the wire form is 32 bits. */
-        const uint64_t *longs = (const uint64_t *)data;
-        for (int i = 0; i < count; i++) {
-            packed[i] = (uint32_t)longs[i];
-        }
-        payload = packed;
-    }
-    sysv_xcb_change_property(NULL, (uint8_t)mode, (XcbId)window, (XcbId)property, (XcbId)type, (uint8_t)format,
-                             (uint32_t)count, payload);
-    return 1;
-}
-
-/* Properties are not stored yet: every read answers "no such property". */
-LIBC_FN int sysv_XGetWindowProperty(XlDisplay *display, XlId window, XlId property, int64_t offset, int64_t length,
-                                    int should_delete, XlId required_type, XlId *actual_type, int *actual_format,
-                                    uint64_t *item_count, uint64_t *bytes_after, unsigned char **data)
-{
-    (void)window;
-    (void)property;
-    (void)offset;
-    (void)length;
-    (void)should_delete;
-    (void)required_type;
-    xl_next_request(display);
-    *actual_type = 0;
-    *actual_format = 0;
-    *item_count = 0;
-    *bytes_after = 0;
-    *data = NULL;
-    return 0;
 }
 
 LIBC_FN int sysv_XSetWMProtocols(XlDisplay *display, XlId window, const XlId *protocols, int count)

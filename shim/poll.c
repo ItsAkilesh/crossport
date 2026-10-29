@@ -151,10 +151,33 @@ static DWORD collect_handles(const ShimPollFd *fds, uint64_t count, HANDLE *hand
     return used;
 }
 
+static int g_message_fd = -1;
+static void (SYSV *g_message_pump)(void);
+
+void shim_poll_set_message_source(int fd, void (SYSV *pump)(void))
+{
+    g_message_fd = fd;
+    g_message_pump = pump;
+}
+
+static int polls_message_source(const ShimPollFd *fds, uint64_t count)
+{
+    for (uint64_t i = 0; g_message_pump != NULL && i < count; i++) {
+        if (fds[i].fd == g_message_fd && fds[i].fd >= 0) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 int64_t shim_poll(ShimPollFd *fds, uint64_t count, int64_t timeout_ms)
 {
+    int has_messages = polls_message_source(fds, count);
     ULONGLONG start = GetTickCount64();
     for (;;) {
+        if (has_messages) {
+            g_message_pump();
+        }
         int ready = scan(fds, count);
         int64_t elapsed = (int64_t)(GetTickCount64() - start);
         if (ready > 0 || timeout_ms == 0 || (timeout_ms > 0 && elapsed >= timeout_ms)) {
@@ -167,7 +190,9 @@ int64_t shim_poll(ShimPollFd *fds, uint64_t count, int64_t timeout_ms)
         if (is_polled && slice > POLL_SLICE_MS) {
             slice = POLL_SLICE_MS;
         }
-        if (used > 0) {
+        if (has_messages) {
+            MsgWaitForMultipleObjects(used, handles, FALSE, slice, QS_ALLINPUT);
+        } else if (used > 0) {
             WaitForMultipleObjects(used, handles, FALSE, slice);
         } else if (slice != INFINITE) {
             Sleep(slice);

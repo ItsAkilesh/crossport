@@ -411,14 +411,6 @@ LIBC_FN int sysv_XConvertSelection(XlDisplay *display, XlId selection, XlId targ
     return 1;
 }
 
-LIBC_FN int sysv_XDeleteProperty(XlDisplay *display, XlId window, XlId property)
-{
-    (void)display;
-    (void)window;
-    (void)property;
-    return 1;
-}
-
 LIBC_FN int sysv_XFilterEvent(XlEvent *event, XlId window)
 {
     (void)event;
