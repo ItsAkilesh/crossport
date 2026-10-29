@@ -16,6 +16,8 @@ _Static_assert(sizeof(xcb_screen_t) == 40, "xcb_screen_t is 40 bytes");
 _Static_assert(sizeof(xcb_screen_iterator_t) == 16, "xcb_screen_iterator_t is 16 bytes");
 _Static_assert(sizeof(xcb_key_press_event_t) == 32, "input events are 32 bytes");
 _Static_assert(sizeof(xcb_client_message_event_t) == 32, "client messages are 32 bytes");
+_Static_assert(sizeof(xcb_focus_in_event_t) == 12, "focus events are 12 bytes");
+_Static_assert(sizeof(xcb_enter_notify_event_t) == 32, "crossing events are 32 bytes");
 _Static_assert(sizeof(xcb_expose_event_t) == 20, "expose events are 20 bytes");
 _Static_assert(sizeof(xcb_configure_notify_event_t) == 28, "configure events are 28 bytes");
 _Static_assert(sizeof(xcb_intern_atom_reply_t) == 12, "intern atom replies are 12 bytes");

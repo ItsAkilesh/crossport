@@ -184,6 +184,37 @@ typedef struct {
     int32_t count;
 } XlExposeEvent;
 
+typedef struct {
+    int32_t type;
+    uint64_t serial;
+    int32_t send_event;
+    XlDisplay *display;
+    XlId window;
+    int32_t mode;
+    int32_t detail;
+} XlFocusEvent;
+
+/* EnterNotify and LeaveNotify. */
+typedef struct {
+    int32_t type;
+    uint64_t serial;
+    int32_t send_event;
+    XlDisplay *display;
+    XlId window;
+    XlId root;
+    XlId subwindow;
+    uint64_t time;
+    int32_t x;
+    int32_t y;
+    int32_t x_root;
+    int32_t y_root;
+    int32_t mode;
+    int32_t detail;
+    int32_t same_screen;
+    int32_t focus;
+    uint32_t state;
+} XlCrossingEvent;
+
 /* MapNotify, UnmapNotify and DestroyNotify: `event` is the window that was selected on. */
 typedef struct {
     int32_t type;
@@ -228,6 +259,8 @@ typedef union {
     XlAnyEvent any;
     XlInputEvent input;
     XlExposeEvent expose;
+    XlFocusEvent focus;
+    XlCrossingEvent crossing;
     XlStructureEvent structure;
     XlConfigureEvent configure;
     XlClientMessageEvent client;
@@ -350,6 +383,8 @@ _Static_assert(sizeof(XlImage) == 136, "XImage is 136 bytes");
 _Static_assert(offsetof(XlImage, f) == 88, "XImage function table is at 88");
 _Static_assert(sizeof(XlAnyEvent) == 40, "XAnyEvent is 40 bytes");
 _Static_assert(sizeof(XlInputEvent) == 96, "XKeyEvent is 96 bytes");
+_Static_assert(sizeof(XlFocusEvent) == 48, "XFocusChangeEvent is 48 bytes");
+_Static_assert(sizeof(XlCrossingEvent) == 104, "XCrossingEvent is 104 bytes");
 _Static_assert(sizeof(XlExposeEvent) == 64, "XExposeEvent is 64 bytes");
 _Static_assert(sizeof(XlStructureEvent) == 56, "XMapEvent is 56 bytes");
 _Static_assert(sizeof(XlConfigureEvent) == 88, "XConfigureEvent is 88 bytes");

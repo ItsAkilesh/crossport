@@ -23,6 +23,8 @@ _Static_assert(offsetof(Display, screens) == 232, "screens is at 232");
 _Static_assert(sizeof(Display) == 296, "the public Display is 296 bytes");
 _Static_assert(sizeof(XAnyEvent) == 40, "XAnyEvent is 40 bytes");
 _Static_assert(sizeof(XKeyEvent) == 96, "XKeyEvent is 96 bytes");
+_Static_assert(sizeof(XFocusChangeEvent) == 48, "XFocusChangeEvent is 48 bytes");
+_Static_assert(sizeof(XCrossingEvent) == 104, "XCrossingEvent is 104 bytes");
 _Static_assert(sizeof(XExposeEvent) == 64, "XExposeEvent is 64 bytes");
 _Static_assert(sizeof(XMapEvent) == 56, "XMapEvent is 56 bytes");
 _Static_assert(sizeof(XConfigureEvent) == 88, "XConfigureEvent is 88 bytes");

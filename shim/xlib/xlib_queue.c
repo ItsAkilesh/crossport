@@ -118,6 +118,28 @@ static int convert(XlDisplay *display, const XcbEvent *wire, XlEvent *out)
         convert_input(display, wire, type, out);
         window = out->input.window;
         break;
+    case XL_FOCUS_IN:
+    case XL_FOCUS_OUT: {
+        XcbFocusEvent focus;
+        memcpy(&focus, wire, sizeof(focus));
+        out->focus = (XlFocusEvent){.type = type, .serial = display->last_request_read, .display = display,
+                                    .window = focus.event, .mode = focus.mode, .detail = focus.detail};
+        window = focus.event;
+        break;
+    }
+    case XL_ENTER_NOTIFY:
+    case XL_LEAVE_NOTIFY: {
+        XcbCrossingEvent crossing;
+        memcpy(&crossing, wire, sizeof(crossing));
+        out->crossing = (XlCrossingEvent){.type = type, .serial = display->last_request_read, .display = display,
+                                          .window = crossing.event, .root = crossing.root, .time = crossing.time,
+                                          .x = crossing.event_x, .y = crossing.event_y, .x_root = crossing.root_x,
+                                          .y_root = crossing.root_y, .mode = crossing.mode, .detail = crossing.detail,
+                                          .same_screen = crossing.same_screen_focus & 1,
+                                          .focus = (crossing.same_screen_focus >> 1) & 1, .state = crossing.state};
+        window = crossing.event;
+        break;
+    }
     case XL_EXPOSE: {
         XcbExposeEvent expose;
         memcpy(&expose, wire, sizeof(expose));

@@ -158,6 +158,27 @@ static void print_pixels(Display *display, Window window)
     XDestroyImage(image);
 }
 
+static void print_key(Display *display, Window window, unsigned keycode, unsigned state)
+{
+    XKeyEvent key = {.type = KeyPress, .display = display, .window = window, .keycode = keycode, .state = state};
+    char text[8] = {0};
+    KeySym symbol = NoSymbol;
+    int length = XLookupString(&key, text, (int)sizeof(text), &symbol, NULL);
+    printf("key %u state=%u: sym=%lx len=%d first=%d lookup=%lx\n", keycode, state, symbol, length,
+           length > 0 ? text[0] : 0, XLookupKeysym(&key, 0));
+}
+
+static void print_keys(Display *display, Window window)
+{
+    print_key(display, window, 38, 0);
+    print_key(display, window, 38, ShiftMask);
+    print_key(display, window, 38, LockMask);
+    print_key(display, window, 38, ControlMask);
+    print_key(display, window, 10, ShiftMask);
+    print_key(display, window, 36, 0);
+    print_key(display, window, 111, 0);
+}
+
 static void send_to_self(Display *display, Window window)
 {
     XEvent sent = {.xclient = {.type = ClientMessage, .window = window, .format = 32,
@@ -192,6 +213,7 @@ int main(void)
     put_pattern(display, window);
     XSync(display, False);
     print_pixels(display, window);
+    print_keys(display, window);
     send_to_self(display, window);
     XDestroyWindow(display, window);
     XCloseDisplay(display);

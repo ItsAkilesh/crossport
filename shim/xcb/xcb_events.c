@@ -15,9 +15,10 @@
 
 #define QUEUE_CAPACITY 256
 #define EVENT_WORDS 8
-#define KEYCODE_OFFSET 8
 #define SCANCODE_SHIFT 16
 #define SCANCODE_MASK 0xff
+#define EXTENDED_SHIFT 24
+#define FOCUS_NONLINEAR 3
 #define BUTTON_LEFT 1
 #define BUTTON_MIDDLE 2
 #define BUTTON_RIGHT 3
@@ -113,12 +114,43 @@ static void push_input(HWND window, uint8_t type, uint8_t detail, int x, int y)
 static void push_key(HWND window, LPARAM parameter, uint8_t type)
 {
     uint8_t scancode = (uint8_t)((parameter >> SCANCODE_SHIFT) & SCANCODE_MASK);
-    push_input(window, type, (uint8_t)(scancode + KEYCODE_OFFSET), 0, 0);
+    int is_extended = ((parameter >> EXTENDED_SHIFT) & 1) != 0;
+    push_input(window, type, xcb_keycode_from_scancode(scancode, is_extended), 0, 0);
 }
+
+static void push_focus(HWND window, uint8_t type)
+{
+    XcbFocusEvent focus = {.response_type = type, .detail = FOCUS_NONLINEAR, .event = xcb_window_id(window)};
+    push_raw(&focus, sizeof(focus));
+}
+
+static void push_crossing(HWND window, uint8_t type, int x, int y)
+{
+    XcbCrossingEvent crossing = {.response_type = type, .detail = FOCUS_NONLINEAR, .time = GetTickCount(),
+                                 .root = xcb_roots()->screens[0].root, .event = xcb_window_id(window),
+                                 .event_x = (int16_t)x, .event_y = (int16_t)y, .state = input_state(),
+                                 .same_screen_focus = 1};
+    push_raw(&crossing, sizeof(crossing));
+}
+
 
 static void push_button(HWND window, LPARAM parameter, uint8_t type, uint8_t button)
 {
     push_input(window, type, button, GET_X_LPARAM(parameter), GET_Y_LPARAM(parameter));
+}
+
+static HWND g_tracked_window;
+
+/* The first move over a window is its EnterNotify; Windows then reports the pointer leaving. */
+static void push_motion(HWND window, LPARAM parameter)
+{
+    if (g_tracked_window != window) {
+        TRACKMOUSEEVENT track = {.cbSize = sizeof(track), .dwFlags = TME_LEAVE, .hwndTrack = window};
+        TrackMouseEvent(&track);
+        g_tracked_window = window;
+        push_crossing(window, XCB_EVENT_ENTER_NOTIFY, GET_X_LPARAM(parameter), GET_Y_LPARAM(parameter));
+    }
+    push_button(window, parameter, XCB_EVENT_MOTION_NOTIFY, 0);
 }
 
 static void push_wheel(HWND window, WPARAM parameter, LPARAM position)
@@ -194,7 +226,17 @@ static LRESULT CALLBACK window_procedure(HWND window, UINT message, WPARAM wpara
         push_key(window, lparam, XCB_EVENT_KEY_RELEASE);
         break;
     case WM_MOUSEMOVE:
-        push_button(window, lparam, XCB_EVENT_MOTION_NOTIFY, 0);
+        push_motion(window, lparam);
+        break;
+    case WM_MOUSELEAVE:
+        g_tracked_window = NULL;
+        push_crossing(window, XCB_EVENT_LEAVE_NOTIFY, 0, 0);
+        break;
+    case WM_SETFOCUS:
+        push_focus(window, XCB_EVENT_FOCUS_IN);
+        break;
+    case WM_KILLFOCUS:
+        push_focus(window, XCB_EVENT_FOCUS_OUT);
         break;
     case WM_LBUTTONDOWN:
         push_button(window, lparam, XCB_EVENT_BUTTON_PRESS, BUTTON_LEFT);

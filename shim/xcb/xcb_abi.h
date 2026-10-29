@@ -82,7 +82,8 @@ typedef struct {
 /* Event numbers (xcb's XCB_KEY_PRESS and friends). */
 enum {
     XCB_EVENT_KEY_PRESS = 2, XCB_EVENT_KEY_RELEASE = 3, XCB_EVENT_BUTTON_PRESS = 4, XCB_EVENT_BUTTON_RELEASE = 5,
-    XCB_EVENT_MOTION_NOTIFY = 6, XCB_EVENT_EXPOSE = 12, XCB_EVENT_DESTROY_NOTIFY = 17, XCB_EVENT_MAP_NOTIFY = 19,
+    XCB_EVENT_MOTION_NOTIFY = 6, XCB_EVENT_ENTER_NOTIFY = 7, XCB_EVENT_LEAVE_NOTIFY = 8, XCB_EVENT_FOCUS_IN = 9,
+    XCB_EVENT_FOCUS_OUT = 10, XCB_EVENT_EXPOSE = 12, XCB_EVENT_DESTROY_NOTIFY = 17, XCB_EVENT_MAP_NOTIFY = 19,
     XCB_EVENT_CONFIGURE_NOTIFY = 22, XCB_EVENT_CLIENT_MESSAGE = 33
 };
 
@@ -103,6 +104,34 @@ typedef struct {
     uint8_t same_screen;
     uint8_t pad;
 } XcbInputEvent;
+
+/* FocusIn and FocusOut (12 bytes; padded to 32 in the queue). */
+typedef struct {
+    uint8_t response_type;
+    uint8_t detail;
+    uint16_t sequence;
+    XcbId event;
+    uint8_t mode;
+    uint8_t pad[3];
+} XcbFocusEvent;
+
+/* EnterNotify and LeaveNotify. */
+typedef struct {
+    uint8_t response_type;
+    uint8_t detail;
+    uint16_t sequence;
+    uint32_t time;
+    XcbId root;
+    XcbId event;
+    XcbId child;
+    int16_t root_x;
+    int16_t root_y;
+    int16_t event_x;
+    int16_t event_y;
+    uint16_t state;
+    uint8_t mode;
+    uint8_t same_screen_focus;
+} XcbCrossingEvent;
 
 typedef struct {
     uint8_t response_type;
@@ -175,6 +204,8 @@ _Static_assert(sizeof(XcbScreenIterator) == 16, "xcb_screen_iterator_t is 16 byt
 _Static_assert(sizeof(XcbEvent) == 32, "xcb events are 32 bytes");
 _Static_assert(sizeof(XcbInputEvent) == 32, "input events are 32 bytes");
 _Static_assert(sizeof(XcbClientMessageEvent) == 32, "client messages are 32 bytes");
+_Static_assert(sizeof(XcbFocusEvent) == 12, "focus events are 12 bytes");
+_Static_assert(sizeof(XcbCrossingEvent) == 32, "crossing events are 32 bytes");
 _Static_assert(sizeof(XcbExposeEvent) == 20, "expose events are 20 bytes");
 _Static_assert(sizeof(XcbConfigureEvent) == 28, "configure events are 28 bytes");
 _Static_assert(sizeof(XcbInternAtomReply) == 12, "intern atom replies are 12 bytes");
