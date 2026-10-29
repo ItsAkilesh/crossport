@@ -103,6 +103,11 @@ static uint16_t input_state(void)
     return state;
 }
 
+uint16_t xcb_input_state(void)
+{
+    return input_state();
+}
+
 static void push_input(HWND window, uint8_t type, uint8_t detail, int x, int y)
 {
     XcbInputEvent input = {.response_type = type, .detail = detail, .time = GetTickCount(),

@@ -58,6 +58,8 @@ int xcb_events_take(XcbEvent *out, int should_wait);
 typedef int (*XcbPaintHook)(HWND window);
 typedef void (*XcbSizeHook)(HWND window, int width, int height);
 void xcb_events_set_hooks(XcbPaintHook paint, XcbSizeHook size);
+/* The X modifier and button mask for the keys and buttons held right now. */
+uint16_t xcb_input_state(void);
 /* Keyboard map: the X keycode for a Windows scan code, and the keysym of a keycode (column 0 plain, 1 shifted). */
 uint8_t xcb_keycode_from_scancode(uint8_t scancode, int is_extended);
 uint32_t xcb_keysym_for(uint8_t keycode, int column);
