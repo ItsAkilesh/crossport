@@ -2,7 +2,7 @@
 """File: tools/corpus/run_app_tests.py
 Purpose: Run an app's test invocations through difftest, each in a fresh sandbox, and record the results
 Author: Akilesh
-Date: 2026-10-28
+Date: 2026-10-29
 
 Usage: run_app_tests.py --app-dir DIR --exe PATH --label linux|windows --work DIR --results DIR --difftest PATH
 Writes <results>/<app>-<test>-<label>.json for every test.
@@ -101,6 +101,18 @@ def difftest_command(difftest: Path, exe: Path, test: AppTest, app_dir: Path, sa
     return command + ["--", str(exe), *test.args]
 
 
+def anonymize_program(result_path: Path, exe: Path, name: str) -> None:
+    """Replaces the program's path with the app name in its output.
+
+    Programs print argv[0] in messages. It is the AppDir's AppRun on Linux and a path to the .exe on
+    Windows, which says nothing about whether the translation is right, so both become the app's name.
+    """
+    result = json.loads(result_path.read_text(encoding="utf-8"))
+    for stream in ("stdout", "stderr"):
+        result[stream] = result[stream].replace(str(exe), name)
+    result_path.write_text(json.dumps(result), encoding="utf-8")
+
+
 def run_all(app_dir: Path, exe: Path, label: str, work: Path, results: Path, difftest: Path) -> int:
     name, tests = load_app(app_dir)
     results.mkdir(parents=True, exist_ok=True)
@@ -113,6 +125,8 @@ def run_all(app_dir: Path, exe: Path, label: str, work: Path, results: Path, dif
         if completed.returncode != 0:
             failures += 1
             print(f"{name}/{test.id}: the runner failed: {completed.stderr.strip()}", file=sys.stderr)
+        else:
+            anonymize_program(out, exe, name)
     print(f"{name}: ran {len(tests)} tests ({label}), {failures} runner failures")
     return 1 if failures else 0
 

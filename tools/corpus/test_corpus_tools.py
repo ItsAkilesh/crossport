@@ -51,6 +51,14 @@ class ParseTestCase(unittest.TestCase):
                 for source in [*test.files.values(), *([test.stdin] if test.stdin else [])]:
                     self.assertTrue((app_dir / source).is_file(), f"{name}/{test.id}: missing {source}")
 
+    def test_the_program_path_is_replaced_by_the_app_name_in_output(self) -> None:
+        program = Path("/opt/app/lua.exe")
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "r.json"
+            path.write_text(json.dumps({"stdout": "ok", "stderr": f"{program}: boom"}), encoding="utf-8")
+            run_app_tests.anonymize_program(path, program, "lua")
+            self.assertEqual(json.loads(path.read_text(encoding="utf-8")), {"stdout": "ok", "stderr": "lua: boom"})
+
     def test_the_difftest_command_carries_every_option_before_the_separator(self) -> None:
         test = run_app_tests.AppTest("t", ("a", "--timeout", "9"), "inputs/in", {}, 7)
         command = run_app_tests.difftest_command(Path("dt"), Path("app"), test, Path("apps/x"), Path("sb"), Path("out.json"))

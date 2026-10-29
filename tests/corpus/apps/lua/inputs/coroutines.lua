@@ -9,7 +9,8 @@ end
 local total = 0
 for v in generator(10) do total = total + v end
 print("sum of squares", total)
-print(pcall(function() error({code = 42}) end))
+local raised, payload = pcall(function() error({code = 42}) end)
+print(raised, payload.code)
 print(select(2, pcall(function() error("plain", 0) end)))
 print(select(2, pcall(function() local x = nil; return x.field end)))
 local ok, err = pcall(string.rep, "x", -1)
