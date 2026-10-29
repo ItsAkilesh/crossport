@@ -7,11 +7,12 @@
  * Two hooks report a crash once. Translated code has no Windows unwind data, so the system cannot unwind through it
  * to find a handler, and it ends the process without running the unhandled-exception filter, whether the fault is
  * in the translated code or in a shim function it called. A vectored handler, which runs before any unwinding,
- * therefore reports faults whose address is inside a translated module or the shim (and only those, so exceptions
- * other libraries raise and handle internally are never reported). The unhandled-exception filter reports what
- * still reaches it. Both use plain Win32 calls only and write straight to
- * the standard error handle, because the process is in an unknown state. Offsets are relative to the module (a bundled DLL or the executable), which is what maps a
- * crash back to the translated code. The process still ends with the exception code as its exit status.
+ * therefore reports faults whose address is inside a translated module or the shim, and faults in any other module
+ * while translated code is on the stack (nothing can unwind past it, so such a fault is fatal). The
+ * unhandled-exception filter reports what still reaches it. Both use plain Win32 calls only and write straight to
+ * the standard error handle, because the process is in an unknown state. Offsets are relative to the module (a
+ * bundled DLL or the executable), which is what maps a crash back to the translated code. The process still ends
+ * with the exception code as its exit status.
  */
 
 #include <stdint.h>
@@ -161,22 +162,43 @@ static int is_fatal_code(DWORD code)
     return exception_name(code) != NULL;
 }
 
-/* True when the address is in a translated module or in the shim itself: the code whose faults nobody else reports. */
-static int is_in_our_code(uint64_t address)
+static HMODULE module_of(uint64_t address)
 {
     HMODULE module = NULL;
-    HMODULE shim = NULL;
     DWORD flags = GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT;
-    if (!GetModuleHandleExA(flags, (LPCSTR)(uintptr_t)address, &module)) {
-        return 0;
-    }
-    if (GetModuleHandleExA(flags, (LPCSTR)(uintptr_t)shim_crash_init, &shim) && module == shim) {
-        return 1;
-    }
+    return GetModuleHandleExA(flags, (LPCSTR)(uintptr_t)address, &module) ? module : NULL;
+}
+
+static int is_translated_module(HMODULE module)
+{
     size_t count = 0;
     const LoadedModule *modules = shim_loaded_modules(&count);
     for (size_t i = 0; i < count; i++) {
         if ((HMODULE)modules[i].base == module) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+/* True when the address is in a translated module or in the shim itself: the code whose faults nobody else reports. */
+static int is_in_our_code(uint64_t address)
+{
+    HMODULE module = module_of(address);
+    return module != NULL && (module == module_of((uint64_t)(uintptr_t)shim_crash_init) || is_translated_module(module));
+}
+
+/*
+ * True when translated code is on the stack. The system cannot unwind through its frames, so a fault in any
+ * module it called (GDI, say) ends the process without a report unless this handler gives one.
+ */
+static int has_translated_caller(uint64_t stack_pointer)
+{
+    const uint64_t *word = (const uint64_t *)(uintptr_t)stack_pointer;
+    const uint64_t *limit = readable_end(stack_pointer);
+    for (int scanned = 0; word < limit && scanned < TRAIL_SCAN_WORDS; scanned++, word++) {
+        HMODULE module = is_code_address(*word) ? module_of(*word) : NULL;
+        if (module != NULL && is_translated_module(module)) {
             return 1;
         }
     }
@@ -203,8 +225,11 @@ static LONG WINAPI report_crash(EXCEPTION_POINTERS *info)
 
 static LONG WINAPI trap_own_fault(EXCEPTION_POINTERS *info)
 {
-    if (is_fatal_code(info->ExceptionRecord->ExceptionCode) &&
-        is_in_our_code((uint64_t)(uintptr_t)info->ExceptionRecord->ExceptionAddress)) {
+    if (!is_fatal_code(info->ExceptionRecord->ExceptionCode)) {
+        return EXCEPTION_CONTINUE_SEARCH;
+    }
+    if (is_in_our_code((uint64_t)(uintptr_t)info->ExceptionRecord->ExceptionAddress) ||
+        has_translated_caller(info->ContextRecord->Rsp)) {
         report(info);
     }
     return EXCEPTION_CONTINUE_SEARCH;
