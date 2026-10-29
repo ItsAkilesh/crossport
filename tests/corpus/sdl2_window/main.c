@@ -71,6 +71,8 @@ int main(void)
     /* Unbuffered, so that what was printed before a hang survives the harness's timeout. */
     setvbuf(stdout, NULL, _IONBF, 0);
     SDL_SetHint("SDL_VIDEODRIVER", "x11");
+    /* Without this, SDL first tries to back the window surface with an accelerated renderer (OpenGL). */
+    SDL_SetHint("SDL_FRAMEBUFFER_ACCELERATION", "0");
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         printf("init failed: %s\n", SDL_GetError());
         return 1;
