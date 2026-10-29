@@ -238,6 +238,7 @@ mod tests {
                 "libgreet.so.1.dll".to_string(),
             ],
             tls: TlsInfo::default(),
+            eh_frame_hdr_rva: 0x2400,
         }
     }
 
@@ -265,6 +266,11 @@ mod tests {
         assert_eq!(u32_at(bytes, 40), 1, "executable bindings");
         assert_eq!(u32_at(bytes, 44), 1, "copies");
         assert_eq!(u32_at(bytes, 48), 2, "dependencies");
+        assert_eq!(
+            u32_at(bytes, INFO_HEADER_BYTES - 4),
+            0x2400,
+            "the .eh_frame_hdr address is the last header field"
+        );
         assert_eq!(u32_at(bytes, INFO_HEADER_BYTES), 0x4fe0);
         assert_eq!(
             i64::from_le_bytes(
