@@ -24,12 +24,6 @@
 #define MICROSECONDS_PER_MILLISECOND 1000
 
 typedef struct {
-    int fd;
-    int16_t events;
-    int16_t revents;
-} PollFd;
-
-typedef struct {
     int64_t seconds;
     int64_t nanoseconds;
 } TimeSpec;
@@ -95,9 +89,17 @@ static short socket_ready(int fd, short wanted)
     return ready;
 }
 
+static short timer_ready(int fd, short wanted)
+{
+    TimerState *state = (TimerState *)shim_fd_state(fd);
+    return (short)(WaitForSingleObject(state->timer, 0) == WAIT_OBJECT_0 ? (wanted & LINUX_POLLIN) : 0);
+}
+
 short shim_fd_ready(int fd, short wanted)
 {
     switch (shim_fd_kind(fd)) {
+    case FD_KIND_TIMER:
+        return timer_ready(fd, wanted);
     case FD_KIND_SOCKET:
         return socket_ready(fd, wanted);
     case FD_KIND_PIPE:
@@ -111,11 +113,12 @@ short shim_fd_ready(int fd, short wanted)
 
 HANDLE shim_fd_wait_handle(int fd)
 {
-    return shim_fd_kind(fd) == FD_KIND_EVENT ? shim_fd_handle(fd) : NULL;
+    FdKind kind = shim_fd_kind(fd);
+    return (kind == FD_KIND_EVENT || kind == FD_KIND_TIMER) ? shim_fd_handle(fd) : NULL;
 }
 
 /* Fills revents for every entry and returns how many are ready (an invalid descriptor counts, as LINUX_POLLNVAL). */
-static int scan(PollFd *fds, uint64_t count)
+static int scan(ShimPollFd *fds, uint64_t count)
 {
     int ready = 0;
     for (uint64_t i = 0; i < count; i++) {
@@ -133,7 +136,7 @@ static int scan(PollFd *fds, uint64_t count)
     return ready;
 }
 
-static DWORD collect_handles(const PollFd *fds, uint64_t count, HANDLE *handles, int *is_polled)
+static DWORD collect_handles(const ShimPollFd *fds, uint64_t count, HANDLE *handles, int *is_polled)
 {
     DWORD used = 0;
     *is_polled = 0;
@@ -148,7 +151,7 @@ static DWORD collect_handles(const PollFd *fds, uint64_t count, HANDLE *handles,
     return used;
 }
 
-static int64_t poll_loop(PollFd *fds, uint64_t count, int64_t timeout_ms)
+int64_t shim_poll(ShimPollFd *fds, uint64_t count, int64_t timeout_ms)
 {
     ULONGLONG start = GetTickCount64();
     for (;;) {
@@ -174,9 +177,9 @@ static int64_t poll_loop(PollFd *fds, uint64_t count, int64_t timeout_ms)
     }
 }
 
-LIBC_FN int sysv_poll(PollFd *fds, uint64_t count, int timeout_ms)
+LIBC_FN int sysv_poll(ShimPollFd *fds, uint64_t count, int timeout_ms)
 {
-    return (int)poll_loop(fds, count, timeout_ms);
+    return (int)shim_poll(fds, count, timeout_ms);
 }
 
 static int64_t milliseconds_of(const TimeSpec *timeout)
@@ -188,10 +191,10 @@ static int64_t milliseconds_of(const TimeSpec *timeout)
     return whole + (timeout->nanoseconds + NANOSECONDS_PER_MILLISECOND - 1) / NANOSECONDS_PER_MILLISECOND;
 }
 
-LIBC_FN int sysv_ppoll(PollFd *fds, uint64_t count, const TimeSpec *timeout, const void *mask)
+LIBC_FN int sysv_ppoll(ShimPollFd *fds, uint64_t count, const TimeSpec *timeout, const void *mask)
 {
     (void)mask;
-    return (int)poll_loop(fds, count, milliseconds_of(timeout));
+    return (int)shim_poll(fds, count, milliseconds_of(timeout));
 }
 
 static int bit_is_set(const FdSet *set, int fd)
@@ -207,7 +210,7 @@ static void set_bit(FdSet *set, int fd)
 /* select expressed as poll: one entry per descriptor named in any set, results written back to the sets. */
 static int select_in_poll(int limit, FdSet *reads, FdSet *writes, FdSet *errors, int64_t timeout_ms)
 {
-    PollFd fds[SELECT_FD_LIMIT];
+    ShimPollFd fds[SELECT_FD_LIMIT];
     int count = 0;
     if (limit < 0 || limit > SELECT_FD_LIMIT) {
         return shim_fail(LINUX_EINVAL);
@@ -215,10 +218,10 @@ static int select_in_poll(int limit, FdSet *reads, FdSet *writes, FdSet *errors,
     for (int fd = 0; fd < limit; fd++) {
         int16_t events = (int16_t)((bit_is_set(reads, fd) ? LINUX_POLLIN : 0) | (bit_is_set(writes, fd) ? LINUX_POLLOUT : 0));
         if (events != 0 || bit_is_set(errors, fd)) {
-            fds[count++] = (PollFd){.fd = fd, .events = events};
+            fds[count++] = (ShimPollFd){.fd = fd, .events = events};
         }
     }
-    int64_t ready = poll_loop(fds, (uint64_t)count, timeout_ms);
+    int64_t ready = shim_poll(fds, (uint64_t)count, timeout_ms);
     if (ready < 0) {
         return -1;
     }

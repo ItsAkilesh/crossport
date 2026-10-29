@@ -24,7 +24,7 @@ enum { LINUX_O_NONBLOCK = 0x800, LINUX_O_CLOEXEC = 0x80000 };
 enum { LINUX_SEEK_SET = 0, LINUX_SEEK_CUR = 1, LINUX_SEEK_END = 2 };
 
 /* What a descriptor is, which decides how it is read, written and waited on. */
-typedef enum { FD_KIND_FILE = 0, FD_KIND_PIPE = 1, FD_KIND_EVENT = 2, FD_KIND_SOCKET = 3 } FdKind;
+typedef enum { FD_KIND_FILE = 0, FD_KIND_PIPE = 1, FD_KIND_EVENT = 2, FD_KIND_SOCKET = 3, FD_KIND_EPOLL = 4, FD_KIND_TIMER = 5 } FdKind;
 
 /* An eventfd: a 64-bit counter and a Win32 event that is signalled while the counter is not zero. */
 typedef struct {
@@ -54,6 +54,28 @@ void *shim_fd_state(int fd);
 /* The status flags (access mode, O_NONBLOCK, O_APPEND) of a descriptor, or -1 for a bad one. */
 int shim_fd_flags(int fd);
 int shim_fd_set_nonblocking(int fd, int is_nonblocking);
+
+/* One descriptor handed to poll (struct pollfd). */
+typedef struct {
+    int fd;
+    int16_t events;
+    int16_t revents;
+} ShimPollFd;
+
+/* The poll engine behind poll, select and epoll: fills revents and returns how many are ready (or -1). */
+int64_t shim_poll(ShimPollFd *fds, uint64_t count, int64_t timeout_ms);
+
+/* A timerfd: a waitable timer that counts expirations. */
+typedef struct {
+    HANDLE timer;
+    int clock;
+    int64_t interval_100ns;
+    int64_t next_expiry_100ns; /* on the timer's own clock, 0 when disarmed */
+} TimerState;
+
+int64_t shim_timer_read(int fd, void *buffer, size_t count);
+int shim_timer_close(TimerState *state);
+int shim_epoll_close(void *state);
 
 /* A Winsock socket. The Win32 socket is always non-blocking; blocking is emulated by waiting for `event`. */
 typedef struct {

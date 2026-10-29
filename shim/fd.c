@@ -198,6 +198,12 @@ int shim_fd_close(int fd)
     if (entry.kind == FD_KIND_SOCKET) {
         return shim_socket_close((SocketState *)entry.state);
     }
+    if (entry.kind == FD_KIND_TIMER) {
+        return shim_timer_close((TimerState *)entry.state);
+    }
+    if (entry.kind == FD_KIND_EPOLL) {
+        return shim_epoll_close(entry.state);
+    }
     return (entry.is_standard || CloseHandle(entry.handle)) ? 0 : shim_fail_from_win();
 }
 
@@ -212,6 +218,9 @@ int64_t shim_fd_read(int fd, void *buffer, size_t count)
     }
     if (entry.kind == FD_KIND_SOCKET) {
         return shim_socket_read(fd, buffer, count);
+    }
+    if (entry.kind == FD_KIND_TIMER) {
+        return shim_timer_read(fd, buffer, count);
     }
     if (entry.kind == FD_KIND_PIPE && entry.is_nonblocking && (shim_fd_ready(fd, 1) & 1) == 0) {
         return shim_fail(LINUX_EAGAIN);
