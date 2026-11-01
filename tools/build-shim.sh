@@ -18,10 +18,11 @@ mkdir -p "$generated"
 py=python3
 "$py" --version >/dev/null 2>&1 || py=python
 "$py" "$root/tools/gen-vulkan-thunks.py" "$root/third_party/vulkan/vk.xml" "$generated/vulkan_thunks.c"
+"$py" "$root/tools/gen-gl-thunks.py" "$root/third_party/opengl/gl.xml" "$generated/gl_thunks.c"
 "$py" "$root/tools/gen-shim-def.py" "$out/crossport_libc.def" "$root/shim" "$generated"
 sources=$(find "$root/shim" "$generated" -name '*.c' | sort)
 # shellcheck disable=SC2086
 gcc -O2 -Wall -Wextra -Werror -fno-builtin -fno-tree-loop-distribute-patterns -shared -static-libgcc \
-  -I "$root/shim" -I "$root/shim/vulkan" -I "$root/shim/xcb" -I "$root/shim/xlib" \
+  -I "$root/shim" -I "$root/shim/vulkan" -I "$root/shim/xcb" -I "$root/shim/xlib" -I "$root/shim/gl" \
   -o "$out/crossport_libc.dll" $sources "$out/crossport_libc.def" -lbcrypt -lsynchronization -lshell32 -lws2_32 -lgdi32
 echo "$out/crossport_libc.dll"

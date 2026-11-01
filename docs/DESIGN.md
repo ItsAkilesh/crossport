@@ -233,6 +233,13 @@ Built before the translator, because agents and humans both need fast, objective
   Mesa versions can differ, so the sample prints only driver-independent output: colour probes in
   sixteenths and a hash of which pixels the triangle covers.
 
+- **Milestone 6 OpenGL backend (decided 2026-11-01):** WGL passthrough. The shim exports libGL, libGLX and
+  libEGL and forwards to `opengl32.dll` through WGL, with one thunk per command generated from a pinned
+  `gl.xml` (as the Vulkan layer is from `vk.xml`). There is no new runtime dependency. CI runners have no
+  GPU, so Windows CI uses a pinned, checksum-verified Mesa llvmpipe `opengl32.dll`, as Milestone 5 does
+  with lavapipe. ANGLE and Mesa Zink were considered and not chosen (a large pinned dependency to ship and
+  keep patched, and a second native API to build, respectively).
+
 ### 2.9 Milestone 5 implementation notes
 
 - **Entry points.** `libvulkan.so.1` is provided by the shim. `tools/gen-vulkan-thunks.py` reads the
