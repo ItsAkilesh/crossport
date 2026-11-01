@@ -2,12 +2,13 @@
 # File: tools/run-translated.sh
 # Purpose: Translate a Linux ELF corpus binary to a Windows bundle, run it and record its result
 # Author: Akilesh
-# Date: 2026-10-29
+# Date: 2026-11-01
 #
 # Usage: tools/run-translated.sh <case>
 #   <case> corpus case name; the ELF and its libraries are read from build/elf/<case>/
 # Output: results/<case>-windows.json
 # Extra translate flags: tests/corpus/<case>/translate-flags.txt, one flag per line (for example --stub-missing).
+# Cases that draw with OpenGL carry an empty tests/corpus/<case>/uses-opengl file.
 # Needs: cargo and a mingw-w64 gcc on a Windows host.
 
 set -euo pipefail
@@ -45,6 +46,13 @@ fi
 
 "$root/translator/target/release/crossport.exe" translate "$elf" \
   --shim "$shim_dir/crossport_libc.dll" --lib-dir "$elf_dir" --out "$bundle_dir" "${extra_flags[@]}"
+
+# A case marked uses-opengl gets the staged software OpenGL driver (tools/ci/install-opengl-windows.sh) beside
+# it, where the shim's LoadLibrary("opengl32.dll") finds it before the system's. Without the staging, the
+# machine's own driver is used.
+if [[ -f "$root/tests/corpus/$case_name/uses-opengl" && -d "$root/build/gl-runtime" ]]; then
+  cp "$root"/build/gl-runtime/* "$bundle_dir/"
+fi
 
 "$root/tools/difftest/target/release/difftest.exe" run \
   --out "$results_dir/$case_name-windows.json" -- "$bundle_dir/$case_name.exe"

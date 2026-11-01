@@ -29,6 +29,10 @@ pub const SHIM_PROVIDED_LIBRARIES: &[&str] = &[
     "libxcb.so.1",
     // Xlib is provided in process on top of the same Win32 windows.
     "libX11.so.6",
+    // OpenGL and GLX are provided on top of opengl32.dll (WGL) and the same Win32 windows.
+    "libGL.so.1",
+    "libGLX.so.0",
+    "libOpenGL.so.0",
     // The resolver and utility libraries are folded into the shim as well.
     "libresolv.so.2",
     "libutil.so.1",
@@ -369,5 +373,19 @@ mod tests {
             &MemorySource(Map::new()),
         );
         assert!(matches!(strict, Err(TranslateError::MissingLibrary { .. })));
+    }
+
+    #[test]
+    fn the_graphics_libraries_the_shim_implements_are_never_searched_for() {
+        for name in [
+            "libvulkan.so.1",
+            "libxcb.so.1",
+            "libX11.so.6",
+            "libGL.so.1",
+            "libGLX.so.0",
+            "libOpenGL.so.0",
+        ] {
+            assert!(SHIM_PROVIDED_LIBRARIES.contains(&name), "{name}");
+        }
     }
 }

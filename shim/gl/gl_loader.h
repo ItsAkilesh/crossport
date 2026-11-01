@@ -22,6 +22,9 @@ void *gl_real_function(const char *name);
 /* The real function behind the generated thunk with this index. */
 void *gl_resolve(size_t index);
 
+/* The hand-written SysV function for a command the generator skips, or NULL (gl_handwritten.c). */
+const void *gl_handwritten_thunk(const char *name);
+
 /* The shim's SysV thunk for a command name, or NULL for a name that is not an OpenGL command. */
 const void *gl_thunk_named(const char *name);
 

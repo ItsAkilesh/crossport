@@ -130,6 +130,16 @@ static void blit(HDC context, const XlDrawable *drawable)
                       drawable->pixels, &info, DIB_RGB_COLORS);
 }
 
+void xl_window_mark_gl_owned(XlId id)
+{
+    xl_lock();
+    XlDrawable *drawable = xl_drawable_find(id);
+    if (drawable != NULL) {
+        drawable->is_gl_owned = 1;
+    }
+    xl_unlock();
+}
+
 /* Returns 1 when the window belongs to Xlib (and so has been painted), 0 to let the caller paint it. */
 int xl_paint_window(HWND window)
 {
@@ -147,7 +157,9 @@ int xl_paint_window(HWND window)
     XlDrawable *drawable = xl_drawable_find(id);
     int needs_expose = drawable != NULL && drawable->needs_expose;
     if (drawable != NULL) {
-        blit(context, drawable);
+        if (!drawable->is_gl_owned) {
+            blit(context, drawable);
+        }
         drawable->needs_expose = 0;
     }
     xl_unlock();

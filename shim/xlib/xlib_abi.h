@@ -42,6 +42,20 @@ typedef struct {
     int32_t map_entries;
 } XlVisual;
 
+/* XVisualInfo, as XGetVisualInfo and the GLX visual functions return it. */
+typedef struct {
+    XlVisual *visual;
+    XlId visual_id;
+    int32_t screen;
+    int32_t depth;
+    int32_t visual_class;
+    uint64_t red_mask;
+    uint64_t green_mask;
+    uint64_t blue_mask;
+    int32_t colormap_size;
+    int32_t bits_per_rgb;
+} XlVisualInfo;
+
 typedef struct {
     int32_t depth;
     int32_t visual_count;
@@ -393,6 +407,7 @@ enum {
 
 _Static_assert(sizeof(XlScreenFormat) == 24, "ScreenFormat is 24 bytes");
 _Static_assert(sizeof(XlPixmapFormat) == 12, "XPixmapFormatValues is 12 bytes");
+_Static_assert(sizeof(XlVisualInfo) == 64, "XVisualInfo is 64 bytes");
 _Static_assert(sizeof(XlVisual) == 56, "Visual is 56 bytes");
 _Static_assert(sizeof(XlDepth) == 16, "Depth is 16 bytes");
 _Static_assert(sizeof(XlScreen) == 128, "Screen is 128 bytes");

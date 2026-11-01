@@ -34,7 +34,7 @@ permissions:
 
 env:
   NATIVE_CASES: hello
-  TRANSLATED_CASES: ${{ inputs.cases || 'hello_dyn two_libs tls_basic threads vulkan_triangle vulkan_window cxx_exceptions cxx_dynamic posix_io sockets process mmap_files event_loop libc_breadth xlib_draw sdl2_window' }}
+  TRANSLATED_CASES: ${{ inputs.cases || 'hello_dyn two_libs tls_basic threads vulkan_triangle vulkan_window cxx_exceptions cxx_dynamic posix_io sockets process mmap_files event_loop libc_breadth xlib_draw sdl2_window gl_window' }}
   ABORT_CASES: canary_smash
   CRASH_CASES: crash_null
   APPS: lua sqlite3 jq
@@ -91,10 +91,12 @@ jobs:
           key: cargo-${{ github.job }}-${{ runner.os }}-${{ hashFiles('tools/difftest/Cargo.lock', 'translator/Cargo.lock') }}
           restore-keys: cargo-${{ github.job }}-${{ runner.os }}-
       - name: Install the build tools, a Vulkan software driver, X11, SDL2 and SquashFS tools
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq glslang-tools libvulkan-dev mesa-vulkan-drivers libxcb1-dev libx11-dev libsdl2-dev xvfb squashfs-tools
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq glslang-tools libvulkan-dev mesa-vulkan-drivers libxcb1-dev libx11-dev libsdl2-dev libgl-dev libglx-dev libgl1-mesa-dri xvfb squashfs-tools
       - name: Check the xcb structure layouts against the real headers
         run: gcc -fsyntax-only -Wall -Wextra -Werror tests/shim/xcb_layout_check.c tests/shim/xlib_layout_check.c
       - name: Build and run corpus cases
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
         run: |
           xvfb-run -a bash -c 'for corpus_case in $NATIVE_CASES $TRANSLATED_CASES $ABORT_CASES $CRASH_CASES; do tools/run-case.sh "$corpus_case" linux; done'
       - name: Package the corpus apps and record their Linux results
@@ -206,7 +208,11 @@ jobs:
           path: build/elf
       - name: Install a Vulkan loader and a software driver
         run: tools/ci/install-vulkan-windows.sh
+      - name: Stage a software OpenGL driver
+        run: tools/ci/install-opengl-windows.sh
       - name: Translate the Linux ELF files and run them on Windows
+        env:
+          GALLIUM_DRIVER: llvmpipe
         run: |
           for corpus_case in $TRANSLATED_CASES $ABORT_CASES $CRASH_CASES; do
             tools/run-translated.sh "$corpus_case"

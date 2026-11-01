@@ -39,6 +39,7 @@ typedef struct XlDrawable {
     uint32_t background;
     int is_mapped;
     int needs_expose;
+    int is_gl_owned;
     int32_t reported_width;
     int32_t reported_height;
     struct XlDrawable *next;
@@ -61,6 +62,8 @@ void xl_drawable_resize(XlDrawable *drawable, int32_t width, int32_t height);
 /* Called by the window procedure (on the thread that owns the window) for WM_PAINT and WM_SIZE. */
 int xl_paint_window(HWND window);
 void xl_size_window(HWND window, int width, int height);
+/* OpenGL draws straight to a window once a context is bound to it; the software buffer is then never copied over it. */
+void xl_window_mark_gl_owned(XlId id);
 
 /* Draws into a drawable; each takes the lock itself. Coordinates are clipped to the drawable. */
 void xl_fill_rectangle(XlId drawable, const XlGc *gc, int32_t x, int32_t y, int32_t width, int32_t height);

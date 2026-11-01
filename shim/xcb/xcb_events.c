@@ -2,7 +2,7 @@
  * File: shim/xcb/xcb_events.c
  * Purpose: Turn Win32 window messages into X events and serve xcb_poll_for_event and xcb_wait_for_event
  * Author: Akilesh
- * Date: 2026-10-29
+ * Date: 2026-11-01
  *
  * The window procedure runs inside the program's own call to PeekMessage or GetMessage, on the thread that
  * created the window, and appends X events to a queue that the polling functions then drain.
@@ -275,7 +275,8 @@ static BOOL CALLBACK register_class(PINIT_ONCE once, PVOID parameter, PVOID *con
     (void)once;
     (void)parameter;
     (void)context;
-    WNDCLASSEXW window_class = {.cbSize = sizeof(window_class), .lpfnWndProc = window_procedure,
+    /* CS_OWNDC: a window keeps one device context, which OpenGL needs for its pixel format to stick. */
+    WNDCLASSEXW window_class = {.cbSize = sizeof(window_class), .style = CS_OWNDC, .lpfnWndProc = window_procedure,
                                 .hInstance = GetModuleHandleW(NULL), .hCursor = LoadCursorW(NULL, CURSOR_ARROW),
                                 .lpszClassName = XCB_WINDOW_CLASS};
     return RegisterClassExW(&window_class) != 0;

@@ -32,26 +32,12 @@ LIBC_FN int sysv_XUnmapWindow(XlDisplay *display, XlId window);
 LIBC_FN XlId sysv_XCreatePixmap(XlDisplay *display, XlId parent, unsigned width, unsigned height, unsigned depth);
 
 typedef struct {
-    XlVisual *visual;
-    XlId visual_id;
-    int32_t screen;
-    int32_t depth;
-    int32_t visual_class;
-    uint64_t red_mask;
-    uint64_t green_mask;
-    uint64_t blue_mask;
-    int32_t colormap_size;
-    int32_t bits_per_rgb;
-} XlVisualInfo;
-
-typedef struct {
     unsigned char *value;
     XlId encoding;
     int32_t format;
     uint64_t item_count;
 } XlTextProperty;
 
-_Static_assert(sizeof(XlVisualInfo) == 64, "XVisualInfo is 64 bytes");
 _Static_assert(sizeof(XlTextProperty) == 32, "XTextProperty is 32 bytes");
 
 LIBC_FN int sysv_XQueryExtension(XlDisplay *display, const char *name, int *opcode, int *first_event, int *first_error)

@@ -71,5 +71,5 @@ const void *gl_thunk_named(const char *name)
 {
     const char *const *found = (const char *const *)bsearch(name, g_gl_command_names, g_gl_command_count,
                                                              sizeof(g_gl_command_names[0]), compare_name);
-    return found != NULL ? g_gl_thunks[found - g_gl_command_names] : NULL;
+    return found != NULL ? g_gl_thunks[found - g_gl_command_names] : gl_handwritten_thunk(name);
 }
