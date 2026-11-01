@@ -5,6 +5,12 @@ being worked on. A feature commit that adds user-visible capability (a new flag,
 that runs) bumps the patch number; a fix does not. The version lives in `translator/Cargo.toml` and is
 bumped in the same commit as the change. Releases are tagged by the maintainer, not by automation.
 
+## 0.6.2
+
+- An unmodified Linux SDL2 program (X11 driver, window surface) opens a window, draws and exits on Windows,
+  and its output matches Linux pixel for pixel. This needed `XListPixmapFormats`, a correct
+  `XWithdrawWindow`, and the `sdl2_window` case translating with `--stub-missing`.
+
 ## 0.6.1
 
 - Crash reports: an unhandled exception in a translated program now prints its kind, the faulting module and

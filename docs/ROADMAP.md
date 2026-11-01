@@ -72,6 +72,11 @@ mappings, wide characters and locales, iconv, the rest of the everyday libc (usa
 KeePassXC 50% to 80%), `crossport convert`, the desktop-entry fallback for shell-script launchers, and a
 runtime directory for host libraries (libstdc++ and similar).
 
+Done so far in M6: the in-process Xlib (windows, events, keyboard, properties, drawing, images, a wakeable
+display descriptor), `--stub-missing`, crash reports with symbolized shim frames, and the SDL2
+window-surface sample matching Linux pixel for pixel. Still to do: OpenGL and EGL, fonts and text, XKB and
+XInput2 answers, the clipboard, arcs and polygons, and the GL sample.
+
 - **X11 in process:** an X server inside the shim behind libxcb and libX11. Drawing (pixmaps, graphics
   contexts, `PutImage`, `CopyArea`, `GetImage`) on a DIB per window, properties, input events, cursors,
   clipboard basics, and honest answers to extension queries. Xlib structures are mirrored by byte offset
