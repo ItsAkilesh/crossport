@@ -173,12 +173,24 @@ surface. SDL2 uses libraries the machine may not have (libasound and similar), s
 `--stub-missing`: a library or symbol that nobody provides is bound to a shim function that returns 0 and
 the translator lists what it stubbed. A stubbed symbol fails quietly, so a case that needs one must say so.
 
+OpenGL (`shim/gl/`) follows the WGL passthrough decision in section 6. `tools/gen-gl-thunks.py` reads the
+pinned `gl.xml` and emits one thunk per desktop command, which resolves its real entry point on first use
+(`opengl32.dll` exports GL 1.1; later commands come from `wglGetProcAddress`, which needs a current context,
+so a thunk with no target yet is retried on its next call). Commands that take or return function pointers
+(the debug-message callbacks) are written by hand and never call the program back. GLX is one framebuffer
+configuration and one visual, because a window gets one Win32 pixel format: double-buffered RGBA, 8 bits per
+channel, 24-bit depth, 8-bit stencil. GLX creates contexts without a drawable, so they are made on a hidden
+window with that format and bind to real windows later. A window an OpenGL context draws to is flagged so the
+software pixel buffer is never copied over it. `gl_window` matches Linux (Mesa under Xvfb) against Windows
+(Mesa llvmpipe's `opengl32.dll`, staged by `tools/ci/install-opengl-windows.sh`) frame for frame. EGL is not
+done yet.
+
 Crashes in translated code are reported by `shim/crash.c`: the exception kind, the faulting module and offset,
 and a rough call trail. Windows cannot unwind through translated frames (they have no unwind data), so a
 vectored handler does the reporting instead of the unhandled-exception filter. `tools/ci/symbolize.py` turns
 the shim offsets in a report into function names.
 
-Remaining for the milestone: OpenGL and EGL, fonts and text, XKB and XInput2 answers, and the clipboard.
+Remaining for the milestone: EGL, fonts and text, XKB and XInput2 answers, and the clipboard.
 
 ## 3. Shim ABI
 

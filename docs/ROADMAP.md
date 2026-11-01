@@ -74,8 +74,9 @@ runtime directory for host libraries (libstdc++ and similar).
 
 Done so far in M6: the in-process Xlib (windows, events, keyboard, properties, drawing, images, a wakeable
 display descriptor), `--stub-missing`, crash reports with symbolized shim frames, and the SDL2
-window-surface sample matching Linux pixel for pixel. Still to do: OpenGL and EGL, fonts and text, XKB and
-XInput2 answers, the clipboard, arcs and polygons, and the GL sample.
+window-surface sample matching Linux pixel for pixel, and OpenGL through GLX on WGL with a GL sample
+matching Linux. Still to do: EGL, fonts and text, XKB and XInput2 answers, the clipboard, and arcs and
+polygons.
 
 - **X11 in process:** an X server inside the shim behind libxcb and libX11. Drawing (pixmaps, graphics
   contexts, `PutImage`, `CopyArea`, `GetImage`) on a DIB per window, properties, input events, cursors,

@@ -5,6 +5,13 @@ being worked on. A feature commit that adds user-visible capability (a new flag,
 that runs) bumps the patch number; a fix does not. The version lives in `translator/Cargo.toml` and is
 bumped in the same commit as the change. Releases are tagged by the maintainer, not by automation.
 
+## 0.6.3
+
+- OpenGL on Windows: `libGL.so.1`, `libGLX.so.0` and `libOpenGL.so.0` are provided by the shim on top of
+  `opengl32.dll` (WGL). Every OpenGL command is forwarded by a thunk generated from the pinned registry, and
+  GLX provides visuals, framebuffer configurations, contexts (including OpenGL 3.0+ attributes), buffer swaps
+  and `glXGetProcAddress`. A GLX sample matches Linux output pixel for pixel.
+
 ## 0.6.2
 
 - An unmodified Linux SDL2 program (X11 driver, window surface) opens a window, draws and exits on Windows,
