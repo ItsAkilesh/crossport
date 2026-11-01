@@ -5,6 +5,13 @@ being worked on. A feature commit that adds user-visible capability (a new flag,
 that runs) bumps the patch number; a fix does not. The version lives in `translator/Cargo.toml` and is
 bumped in the same commit as the change. Releases are tagged by the maintainer, not by automation.
 
+## 0.6.4
+
+- EGL on Windows: `libEGL.so.1`, `libGLESv2.so.2` and `libGLESv1_CM.so.1` are provided by the shim on the same
+  WGL layer. It offers one display and configuration, window and pbuffer surfaces, OpenGL and OpenGL ES 2
+  contexts (through WGL's ES profile), surfaceless contexts and `eglGetProcAddress`. An EGL sample matches
+  Linux output.
+
 ## 0.6.3
 
 - OpenGL on Windows: `libGL.so.1`, `libGLX.so.0` and `libOpenGL.so.0` are provided by the shim on top of

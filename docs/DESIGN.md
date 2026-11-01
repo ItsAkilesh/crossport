@@ -182,15 +182,23 @@ configuration and one visual, because a window gets one Win32 pixel format: doub
 channel, 24-bit depth, 8-bit stencil. GLX creates contexts without a drawable, so they are made on a hidden
 window with that format and bind to real windows later. A window an OpenGL context draws to is flagged so the
 software pixel buffer is never copied over it. `gl_window` matches Linux (Mesa under Xvfb) against Windows
-(Mesa llvmpipe's `opengl32.dll`, staged by `tools/ci/install-opengl-windows.sh`) frame for frame. EGL is not
-done yet.
+(Mesa llvmpipe's `opengl32.dll`, staged by `tools/ci/install-opengl-windows.sh`) frame for frame.
+
+EGL (`egl_*.c`) is the same layer under a different API: one display and one configuration, window surfaces
+(an X window) and pbuffers (a hidden window of the requested size), and contexts made through the same
+bootstrap window. A program that binds the OpenGL ES API gets a context through WGL's ES profile
+(`WGL_EXT_create_context_es2_profile`), so a driver without it refuses with `EGL_BAD_MATCH`; OpenGL ES 1 is
+not offered. Choosing a configuration filters on what a program can ask for (sizes are minimums, and
+multisampling, pixmaps or ES 3 find nothing), so a program falls back as it would on a smaller driver. The
+error code is per thread, kept in a thread cell. `egl_window` matches Linux on a window surface, a pbuffer and
+an ES 2 context.
 
 Crashes in translated code are reported by `shim/crash.c`: the exception kind, the faulting module and offset,
 and a rough call trail. Windows cannot unwind through translated frames (they have no unwind data), so a
 vectored handler does the reporting instead of the unhandled-exception filter. `tools/ci/symbolize.py` turns
 the shim offsets in a report into function names.
 
-Remaining for the milestone: EGL, fonts and text, XKB and XInput2 answers, and the clipboard.
+Remaining for the milestone: fonts and text, XKB and XInput2 answers, and the clipboard.
 
 ## 3. Shim ABI
 

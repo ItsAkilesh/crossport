@@ -148,7 +148,8 @@ static void render_pbuffer(EGLDisplay display, EGLConfig config)
 static void try_opengl_es(EGLDisplay display)
 {
     EGLint context_attributes[] = {EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE};
-    printf("bind_es=%d api_is_es=%d\n", eglBindAPI(EGL_OPENGL_ES_API), eglQueryAPI() == EGL_OPENGL_ES_API);
+    EGLBoolean is_bound = eglBindAPI(EGL_OPENGL_ES_API);
+    printf("bind_es=%d api_is_es=%d\n", is_bound, eglQueryAPI() == EGL_OPENGL_ES_API);
     EGLConfig config = choose_config(display, EGL_OPENGL_ES2_BIT, "es2");
     EGLContext context = config != NULL ? eglCreateContext(display, config, EGL_NO_CONTEXT, context_attributes) : EGL_NO_CONTEXT;
     EGLint version = 0;
