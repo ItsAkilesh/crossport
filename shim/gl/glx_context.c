@@ -43,20 +43,8 @@ static int copy_attributes(int *out, const int *attributes)
 
 static HGLRC create_native(const GlxContext *context)
 {
-    const WglApi *api = gl_wgl();
-    HDC dc = api != NULL ? gl_bootstrap_dc() : NULL;
-    if (dc == NULL) {
-        return NULL;
-    }
     HGLRC share = context->share != NULL ? context->share->native : NULL;
-    if (context->has_attributes) {
-        return gl_wgl_create_with_attributes(dc, share, context->attributes);
-    }
-    HGLRC created = api->create_context(dc);
-    if (created != NULL && share != NULL) {
-        api->share_lists(share, created);
-    }
-    return created;
+    return gl_create_native_context(share, context->has_attributes ? context->attributes : NULL);
 }
 
 static int register_context(GlxContext *context)

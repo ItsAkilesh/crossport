@@ -26,4 +26,9 @@ const WglApi *gl_wgl(void);
  * `attributes` is the ARB list: pairs ending in 0. */
 HGLRC gl_wgl_create_with_attributes(HDC dc, HGLRC share, const int *attributes);
 
+/* A context made on the hidden bootstrap window (see gl_bootstrap_dc), so it needs no drawable. `attributes` is the
+ * ARB list (pairs ending in 0) choosing version, flags and profile; NULL makes a legacy context. `share` may be
+ * NULL. Returns NULL when the driver cannot make it. */
+HGLRC gl_create_native_context(HGLRC share, const int *attributes);
+
 #endif

@@ -10,6 +10,7 @@
  */
 
 #include "gl_wgl.h"
+#include "gl_window.h"
 
 typedef HGLRC(WINAPI *CreateContextAttribsFn)(HDC dc, HGLRC share, const int *attributes);
 
@@ -55,5 +56,22 @@ HGLRC gl_wgl_create_with_attributes(HDC dc, HGLRC share, const int *attributes)
     }
     api->make_current(previous_dc, previous);
     api->delete_context(temporary);
+    return created;
+}
+
+HGLRC gl_create_native_context(HGLRC share, const int *attributes)
+{
+    const WglApi *api = gl_wgl();
+    HDC dc = api != NULL ? gl_bootstrap_dc() : NULL;
+    if (dc == NULL) {
+        return NULL;
+    }
+    if (attributes != NULL && attributes[0] != 0) {
+        return gl_wgl_create_with_attributes(dc, share, attributes);
+    }
+    HGLRC created = api->create_context(dc);
+    if (created != NULL && share != NULL) {
+        api->share_lists(share, created);
+    }
     return created;
 }

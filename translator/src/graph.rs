@@ -33,6 +33,10 @@ pub const SHIM_PROVIDED_LIBRARIES: &[&str] = &[
     "libGL.so.1",
     "libGLX.so.0",
     "libOpenGL.so.0",
+    // EGL and the OpenGL ES libraries are provided on the same WGL layer.
+    "libEGL.so.1",
+    "libGLESv2.so.2",
+    "libGLESv1_CM.so.1",
     // The resolver and utility libraries are folded into the shim as well.
     "libresolv.so.2",
     "libutil.so.1",
@@ -384,6 +388,8 @@ mod tests {
             "libGL.so.1",
             "libGLX.so.0",
             "libOpenGL.so.0",
+            "libEGL.so.1",
+            "libGLESv2.so.2",
         ] {
             assert!(SHIM_PROVIDED_LIBRARIES.contains(&name), "{name}");
         }

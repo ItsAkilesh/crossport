@@ -15,6 +15,12 @@
  * the result is never released. Also marks the window as drawn by OpenGL, so the software buffer never covers it. */
 HDC gl_window_dc(uint64_t drawable);
 
+/* A hidden window of the given size with the OpenGL pixel format, for pbuffer surfaces; NULL on failure. Its device
+ * context is the window's own and stays valid until the window is destroyed. */
+HWND gl_offscreen_create(int width, int height);
+HDC gl_offscreen_dc(HWND window);
+void gl_offscreen_destroy(HWND window);
+
 /* The device context of a hidden window with the same pixel format, where contexts are created before any
  * drawable exists. NULL when no format is available. */
 HDC gl_bootstrap_dc(void);
