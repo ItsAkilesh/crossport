@@ -2,7 +2,7 @@
  * File: shim/xcb/xcb_window.c
  * Purpose: xcb window requests (create, map, destroy, configure, properties, geometry) backed by Win32 windows
  * Author: Akilesh
- * Date: 2026-10-29
+ * Date: 2026-11-01
  *
  * A window is created on the calling thread, and its messages arrive on that thread, so the program must
  * poll for events from the thread that created the window (the normal single-threaded X client).
@@ -47,6 +47,18 @@ HWND xcb_window_handle(XcbId id)
     HWND handle = slot != NULL ? slot->handle : NULL;
     ReleaseSRWLockShared(&g_window_lock);
     return handle;
+}
+
+void xcb_window_origin(HWND window, int *x, int *y)
+{
+    POINT origin = {0, 0};
+    HWND parent = GetParent(window);
+    ClientToScreen(window, &origin);
+    if (parent != NULL) {
+        ScreenToClient(parent, &origin);
+    }
+    *x = origin.x;
+    *y = origin.y;
 }
 
 XcbId xcb_window_id(HWND handle)
@@ -129,8 +141,9 @@ LIBC_FN XcbCookie sysv_xcb_create_window(void *connection, uint8_t depth, XcbId 
     } else {
         RECT frame = {0, 0, width, height};
         AdjustWindowRect(&frame, WINDOW_STYLE, FALSE);
-        int left = (x == 0 && y == 0) ? CW_USEDEFAULT : x;
-        int top = (x == 0 && y == 0) ? CW_USEDEFAULT : y;
+        /* X places a window by its client area, so the frame Windows adds goes outside (above and left of) x, y. */
+        int left = (x == 0 && y == 0) ? CW_USEDEFAULT : x + frame.left;
+        int top = (x == 0 && y == 0) ? CW_USEDEFAULT : y + frame.top;
         handle = CreateWindowExW(0, XCB_WINDOW_CLASS, L"", WINDOW_STYLE, left, top, frame.right - frame.left,
                                  frame.bottom - frame.top, NULL, NULL, GetModuleHandleW(NULL), NULL);
     }
@@ -205,8 +218,17 @@ LIBC_FN XcbCookie sysv_xcb_configure_window(void *connection, XcbId window, uint
     if (handle != NULL && GetWindowRect(handle, &outer) && GetClientRect(handle, &client)) {
         int frame_width = (outer.right - outer.left) - client.right;
         int frame_height = (outer.bottom - outer.top) - client.bottom;
-        int x = outer.left;
-        int y = outer.top;
+        int offset_x = 0;
+        int offset_y = 0;
+        int x = 0;
+        int y = 0;
+        xcb_window_origin(handle, &x, &y);
+        if (GetParent(handle) == NULL) {
+            POINT origin = {0, 0};
+            ClientToScreen(handle, &origin);
+            offset_x = origin.x - outer.left;
+            offset_y = origin.y - outer.top;
+        }
         int width = client.right;
         int height = client.bottom;
         size_t next = 0;
@@ -214,7 +236,8 @@ LIBC_FN XcbCookie sysv_xcb_configure_window(void *connection, XcbId window, uint
         y = (mask & CONFIGURE_Y) ? (int)values[next++] : y;
         width = (mask & CONFIGURE_WIDTH) ? (int)values[next++] : width;
         height = (mask & CONFIGURE_HEIGHT) ? (int)values[next++] : height;
-        SetWindowPos(handle, NULL, x, y, width + frame_width, height + frame_height, SWP_NOZORDER | SWP_NOACTIVATE);
+        SetWindowPos(handle, NULL, x - offset_x, y - offset_y, width + frame_width, height + frame_height,
+                     SWP_NOZORDER | SWP_NOACTIVATE);
     }
     return next_cookie();
 }
@@ -241,6 +264,11 @@ LIBC_FN XcbGeometryReply *sysv_xcb_get_geometry_reply(void *connection, XcbCooki
     *reply = (XcbGeometryReply){.response_type = 1, .depth = 24, .sequence = (uint16_t)xcb_next_sequence(),
                                 .root = xcb_roots()->screens[0].root};
     if (handle != NULL && GetClientRect(handle, &client)) {
+        int x = 0;
+        int y = 0;
+        xcb_window_origin(handle, &x, &y);
+        reply->x = (int16_t)x;
+        reply->y = (int16_t)y;
         reply->width = (uint16_t)client.right;
         reply->height = (uint16_t)client.bottom;
     }

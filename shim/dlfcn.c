@@ -23,7 +23,7 @@
 
 /* The libraries whose symbols the shim exports, by the names programs use. */
 static const char *const PROVIDED[] = {"libc.so.6", "libm.so.6", "libpthread.so.0", "libdl.so.2", "librt.so.1",
-                                       "libvulkan.so.1", "libvulkan.so", "libxcb.so.1", "libxcb.so", "libX11.so.6", "libX11.so",
+                                       "libvulkan.so.1", "libvulkan.so", "libxcb.so.1", "libxcb.so", "libX11.so.6", "libX11.so", "libXtst.so.6", "libXtst.so",
                                        "libGL.so.1", "libGL.so", "libGLX.so.0", "libOpenGL.so.0", "libEGL.so.1", "libEGL.so",
                                        "libGLESv2.so.2", "libGLESv2.so", "libGLESv1_CM.so.1",
                                        "ld-linux-x86-64.so.2"};

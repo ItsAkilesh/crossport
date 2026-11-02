@@ -2,7 +2,7 @@
  * File: shim/xcb/xcb_internal.h
  * Purpose: State and helpers shared by the xcb shim's source files: the connection, the window table and the event queue
  * Author: Akilesh
- * Date: 2026-10-29
+ * Date: 2026-11-01
  */
 
 #ifndef CROSSPORT_XCB_INTERNAL_H
@@ -43,6 +43,8 @@ XcbId xcb_atom_for(const char *name, size_t length);
 
 /* Window table: maps the ids programs generate to the Win32 windows behind them. */
 HWND xcb_window_handle(XcbId id);
+/* Where X sees a window: the origin of its client area, in the parent's coordinates (the screen for a top-level window). */
+void xcb_window_origin(HWND window, int *x, int *y);
 XcbId xcb_window_id(HWND handle);
 void xcb_window_forget(HWND handle);
 /* The atom the program registered as its WM_DELETE_WINDOW protocol on a window, or 0 when it did not. */
@@ -65,6 +67,8 @@ void xcb_events_set_hooks(XcbPaintHook paint, XcbSizeHook size);
 uint16_t xcb_input_state(void);
 /* Keyboard map: the X keycode for a Windows scan code, and the keysym of a keycode (column 0 plain, 1 shifted). */
 uint8_t xcb_keycode_from_scancode(uint8_t scancode, int is_extended);
+/* The inverse: the Windows scan code of an X keycode (and whether it is an extended key), or -1 for none. */
+int xcb_scancode_from_keycode(uint8_t keycode, int *is_extended);
 uint32_t xcb_keysym_for(uint8_t keycode, int column);
 /* Name of an atom, or NULL when the number is unknown. */
 const char *xcb_atom_name(XcbId atom);

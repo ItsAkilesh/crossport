@@ -181,10 +181,11 @@ LIBC_FN int sysv_XSetWindowBackground(XlDisplay *display, XlId window, uint64_t 
 LIBC_FN int sysv_XGetWindowAttributes(XlDisplay *display, XlId window, XlWindowAttributes *out)
 {
     XlDisplayData *data = xl_display_data(display);
-    RECT outer = {0};
+    int origin_x = 0;
+    int origin_y = 0;
     HWND handle = xcb_window_handle((XcbId)window);
     if (handle != NULL) {
-        GetWindowRect(handle, &outer);
+        xcb_window_origin(handle, &origin_x, &origin_y);
     }
     memset(out, 0, sizeof(*out));
     xl_lock();
@@ -199,8 +200,8 @@ LIBC_FN int sysv_XGetWindowAttributes(XlDisplay *display, XlId window, XlWindowA
         out->your_event_mask = drawable->event_mask;
     }
     xl_unlock();
-    out->x = outer.left;
-    out->y = outer.top;
+    out->x = origin_x;
+    out->y = origin_y;
     out->visual = &data->visual;
     out->root = data->screen.root;
     out->window_class = INPUT_OUTPUT;

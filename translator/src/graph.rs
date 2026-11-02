@@ -29,6 +29,8 @@ pub const SHIM_PROVIDED_LIBRARIES: &[&str] = &[
     "libxcb.so.1",
     // Xlib is provided in process on top of the same Win32 windows.
     "libX11.so.6",
+    // XTest, which drives the in-process display's keyboard and pointer, is provided with it.
+    "libXtst.so.6",
     // OpenGL and GLX are provided on top of opengl32.dll (WGL) and the same Win32 windows.
     "libGL.so.1",
     "libGLX.so.0",
@@ -385,6 +387,7 @@ mod tests {
             "libvulkan.so.1",
             "libxcb.so.1",
             "libX11.so.6",
+            "libXtst.so.6",
             "libGL.so.1",
             "libGLX.so.0",
             "libOpenGL.so.0",

@@ -15,6 +15,10 @@
 
 #define QUEUE_CAPACITY 256
 #define EVENT_WORDS 8
+#define SCANCODE_SHIFT_LEFT 0x2A
+#define SCANCODE_SHIFT_RIGHT 0x36
+#define SCANCODE_CONTROL 0x1D
+#define SCANCODE_ALT 0x38
 #define SCANCODE_SHIFT 16
 #define SCANCODE_MASK 0xff
 #define EXTENDED_SHIFT 24
@@ -108,19 +112,57 @@ uint16_t xcb_input_state(void)
     return input_state();
 }
 
-static void push_input(HWND window, uint8_t type, uint8_t detail, int x, int y)
+static void push_input_with_state(HWND window, uint8_t type, uint8_t detail, int x, int y, uint16_t state)
 {
+    POINT root = {x, y};
+    ClientToScreen(window, &root);
     XcbInputEvent input = {.response_type = type, .detail = detail, .time = GetTickCount(),
                            .root = xcb_roots()->screens[0].root, .event = xcb_window_id(window),
-                           .event_x = (int16_t)x, .event_y = (int16_t)y, .state = input_state(), .same_screen = 1};
+                           .root_x = (int16_t)root.x, .root_y = (int16_t)root.y,
+                           .event_x = (int16_t)x, .event_y = (int16_t)y, .state = state, .same_screen = 1};
     push_raw(&input, sizeof(input));
+}
+
+static void push_input(HWND window, uint8_t type, uint8_t detail, int x, int y)
+{
+    push_input_with_state(window, type, detail, x, y, input_state());
+}
+
+/*
+ * X reports the modifier and button state from before the event; Windows has already applied it when the message
+ * arrives. This undoes the change for the key or button that caused the event: its bit is cleared for a press and
+ * set for a release.
+ */
+static uint16_t state_before(uint16_t state, uint16_t bit, int is_press, int is_held_elsewhere)
+{
+    if (is_press) {
+        return (uint16_t)((state & ~bit) | (is_held_elsewhere ? bit : 0));
+    }
+    return (uint16_t)(state | bit);
 }
 
 static void push_key(HWND window, LPARAM parameter, uint8_t type)
 {
     uint8_t scancode = (uint8_t)((parameter >> SCANCODE_SHIFT) & SCANCODE_MASK);
     int is_extended = ((parameter >> EXTENDED_SHIFT) & 1) != 0;
-    push_input(window, type, xcb_keycode_from_scancode(scancode, is_extended), 0, 0);
+    uint16_t state = input_state();
+    switch (scancode) {
+    case SCANCODE_SHIFT_LEFT:
+    case SCANCODE_SHIFT_RIGHT:
+        state = state_before(state, STATE_SHIFT, type == XCB_EVENT_KEY_PRESS,
+                             is_down(scancode == SCANCODE_SHIFT_LEFT ? VK_RSHIFT : VK_LSHIFT));
+        break;
+    case SCANCODE_CONTROL:
+        state = state_before(state, STATE_CONTROL, type == XCB_EVENT_KEY_PRESS,
+                             is_down(is_extended ? VK_LCONTROL : VK_RCONTROL));
+        break;
+    case SCANCODE_ALT:
+        state = state_before(state, STATE_ALT, type == XCB_EVENT_KEY_PRESS, is_down(is_extended ? VK_LMENU : VK_RMENU));
+        break;
+    default:
+        break;
+    }
+    push_input_with_state(window, type, xcb_keycode_from_scancode(scancode, is_extended), 0, 0, state);
 }
 
 static void push_focus(HWND window, uint8_t type)
@@ -131,8 +173,11 @@ static void push_focus(HWND window, uint8_t type)
 
 static void push_crossing(HWND window, uint8_t type, int x, int y)
 {
+    POINT root = {x, y};
+    ClientToScreen(window, &root);
     XcbCrossingEvent crossing = {.response_type = type, .detail = FOCUS_NONLINEAR, .time = GetTickCount(),
                                  .root = xcb_roots()->screens[0].root, .event = xcb_window_id(window),
+                                 .root_x = (int16_t)root.x, .root_y = (int16_t)root.y,
                                  .event_x = (int16_t)x, .event_y = (int16_t)y, .state = input_state(),
                                  .same_screen_focus = 1};
     push_raw(&crossing, sizeof(crossing));
@@ -141,7 +186,12 @@ static void push_crossing(HWND window, uint8_t type, int x, int y)
 
 static void push_button(HWND window, LPARAM parameter, uint8_t type, uint8_t button)
 {
-    push_input(window, type, button, GET_X_LPARAM(parameter), GET_Y_LPARAM(parameter));
+    uint16_t state = input_state();
+    uint16_t bit = button == BUTTON_LEFT ? STATE_BUTTON1 : button == BUTTON_MIDDLE ? STATE_BUTTON2 : button == BUTTON_RIGHT ? STATE_BUTTON3 : 0;
+    if (bit != 0) {
+        state = state_before(state, bit, type == XCB_EVENT_BUTTON_PRESS, 0);
+    }
+    push_input_with_state(window, type, button, GET_X_LPARAM(parameter), GET_Y_LPARAM(parameter), state);
 }
 
 static HWND g_tracked_window;
@@ -181,7 +231,11 @@ static void push_configure(HWND window)
     RECT client;
     GetClientRect(window, &client);
     XcbId id = xcb_window_id(window);
+    int x = 0;
+    int y = 0;
+    xcb_window_origin(window, &x, &y);
     XcbConfigureEvent configure = {.response_type = XCB_EVENT_CONFIGURE_NOTIFY, .event = id, .window = id,
+                                   .x = (int16_t)x, .y = (int16_t)y,
                                    .width = (uint16_t)client.right, .height = (uint16_t)client.bottom};
     push_raw(&configure, sizeof(configure));
 }

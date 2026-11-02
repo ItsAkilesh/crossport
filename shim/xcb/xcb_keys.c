@@ -38,6 +38,18 @@ uint8_t xcb_keycode_from_scancode(uint8_t scancode, int is_extended)
     return (uint8_t)(scancode + KEYCODE_OFFSET);
 }
 
+int xcb_scancode_from_keycode(uint8_t keycode, int *is_extended)
+{
+    for (size_t i = 0; i < sizeof(EXTENDED_KEYS) / sizeof(EXTENDED_KEYS[0]); i++) {
+        if ((uint8_t)(EXTENDED_KEYS[i].evdev + KEYCODE_OFFSET) == keycode) {
+            *is_extended = 1;
+            return EXTENDED_KEYS[i].scancode;
+        }
+    }
+    *is_extended = 0;
+    return keycode >= KEYCODE_OFFSET ? keycode - KEYCODE_OFFSET : -1;
+}
+
 /* Keysyms by evdev code: { unshifted, shifted }. Zero means no symbol. */
 static const uint32_t SYMBOLS[KEY_COUNT][2] = {
     [1] = {0xff1b, 0xff1b},
