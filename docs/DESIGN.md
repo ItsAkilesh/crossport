@@ -282,6 +282,20 @@ Built before the translator, because agents and humans both need fast, objective
   announced that Rosetta will be reduced. An app that wants both platforms publishes an x86-64 AppImage and an
   aarch64 AppImage. The shim is therefore a portable core plus one backend per target.
 
+- **Host libraries (decided 2026-11-04):** the runtime pack is built from pinned, checksum-verified Ubuntu
+  packages (the newest libstdc++ and libgcc_s, because an AppImage built with a newer GCC needs the newer
+  symbols, and the oldest LTS for the rest), fetched by a script like `tools/ci/install-vulkan-windows.sh`.
+  Libraries inside the AppImage always win over the pack, and anything that touches the operating system is
+  implemented by the shim. Crossport does not host binaries. A library nobody supplies is bound to
+  `--stub-missing`.
+- **Red zone (decided 2026-11-04):** translated code runs only on threads that never enter an alertable wait,
+  and window messages and I/O completions are delivered on separate shim threads, so Windows never dispatches
+  an APC onto a thread that is using the 128 bytes below `rsp`. Exceptions are the exception: the vectored crash
+  handler only reports and never resumes translated code.
+- **Core X fonts (decided 2026-11-04):** `XLoadQueryFont` and the other server-side font calls are not
+  implemented and fail cleanly. Toolkits draw text with freetype and fontconfig from the runtime pack, which
+  is what Milestone 6 and 7 programs use. Revisit if a real program needs core fonts.
+
 ### 2.9 Milestone 5 implementation notes
 
 - **Entry points.** `libvulkan.so.1` is provided by the shim. `tools/gen-vulkan-thunks.py` reads the
@@ -301,20 +315,4 @@ Built before the translator, because agents and humans both need fast, objective
 
 ### Open
 
-- **Host libraries (needed for Milestone 6).** Two ways to supply a library an AppImage expects from its
-  host. (a) The shim implements it (libc, libvulkan, libxcb and libresolv are done; libX11 and libGL are
-  the Windows graphics glue and must be native anyway). (b) A runtime pack: Linux copies of portable
-  libraries (libstdc++, libgcc_s, zlib, freetype, harfbuzz, fontconfig, glib, openssl, ...) that the
-  translator translates like any bundled library. Mechanism (b) works today: `--runtime <dir>` adds
-  directories searched after the AppDir, and a runtime pack of 30 Ubuntu 22.04 libraries plus the
-  libstdc++ and libgcc_s from 22.04 and 24.04 translated and covered by the shim. What is not decided is
-  where the pack comes from: the recommendation is pinned, checksum-verified Ubuntu packages (the newest
-  libstdc++ and libgcc_s, because an AppImage built with a newer GCC needs the newer symbols, and the
-  oldest LTS for the rest), fetched by a script like `tools/ci/install-vulkan-windows.sh`, with (a) for
-  anything that touches the operating system. Needs a decision before Qt and GTK work continues.
-- **Red zone.** SysV code uses the 128 bytes below `rsp`, which Windows can overwrite when it dispatches an
-  exception or a user-mode APC on the thread. The corpus is built with `-mno-red-zone`, but real
-  AppImages are not, and Milestone 4 did not need an answer because the corpus programs run no APCs. A
-  design answer is still needed before graphical applications, which receive window messages and I/O
-  completions on their threads: the likely one is to run translated code only on threads that never
-  enter an alertable wait, and to deliver everything else on separate shim threads.
+Nothing is open at the moment.
