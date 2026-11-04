@@ -16,6 +16,7 @@
 
 #define XTEST_MAJOR 2
 #define XTEST_MINOR 2
+#define POINTER_SETTLE_ROUNDS 3
 #define BUTTON_LEFT 1
 #define BUTTON_MIDDLE 2
 #define BUTTON_RIGHT 3
@@ -58,6 +59,19 @@ static void delay_for(unsigned long milliseconds)
 {
     if (milliseconds > 0) {
         Sleep((DWORD)milliseconds);
+    }
+}
+
+/*
+ * Windows delivers a pointer move as a low-priority message, after any queued key and button input, while an X
+ * server handles XTest requests strictly in order. Dispatching the program's messages here, as the move is made,
+ * lets the window see the move before the next injected event.
+ */
+static void let_window_see_pointer(void)
+{
+    for (int round = 0; round < POINTER_SETTLE_ROUNDS; round++) {
+        xcb_events_pump();
+        Sleep(1);
     }
 }
 
@@ -107,6 +121,7 @@ LIBC_FN int sysv_XTestFakeMotionEvent(XlDisplay *display, int screen, int x, int
     BOOL is_moved = SetCursorPos(x, y);
     /* A zero move makes Windows post the window its WM_MOUSEMOVE for the new position. */
     send_mouse(MOUSEEVENTF_MOVE, 0);
+    let_window_see_pointer();
     return is_moved;
 }
 
