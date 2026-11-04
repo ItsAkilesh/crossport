@@ -241,6 +241,37 @@
           "done": false
         }
       ]
+    },
+    {
+      "id": "M10",
+      "title": "macOS on Apple silicon",
+      "status": "planned",
+      "tasks": [
+        {
+          "title": "Choose the input architecture (aarch64 or Rosetta 2)",
+          "done": false
+        },
+        {
+          "title": "Portable shim core and platform backends",
+          "done": false
+        },
+        {
+          "title": "aarch64 ELF to arm64 Mach-O translator",
+          "done": false
+        },
+        {
+          "title": "AppKit, MoltenVK and CGL graphics",
+          "done": false
+        },
+        {
+          "title": "Signed .app bundles",
+          "done": false
+        },
+        {
+          "title": "Corpus matches Linux aarch64 on macOS CI",
+          "done": false
+        }
+      ]
     }
   ]
 }

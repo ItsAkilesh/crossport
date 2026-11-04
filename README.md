@@ -28,17 +28,17 @@
 [![CI](https://github.com/ItsAkilesh/crossport/actions/workflows/ci.yml/badge.svg)](https://github.com/ItsAkilesh/crossport/actions/workflows/ci.yml)
 [![Rust](https://img.shields.io/badge/tooling-rust-000000?logo=rust&logoColor=white)](https://www.rust-lang.org)
 [![Platforms](https://img.shields.io/badge/targets-linux%20%E2%86%92%20windows-0E7490)](#the-idea)
-[![Milestones](https://img.shields.io/badge/milestones-5%20of%2010-1A7F37)](#what-you-get)
+[![Milestones](https://img.shields.io/badge/milestones-5%20of%2011-1A7F37)](#what-you-get)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 <p align="center">
-  <img src="docs/progress.svg" alt="Crossport progress: 5 of 10 milestones done" width="880">
+  <img src="docs/progress.svg" alt="Crossport progress: 5 of 11 milestones done" width="880">
 </p>
 
 <sub>Progress is generated from [docs/progress.json](docs/progress.json) by `python tools/gen_progress.py`.
 Each cell is one roadmap task; the full list is in [docs/ROADMAP.md](docs/ROADMAP.md).
 Milestones differ greatly in size; the graphics and toolkit milestones are the largest. See
-"Beyond Milestone 9" in the roadmap.</sub>
+"Beyond Milestone 10" in the roadmap.</sub>
 
 Crossport takes an existing Linux AppImage and turns it into a native Windows application by
 translating the executable format and the operating system interface, not the machine code. The app
@@ -112,6 +112,8 @@ lives in [docs/ROADMAP.md](docs/ROADMAP.md).
 - [ ] **Milestone 7:** real Qt and GTK applications
 - [ ] **Milestone 8:** everyday use (installer, file associations, signing)
 - [ ] **Milestone 9:** hardening and breadth (performance, security, a 50-app corpus)
+- [ ] **Milestone 10:** macOS on Apple silicon (planned; starts by choosing between translating aarch64
+  AppImages natively and running x86-64 ones under Rosetta 2)
 
 ## Contents
 
@@ -139,7 +141,8 @@ starting with command-line tools, then Vulkan and GUI applications.
   includes Electron apps themselves. Crossport is not a way to run Electron apps elsewhere; it is a
   way to make Electron unnecessary for portability.
 - Non-x86-64 targets such as Windows on ARM.
-- macOS, which is a later phase once the Windows path is proven.
+- macOS on Apple silicon is planned as Milestone 10, once the Windows path is proven. Apple silicon is
+  ARM64, so it needs its own approach; see the roadmap.
 
 ## Status
 

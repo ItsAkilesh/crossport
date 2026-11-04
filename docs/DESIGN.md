@@ -297,6 +297,15 @@ Built before the translator, because agents and humans both need fast, objective
   libstdc++ and libgcc_s, because an AppImage built with a newer GCC needs the newer symbols, and the
   oldest LTS for the rest), fetched by a script like `tools/ci/install-vulkan-windows.sh`, with (a) for
   anything that touches the operating system. Needs a decision before Qt and GTK work continues.
+- **macOS on Apple silicon (needed for Milestone 10).** Apple silicon runs ARM64, not x86-64, so the
+  premise of the Windows work (both sides run the same machine code) does not hold. Two ways: (a) translate
+  aarch64 AppImages (aarch64 ELF to arm64 Mach-O) with no emulation, which keeps the project's principle
+  but needs a new front end, new rewrites (TLS, system calls, the Apple variadic and `long double` ABI
+  differences) and a Mach-O writer with code signing, and only covers AppImages built for aarch64; (b)
+  translate x86-64 AppImages to x86-64 Mach-O and let Rosetta 2 run them, which reuses most of the
+  translator and covers every x86-64 AppImage, but the runtime translation is Apple's, it costs speed, and
+  Apple has announced that Rosetta will be reduced in later releases. Recommendation: (a). Needs a decision
+  before any Milestone 10 work starts.
 - **Red zone.** SysV code uses the 128 bytes below `rsp`, which Windows can overwrite when it dispatches an
   exception or a user-mode APC on the thread. The corpus is built with `-mno-red-zone`, but real
   AppImages are not, and Milestone 4 did not need an answer because the corpus programs run no APCs. A

@@ -2,7 +2,7 @@
   File: docs/ROADMAP.md
   Purpose: Milestones and exit criteria for Crossport
   Author: Akilesh
-  Date: 2026-10-29
+  Date: 2026-11-04
 -->
 
 # Crossport Roadmap
@@ -123,12 +123,57 @@ matching Linux. Still to do: fonts and text, XKB and XInput2 answers, the clipbo
 - **Exit criterion:** the pass-rate ratchet covers 50 or more AppImages, a fuzzing run of 24 hours finds
   no crash in the translator, and the performance report is published.
 
-## Beyond Milestone 9
+## Milestone 10: macOS on Apple silicon
+
+Everything above works because both sides run x86-64: the machine code is kept and only the file format and the
+operating system interface are translated. Apple silicon is ARM64, which does not run x86-64 code natively, so
+this milestone starts with a choice that changes most of what follows (docs/DESIGN.md section 6).
+
+- **Input architecture (a decision first):**
+  - **(a) Translate aarch64 AppImages natively.** An ELF for aarch64 becomes a Mach-O for arm64, with no
+    emulation, which keeps the project's principle. Only AppImages built for aarch64 qualify (a smaller set
+    than x86-64 today, and growing). It needs a new front end and new rewrites, listed below.
+  - **(b) Translate x86-64 AppImages to x86-64 Mach-O and run them under Rosetta 2.** Most of the translator
+    and the x86-64 rewrites carry over and every existing x86-64 AppImage qualifies, but the runtime
+    translation is Apple's, not Crossport's, it costs speed, and Apple has announced that Rosetta will be
+    reduced in later macOS releases (check its current status before relying on it).
+  - Recommendation: (a). It is the same idea as the Windows work, and it does not depend on a component that
+    Apple is winding down. Nothing below is started until the choice is made.
+- **Split the shim into a portable core and a platform backend.** The libc semantics, the in-process X11
+  logic (windows, events, keyboard map, properties, selections, drawing buffers) and the OpenGL and EGL
+  state are written once; Win32 (`shim/` today) becomes one backend and macOS (Darwin libc, AppKit, Metal)
+  the other. This is the largest refactor of the milestone, and Windows CI must stay green throughout.
+- **Darwin libc backend.** macOS is POSIX, so `fork`, signals, `mmap` and pthreads exist natively and much of
+  what the Windows shim emulates is a thin translation here: struct layouts (`stat`, `dirent`), flag and
+  errno numbers, and Linux-only calls (`epoll`, `eventfd`, `timerfd`, `/proc`) built on `kqueue` and
+  friends.
+- **Translator front end: aarch64 ELF.** Relocation types (`R_AARCH64_*`), TLS models, IFUNC, and the
+  ELF-versus-Apple differences in calling convention: variadic arguments (registers on Linux, the stack on
+  Apple), `long double` (128-bit on Linux, 64-bit on Apple), and the reserved `x18` register.
+- **Translator back end: Mach-O arm64.** Segment layout on 16 KiB pages, `LC_MAIN`, chained fixups, bindings
+  to the shim dylib, `@rpath` and `@loader_path`, and a code signature: arm64 binaries must be signed to run,
+  ad hoc for local use and Developer ID with notarization for anything shared.
+- **Instruction rewrites for aarch64.** Stack-protector canary and thread-local reads (`mrs ... tpidr_el0`
+  sequences), and `svc #0` system calls, which become shim calls (Apple does not support direct system
+  calls).
+- **Graphics.** The in-process X11 draws into AppKit windows and turns AppKit events into X events. Vulkan
+  is forwarded to MoltenVK. OpenGL and EGL go through CGL (OpenGL 4.1 at most, and deprecated by Apple) or a
+  layer such as ANGLE on Metal. A Metal-first path is the longer-term answer.
+- **Packaging.** Emit a signed `.app` bundle from `crossport convert`, with the Info.plist, icon, and the
+  entitlements the app needs (and none it does not).
+- **CI and differential testing.** Linux aarch64 and macOS arm64 runners are both available on GitHub, so the
+  existing method carries over: run the original on Linux aarch64 and the translation on macOS and compare.
+  The corpus (Lua, SQLite, jq, then the graphics samples) needs aarch64 builds.
+- **Exit criterion:** the command-line corpus (Lua, SQLite and jq as aarch64 AppImages) matches Linux
+  aarch64 output byte for byte on a macOS arm64 runner, an SDL2 sample draws a window and receives input, and
+  a Vulkan sample renders through MoltenVK, with the pass-rate ratchet enforcing all of it in CI.
+
+## Beyond Milestone 10
 
 The milestones are not equal in size (the graphics and toolkit work alone were estimated at 6 to 18+
-months), so the progress graphic counts milestones, not effort. After M9:
+months), so the progress graphic counts milestones, not effort. After M10:
 
-- **Other targets:** macOS and Windows on ARM.
+- **Other targets:** Windows on ARM, and Intel Macs if there is demand.
 - **Things deliberately out of scope until proven necessary:** applications that generate code at run
   time (Electron, the JVM, LuaJIT), `fork` and full signal semantics, static and non-PIE binaries.
 - **Upkeep:** glibc, toolkit and AppImage-format changes keep moving, so the corpus and CI have to keep
