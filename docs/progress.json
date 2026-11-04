@@ -149,18 +149,26 @@
         },
         {
           "title": "X11 in process (drawing, properties, input)",
-          "done": false
+          "done": true
         },
         {
           "title": "OpenGL and EGL",
-          "done": false
+          "done": true
+        },
+        {
+          "title": "SDL2 and GL samples run",
+          "done": true
         },
         {
           "title": "Fonts, XKB and XInput2 answers",
           "done": false
         },
         {
-          "title": "SDL2 and GL samples run",
+          "title": "Clipboard and selections",
+          "done": false
+        },
+        {
+          "title": "A real SDL2 AppImage runs",
           "done": false
         }
       ]

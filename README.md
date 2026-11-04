@@ -1,8 +1,8 @@
 <!--
   File: README.md
-  Purpose: The single guide to Crossport: why it exists, how it works, what is built and how to run the harness.
+  Purpose: The single guide to Crossport: why it exists, how it works, what is built, how to install and use it, and how to run the harness.
   Author: Akilesh
-  Date: 2026-10-28
+  Date: 2026-11-04
 -->
 
 <h1 align="center">
@@ -22,7 +22,8 @@
 > once, run it natively on every desktop, and keep the browser for browsing.
 >
 > <sub>Crossport is a working name and the project is at an early stage. It translates real command-line
-> AppImages and Vulkan programs; graphical toolkit applications are the next step. See the status below.</sub>
+> AppImages and runs SDL2, Vulkan, OpenGL and EGL programs; Qt and GTK applications are the next step.
+> There is no installer yet: see [Use Crossport on Windows](#use-crossport-on-windows) to build and use it.</sub>
 
 [![CI](https://github.com/ItsAkilesh/crossport/actions/workflows/ci.yml/badge.svg)](https://github.com/ItsAkilesh/crossport/actions/workflows/ci.yml)
 [![Rust](https://img.shields.io/badge/tooling-rust-000000?logo=rust&logoColor=white)](https://www.rust-lang.org)
@@ -119,6 +120,7 @@ lives in [docs/ROADMAP.md](docs/ROADMAP.md).
 - [How it works](#how-it-works)
 - [Scope](#scope)
 - [Status](#status)
+- [Use Crossport on Windows](#use-crossport-on-windows)
 - [Run the test harness](#run-the-test-harness)
 - [Repository layout](#repository-layout)
 - [Technologies used](#technologies-used)
@@ -141,17 +143,158 @@ starting with command-line tools, then Vulkan and GUI applications.
 
 ## Status
 
-Early. Milestones 0 to 5 are done. Real AppImages of Lua, SQLite and jq are unpacked, translated and
-match their Linux output byte for byte on all 45 test invocations, and Vulkan programs render and present
-through the Windows Vulkan loader (an offscreen triangle and an xcb window). Around them the shim now
-provides most of what everyday programs use: C++ exceptions, pipes, sockets, epoll, timers, child
-processes, file mappings, locales and iconv. `crossport convert` turns an AppImage into a runnable bundle
-in one step. The next milestone is the graphics core (an in-process X11, then OpenGL and EGL), followed by real Qt
-and GTK applications, an installer, and hardening; see docs/ROADMAP.md.
+Early. Milestones 0 to 5 are done and Milestone 6 (the graphics core) is under way. Real AppImages of Lua,
+SQLite and jq are unpacked, translated and match their Linux output byte for byte on all 45 test
+invocations. Vulkan programs render and present through the Windows Vulkan loader. An unmodified Linux SDL2
+(X11 driver) opens a window, draws and receives keyboard, text, pointer and wheel events, and OpenGL
+(through GLX) and EGL programs, including an OpenGL ES 2 context, render the same pixels as on Linux. All of
+that runs on an in-process X11 (Xlib and xcb on Win32 windows) with no X server. `crossport convert` turns an
+AppImage into a runnable bundle in one step. What is not done: fonts and text drawing, the clipboard, XKB,
+and real Qt and GTK applications (Milestone 7), then an installer and hardening; see docs/ROADMAP.md and
+[CHANGELOG.md](CHANGELOG.md).
 
 The verification harness came first so every step has fast, objective feedback: a `difftest` runner
 records a program's exit code, stdout and stderr, and CI compares the Linux run against the Windows
 run.
+
+## Use Crossport on Windows
+
+There is no installer or download yet (that is Milestone 8), so for now you build the two pieces yourself,
+once, and then convert each AppImage you want to run. Everything stays in folders you choose: nothing is
+installed system-wide, no registry keys are written and no administrator rights are needed.
+
+### What works today
+
+| Kind of AppImage | Status |
+|---|---|
+| Command-line tools (the corpus has Lua, SQLite and jq) | Works. Output matches Linux byte for byte. |
+| C++ programs that use exceptions, threads, sockets, pipes or child processes | Works in the test corpus. |
+| Vulkan programs (offscreen and in a window) | Works. Needs a Windows Vulkan driver. |
+| SDL2 programs using the X11 driver (windows, software drawing, keyboard, mouse) | Works for the test programs. |
+| OpenGL (GLX) and EGL programs, including OpenGL ES 2 | Works for the test programs. Needs an OpenGL driver. |
+| Qt and GTK applications | **Not yet.** They need fonts, XKB, D-Bus and more (Milestone 7). Try `coverage` first. |
+| Anything that draws text through X fonts or fontconfig, or uses the clipboard or sound | Not yet. Sound libraries are not provided, so audio is silent when they are stubbed. |
+| Electron, the JVM and other apps that generate machine code at run time | Out of scope. |
+
+Most graphical AppImages in the wild are Qt, GTK or Electron, so **most will not run yet.** Command-line
+tools and SDL2, Vulkan and OpenGL programs are the ones to try.
+
+### What you need
+
+To run a converted app: Windows 10 or 11, 64-bit. The converted folder is self-contained (no Visual C++
+redistributable, no Linux layer). Graphics programs also need the matching driver: a Vulkan driver (installed
+with most GPU drivers) for Vulkan, and an OpenGL driver for OpenGL and EGL. See
+[Graphics programs](#graphics-programs).
+
+To build Crossport you also need:
+
+- [Git](https://git-scm.com/download/win) (it includes Git Bash, which runs the build script)
+- [Rust](https://rustup.rs) (the stable toolchain)
+- A 64-bit mingw-w64 `gcc` on your `PATH`, for example from [WinLibs](https://winlibs.com) or MSYS2 (UCRT).
+  `gcc --version` should mention `x86_64-w64-mingw32`.
+- Python 3
+
+### Install (build from source)
+
+In Git Bash:
+
+```bash
+git clone https://github.com/ItsAkilesh/crossport.git
+cd crossport
+
+# 1. The translator (a few minutes the first time)
+cargo build --release --locked --manifest-path translator/Cargo.toml
+
+# 2. The shim: the Linux system interface, implemented on Windows (several minutes)
+bash tools/build-shim.sh
+```
+
+That produces the two files you need:
+
+- `translator/target/release/crossport.exe`
+- `build/shim/crossport_libc.dll`
+
+Optionally copy them to a folder of your own, for example `%LOCALAPPDATA%\Crossport`, and add that folder to
+your `PATH`. The rest of this guide writes `crossport` for the translator and `crossport_libc.dll` for the
+shim, so use their full paths if you did not do that.
+
+### Convert an AppImage and run it
+
+Download an x86-64 Linux AppImage from the project that makes it, then convert it into a new, empty folder:
+
+```bash
+crossport convert MyApp-x86_64.AppImage --shim crossport_libc.dll --out C:/Apps/MyApp
+```
+
+`convert` unpacks the AppImage, translates its program and every bundled library into Windows files, copies
+the shim next to them and writes a small `crossport.env` file holding the variables the AppImage's launcher
+script would have set. When it finishes, the folder looks like this:
+
+```
+C:/Apps/MyApp/
+  myapp.exe              the translated program (named after the AppImage's program)
+  *.dll                  its translated libraries
+  crossport_libc.dll     the shim
+  crossport.env          environment for the program (APPDIR and the like)
+  appdir/                the unpacked AppImage: data files, plugins, icons
+```
+
+Run `myapp.exe` from that folder (double-click it, or start it from a terminal to see its output). The
+folder can be moved as a whole. To start it from the Start menu or the desktop, make a shortcut to the
+`.exe` yourself; file associations and a launcher arrive with Milestone 8.
+
+Conversion prints what it did. Two lines are worth reading:
+
+- `program: ...` is the file the AppImage runs. If it starts through a shell script, Crossport takes the
+  program from the `Exec=` line of the AppImage's desktop file.
+- `N symbols nobody provides are bound to a stub that returns 0` appears only with `--stub-missing` (below).
+
+### When conversion stops or the app misbehaves
+
+| You see | What it means and what to do |
+|---|---|
+| `crossport: library libfoo.so.1 was not found` | The AppImage expects a library from its Linux host that it does not bundle (libstdc++ is a common one). Put Linux copies of such libraries in a folder and pass `--runtime <folder>` (repeatable), or add `--stub-missing`. |
+| `--stub-missing` was used and the app starts but behaves oddly | A stubbed library or function returns 0 (null, false, empty) if it is called, without any error. The list the translator printed is the first place to look. The flag is a way to get a program running that never really needs the missing piece (a sound library it does not use, for example). |
+| The translator reports symbols that no module and no shim provides | The shim does not implement some function the program uses. Run `crossport coverage` (see below) and open an issue with the list. |
+| `crossport: access violation at myapp.exe+0x1234, reading 0x0` followed by `from ...` lines | The program crashed. The first line names the module, offset and kind of fault; the lines below are a rough call trail. Include them in a bug report. `python tools/ci/symbolize.py` turns offsets inside `crossport_libc.dll` into function names (it needs `nm` and `objdump` from mingw-w64). |
+| A window opens but stays blank, or OpenGL or Vulkan setup fails | See [Graphics programs](#graphics-programs). |
+| It runs on Linux but not here | The test harness below is how Crossport compares the two; a failing case is a useful bug report. |
+
+To see how well Crossport covers an AppImage before converting it, unpack it and ask for a coverage report:
+
+```bash
+crossport unpack MyApp-x86_64.AppImage --out C:/Apps/MyApp-unpacked
+crossport coverage --shim crossport_libc.dll --appdir C:/Apps/MyApp-unpacked --allow-missing C:/Apps/MyApp-unpacked/usr/bin/myapp
+```
+
+The report counts the C library functions the program and its libraries use against the ones the shim
+implements. A program that uses functions the shim lacks will not translate in strict mode.
+
+### Graphics programs
+
+- **Vulkan** programs use the Vulkan driver that comes with your graphics card driver (`vulkan-1.dll`).
+- **OpenGL and EGL** programs use the OpenGL driver of your graphics card (`opengl32.dll`).
+- On a machine with no graphics driver (a virtual machine or a CI runner), the test suite uses a software
+  renderer: the pinned Mesa build described in `tools/ci/install-opengl-windows.sh` provides `opengl32.dll`
+  and `libgallium_wgl.dll`. Putting those two files next to the program's `.exe` makes it use them.
+  Setting `GALLIUM_DRIVER=llvmpipe` selects Mesa's CPU renderer.
+- Every window the program creates is an ordinary Windows window, and keyboard and mouse input arrive as
+  X11 events, so SDL2 and similar libraries see the input they expect.
+
+### Update and remove
+
+- **Update:** `git pull`, then repeat the two build commands, then convert the AppImage again. A converted
+  folder embeds the shim it was built with, so existing folders keep working but do not get fixes until you
+  convert them again.
+- **Remove:** delete the converted folder, the `crossport` clone and any folder you copied the tools to.
+  Crossport itself writes nothing elsewhere. A converted application may of course keep its own settings and
+  data where it chooses, as it would on Linux (under the home directory the shim reports).
+
+### A note on licences
+
+A converted folder contains the application's own code, translated, together with Crossport's shim (MIT).
+The application's licence still applies to its part, so check it before sharing a converted copy. Crossport
+does not host or distribute anyone's applications.
 
 ## Run the test harness
 
@@ -205,10 +348,12 @@ translator/target/release/crossport translate build/elf/two_libs/two_libs --shim
 | Path | Contents |
 |---|---|
 | `translator/` | AppImage unpacker, ELF analyzer, ELF-to-PE relinker, instruction rewriter |
-| `shim/` | Linux ABI implemented on Win32 (libc, pthreads, graphics, windowing) |
+| `shim/` | Linux ABI implemented on Win32 (libc, pthreads, Xlib and xcb, OpenGL, EGL, Vulkan) |
 | `tests/corpus/` | Test applications and differential test definitions |
 | `tools/` | The `difftest` runner, corpus scripts, coverage dashboard (planned) |
+| `third_party/` | Pinned Khronos registries (Vulkan, OpenGL) used to generate the shim's entry points |
 | `docs/` | Design, roadmap and logo |
+| `CHANGELOG.md` | Versions and what changed |
 
 ## Technologies used
 
