@@ -16,7 +16,7 @@
 
 #define XTEST_MAJOR 2
 #define XTEST_MINOR 2
-#define POINTER_SETTLE_ROUNDS 3
+#define POINTER_SETTLE_MILLISECONDS 500
 #define BUTTON_LEFT 1
 #define BUTTON_MIDDLE 2
 #define BUTTON_RIGHT 3
@@ -62,14 +62,26 @@ static void delay_for(unsigned long milliseconds)
     }
 }
 
+static int is_over_own_window(int x, int y)
+{
+    POINT point = {x, y};
+    HWND window = WindowFromPoint(point);
+    return window != NULL && xcb_window_id(window) != 0;
+}
+
 /*
  * Windows delivers a pointer move as a low-priority message, after any queued key and button input, while an X
- * server handles XTest requests strictly in order. Dispatching the program's messages here, as the move is made,
- * lets the window see the move before the next injected event.
+ * server handles XTest requests strictly in order. So the program's messages are dispatched here until its window
+ * has reported the move, which keeps the next injected event after it. This only waits when the pointer lands over
+ * one of the program's windows (otherwise no event will come) and gives up after a bounded time.
  */
-static void let_window_see_pointer(void)
+static void let_window_see_pointer(uint32_t motions_before, int x, int y)
 {
-    for (int round = 0; round < POINTER_SETTLE_ROUNDS; round++) {
+    if (!is_over_own_window(x, y)) {
+        return;
+    }
+    DWORD deadline = GetTickCount() + POINTER_SETTLE_MILLISECONDS;
+    while (xcb_motion_count() == motions_before && (LONG)(deadline - GetTickCount()) > 0) {
         xcb_events_pump();
         Sleep(1);
     }
@@ -118,10 +130,15 @@ LIBC_FN int sysv_XTestFakeMotionEvent(XlDisplay *display, int screen, int x, int
     (void)display;
     (void)screen;
     delay_for(delay);
+    POINT before = {0, 0};
+    GetCursorPos(&before);
+    uint32_t motions_before = xcb_motion_count();
     BOOL is_moved = SetCursorPos(x, y);
     /* A zero move makes Windows post the window its WM_MOUSEMOVE for the new position. */
     send_mouse(MOUSEEVENTF_MOVE, 0);
-    let_window_see_pointer();
+    if (before.x != x || before.y != y) {
+        let_window_see_pointer(motions_before, x, y);
+    }
     return is_moved;
 }
 

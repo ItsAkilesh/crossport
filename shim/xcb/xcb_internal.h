@@ -65,6 +65,8 @@ typedef void (*XcbSizeHook)(HWND window, int width, int height);
 void xcb_events_set_hooks(XcbPaintHook paint, XcbSizeHook size);
 /* The X modifier and button mask for the keys and buttons held right now. */
 uint16_t xcb_input_state(void);
+/* How many pointer motion messages the windows have turned into events so far (lets XTest wait for one). */
+uint32_t xcb_motion_count(void);
 /* Keyboard map: the X keycode for a Windows scan code, and the keysym of a keycode (column 0 plain, 1 shifted). */
 uint8_t xcb_keycode_from_scancode(uint8_t scancode, int is_extended);
 /* The inverse: the Windows scan code of an X keycode (and whether it is an extended key), or -1 for none. */

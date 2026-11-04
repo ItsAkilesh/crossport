@@ -196,9 +196,17 @@ static void push_button(HWND window, LPARAM parameter, uint8_t type, uint8_t but
 
 static HWND g_tracked_window;
 
+static volatile LONG g_motion_count;
+
+uint32_t xcb_motion_count(void)
+{
+    return (uint32_t)g_motion_count;
+}
+
 /* The first move over a window is its EnterNotify; Windows then reports the pointer leaving. */
 static void push_motion(HWND window, LPARAM parameter)
 {
+    InterlockedIncrement(&g_motion_count);
     if (g_tracked_window != window) {
         TRACKMOUSEEVENT track = {.cbSize = sizeof(track), .dwFlags = TME_LEAVE, .hwndTrack = window};
         TrackMouseEvent(&track);
