@@ -430,6 +430,16 @@ typedef struct {
     uint16_t height;
 } XlRectangle;
 
+/* XArc: an ellipse in the box x, y, width, height from angle1, sweeping angle2, both in 64ths of a degree. */
+typedef struct {
+    int16_t x;
+    int16_t y;
+    uint16_t width;
+    uint16_t height;
+    int16_t angle1;
+    int16_t angle2;
+} XlArc;
+
 /* Core event numbers and the event masks that select them. */
 enum {
     XL_KEY_PRESS = 2, XL_KEY_RELEASE = 3, XL_BUTTON_PRESS = 4, XL_BUTTON_RELEASE = 5, XL_MOTION_NOTIFY = 6,
@@ -447,6 +457,7 @@ enum {
 
 _Static_assert(sizeof(XlScreenFormat) == 24, "ScreenFormat is 24 bytes");
 _Static_assert(sizeof(XlPixmapFormat) == 12, "XPixmapFormatValues is 12 bytes");
+_Static_assert(sizeof(XlArc) == 12, "XArc is 12 bytes");
 _Static_assert(sizeof(XlSelectionClearEvent) == 56, "XSelectionClearEvent is 56 bytes");
 _Static_assert(sizeof(XlSelectionRequestEvent) == 80, "XSelectionRequestEvent is 80 bytes");
 _Static_assert(sizeof(XlSelectionEvent) == 72, "XSelectionEvent is 72 bytes");

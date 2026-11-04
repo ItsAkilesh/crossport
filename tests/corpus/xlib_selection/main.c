@@ -145,11 +145,12 @@ int main(void)
     printf("owner_after_set=%s\n", window_name(XGetSelectionOwner(g_display, clipboard)));
     request(clipboard, utf8, property, utf8);
     request(clipboard, targets, property, utf8);
+    /* Passing it to another window of the same client sends no SelectionClear; releasing it does. */
     XSetSelectionOwner(g_display, clipboard, g_requestor, CurrentTime);
     printf("owner_after_takeover=%s\n", window_name(XGetSelectionOwner(g_display, clipboard)));
+    XSetSelectionOwner(g_display, clipboard, None, CurrentTime);
     next_selection_event(&event);
     print_clear(&event.xselectionclear);
-    XSetSelectionOwner(g_display, clipboard, None, CurrentTime);
     printf("owner_after_release=%s\n", window_name(XGetSelectionOwner(g_display, clipboard)));
     request(clipboard, utf8, property, utf8);
     XCloseDisplay(g_display);

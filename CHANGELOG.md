@@ -5,6 +5,14 @@ being worked on. A feature commit that adds user-visible capability (a new flag,
 that runs) bumps the patch number; a fix does not. The version lives in `translator/Cargo.toml` and is
 bumped in the same commit as the change. Releases are tagged by the maintainer, not by automation.
 
+## 0.6.8
+
+- Xlib drawing: `XFillPolygon` follows the X fill rule exactly (pixel centres, both fill rules, relative
+  coordinates), `XDrawRectangles` is added, and arcs (`XDrawArc`, `XFillArc` and their array forms) are drawn
+  approximately. The drawing code is split into primitives, entry points and polygons.
+- Selections: `SelectionClear` is sent as Xorg sends it, to the previous owner when the selection passes to
+  another client or is released.
+
 ## 0.6.7
 
 - Selections: the clipboard conversation between the windows of one process works. Ownership, `SelectionClear`,

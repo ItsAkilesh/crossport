@@ -4,8 +4,9 @@
  * Author: Akilesh
  * Date: 2026-11-04
  *
- * One table of selection owners serves every display of the process. Taking a selection tells the previous
- * owner with SelectionClear. Asking for its contents sends the owner a SelectionRequest; the owner answers by
+ * One table of selection owners serves every display of the process. As in Xorg, the previous owner is told with
+ * SelectionClear when the selection passes to a different client (display) or is released (owner None); a client
+ * that only changes which of its own windows owns it is told nothing. Asking for its contents sends the owner a SelectionRequest; the owner answers by
  * writing a property and sending SelectionNotify to the requestor (XSendEvent). A selection nobody owns is
  * answered at once with a SelectionNotify whose property is None. These events reach their window whether or
  * not the program selected for them, as on a real server. Windows' own clipboard is not connected yet, so the
@@ -81,7 +82,7 @@ LIBC_FN int sysv_XSetSelectionOwner(XlDisplay *display, XlId selection, XlId own
         found->display = owner != 0 ? display : NULL;
     }
     ReleaseSRWLockExclusive(&g_lock);
-    int is_taken_over = previous.owner != 0 && (previous.owner != owner || previous.display != display);
+    int is_taken_over = previous.owner != 0 && (owner == 0 || previous.display != display);
     if (is_taken_over) {
         post_clear(previous.display, previous.owner, selection, time);
     }

@@ -68,6 +68,10 @@ void xl_window_mark_gl_owned(XlId id);
 /* Draws into a drawable; each takes the lock itself. Coordinates are clipped to the drawable. */
 void xl_fill_rectangle(XlId drawable, const XlGc *gc, int32_t x, int32_t y, int32_t width, int32_t height);
 void xl_draw_line(XlId drawable, const XlGc *gc, int32_t x1, int32_t y1, int32_t x2, int32_t y2);
+/* Fills horizontal spans of one row: `bounds` holds `count` pairs of [left, right) columns. */
+void xl_fill_spans(XlId drawable, const XlGc *gc, int32_t y, const int32_t *bounds, size_t count);
+/* The size of a drawable, or 0 when there is none. */
+int xl_drawable_extent(XlId drawable, int32_t *width, int32_t *height);
 void xl_draw_point(XlId drawable, const XlGc *gc, int32_t x, int32_t y);
 void xl_copy_area(XlId source, XlId target, const XlGc *gc, int32_t sx, int32_t sy, int32_t width, int32_t height,
                   int32_t dx, int32_t dy);

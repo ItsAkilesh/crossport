@@ -130,6 +130,16 @@ static void blit(HDC context, const XlDrawable *drawable)
                       drawable->pixels, &info, DIB_RGB_COLORS);
 }
 
+int xl_drawable_extent(XlId id, int32_t *width, int32_t *height)
+{
+    xl_lock();
+    const XlDrawable *drawable = xl_drawable_find(id);
+    *width = drawable != NULL ? drawable->width : 0;
+    *height = drawable != NULL ? drawable->height : 0;
+    xl_unlock();
+    return drawable != NULL;
+}
+
 void xl_window_mark_gl_owned(XlId id)
 {
     xl_lock();
