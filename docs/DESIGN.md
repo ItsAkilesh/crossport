@@ -173,7 +173,8 @@ that report an unchanged size. Focus, enter and leave events come from the match
 - **Drawing:** rectangles, 1-pixel lines, points, area copies and images (ZPixmap 32 and 24 bit, XYBitmap).
   Arcs, polygons, text and fonts are not done.
 
-`xlib_draw` compares drawing with a real server under Xvfb in CI. `sdl2_window` runs the unmodified Linux
+`sdl2_input` runs libSDL2's keyboard, text, pointer and wheel handling on the shim, driven by XTest, and matches
+Linux. `xlib_draw` compares drawing with a real server under Xvfb in CI. `sdl2_window` runs the unmodified Linux
 libSDL2 (X11 driver, window-surface path) and matches Linux pixel for pixel, including a hash of the whole
 surface. SDL2 uses libraries the machine may not have (libasound and similar), so that case translates with
 `--stub-missing`: a library or symbol that nobody provides is bound to a shim function that returns 0 and

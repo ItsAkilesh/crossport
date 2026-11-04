@@ -5,6 +5,11 @@ being worked on. A feature commit that adds user-visible capability (a new flag,
 that runs) bumps the patch number; a fix does not. The version lives in `translator/Cargo.toml` and is
 bumped in the same commit as the change. Releases are tagged by the maintainer, not by automation.
 
+## 0.6.6
+
+- SDL2 input: an unmodified Linux SDL2 program receives keyboard, text, pointer and wheel events through the shim
+  and sees the same events, scancodes, keycodes, modifiers and coordinates as on Linux.
+
 ## 0.6.5
 
 - Input: `libXtst.so.6` is provided by the shim. A program can inject keys, pointer moves, clicks and wheel
