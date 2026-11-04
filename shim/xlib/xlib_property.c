@@ -2,7 +2,7 @@
  * File: shim/xlib/xlib_property.c
  * Purpose: Window properties: XChangeProperty, XGetWindowProperty, XDeleteProperty and the PropertyNotify events they cause
  * Author: Akilesh
- * Date: 2026-10-29
+ * Date: 2026-11-04
  *
  * Properties are kept in one table keyed by window and atom, in the form the wire protocol uses (format-32
  * items are 4 bytes). Programs see Xlib's form: format-32 items are C longs of 8 bytes. A property written

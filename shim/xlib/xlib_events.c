@@ -2,7 +2,7 @@
  * File: shim/xlib/xlib_events.c
  * Purpose: libX11 event functions: XNextEvent, XPending, XCheck*Event, XIfEvent, XPutBackEvent, XSendEvent
  * Author: Akilesh
- * Date: 2026-10-29
+ * Date: 2026-11-04
  *
  * The functions that wait pump Win32 messages for the calling thread, so a program must read events on
  * the thread that created its windows (as single-threaded X clients do).

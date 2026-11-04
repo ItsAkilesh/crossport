@@ -2,7 +2,7 @@
  * File: shim/xlib/xlib_internal.h
  * Purpose: State and helpers shared by the Xlib shim's source files: drawables, graphics contexts, the display and its event queue
  * Author: Akilesh
- * Date: 2026-10-29
+ * Date: 2026-11-04
  *
  * Every window and pixmap is a drawable: a record with a 32-bit pixel buffer. Drawing writes into the buffer
  * and marks the window's Win32 window dirty; the window's WM_PAINT copies the buffer to the screen. The
