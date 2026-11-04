@@ -125,20 +125,15 @@ matching Linux. Still to do: fonts and text, XKB and XInput2 answers, the clipbo
 
 ## Milestone 10: macOS on Apple silicon
 
-Everything above works because both sides run x86-64: the machine code is kept and only the file format and the
-operating system interface are translated. Apple silicon is ARM64, which does not run x86-64 code natively, so
-this milestone starts with a choice that changes most of what follows (docs/DESIGN.md section 6).
+Crossport is one project that ships a separate distribution for each target platform, and each distribution
+translates the AppImages built for its own platform (docs/DESIGN.md section 6). The Windows distribution
+(Milestones 0 to 9) translates x86-64 AppImages and keeps their machine code. The macOS distribution
+translates aarch64 AppImages for Apple silicon: an ELF for aarch64 becomes a Mach-O for arm64, natively, with no
+emulation and no Rosetta. There is no universal download and no fat bundle; an app that wants both publishes an
+x86-64 AppImage and an aarch64 AppImage, and each distribution converts the one that matches it.
 
-- **Input architecture (a decision first):**
-  - **(a) Translate aarch64 AppImages natively.** An ELF for aarch64 becomes a Mach-O for arm64, with no
-    emulation, which keeps the project's principle. Only AppImages built for aarch64 qualify (a smaller set
-    than x86-64 today, and growing). It needs a new front end and new rewrites, listed below.
-  - **(b) Translate x86-64 AppImages to x86-64 Mach-O and run them under Rosetta 2.** Most of the translator
-    and the x86-64 rewrites carry over and every existing x86-64 AppImage qualifies, but the runtime
-    translation is Apple's, not Crossport's, it costs speed, and Apple has announced that Rosetta will be
-    reduced in later macOS releases (check its current status before relying on it).
-  - Recommendation: (a). It is the same idea as the Windows work, and it does not depend on a component that
-    Apple is winding down. Nothing below is started until the choice is made.
+- **Per-platform releases.** Each distribution has its own build, its own release artifacts and its own CI
+  job, and a change to the portable core must keep every distribution green.
 - **Split the shim into a portable core and a platform backend.** The libc semantics, the in-process X11
   logic (windows, events, keyboard map, properties, selections, drawing buffers) and the OpenGL and EGL
   state are written once; Win32 (`shim/` today) becomes one backend and macOS (Darwin libc, AppKit, Metal)
@@ -173,7 +168,8 @@ this milestone starts with a choice that changes most of what follows (docs/DESI
 The milestones are not equal in size (the graphics and toolkit work alone were estimated at 6 to 18+
 months), so the progress graphic counts milestones, not effort. After M10:
 
-- **Other targets:** Windows on ARM, and Intel Macs if there is demand.
+- **Other distributions:** Windows on ARM (translating aarch64 AppImages, so much of it reuses Milestone 10) and
+  Intel Macs, each if there is demand and each its own distribution.
 - **Things deliberately out of scope until proven necessary:** applications that generate code at run
   time (Electron, the JVM, LuaJIT), `fork` and full signal semantics, static and non-PIE binaries.
 - **Upkeep:** glibc, toolkit and AppImage-format changes keep moving, so the corpus and CI have to keep

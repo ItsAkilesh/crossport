@@ -244,13 +244,9 @@
     },
     {
       "id": "M10",
-      "title": "macOS on Apple silicon",
+      "title": "macOS distribution (Apple silicon)",
       "status": "planned",
       "tasks": [
-        {
-          "title": "Choose the input architecture (aarch64 or Rosetta 2)",
-          "done": false
-        },
         {
           "title": "Portable shim core and platform backends",
           "done": false
@@ -264,7 +260,7 @@
           "done": false
         },
         {
-          "title": "Signed .app bundles",
+          "title": "Signed .app bundles and per-platform releases",
           "done": false
         },
         {

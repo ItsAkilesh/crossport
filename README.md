@@ -70,9 +70,10 @@ Crossport extends that idea across operating systems using **static binary trans
    shims implemented on Win32.
 4. Produce a Windows-native bundle that the Windows loader runs directly.
 
-Both platforms run x86-64, so the application's machine code executes as is. Crossport translates
-the **binary format** and the **operating system interface**. Nothing is interpreted, emulated, or
-virtualized at runtime.
+The AppImage and its target run the same architecture (x86-64 for Windows, aarch64 for Apple silicon), so
+the application's machine code executes as is. Crossport translates the **binary format** and the
+**operating system interface**. Nothing is interpreted, emulated, or virtualized at runtime. That is why each
+target platform has its own distribution; see [One project, one distribution per platform](#one-project-one-distribution-per-platform).
 
 This is the same principle used by AnyPS5 (relinking console executables into native formats) and,
 in the opposite direction, by Wine.
@@ -112,14 +113,14 @@ lives in [docs/ROADMAP.md](docs/ROADMAP.md).
 - [ ] **Milestone 7:** real Qt and GTK applications
 - [ ] **Milestone 8:** everyday use (installer, file associations, signing)
 - [ ] **Milestone 9:** hardening and breadth (performance, security, a 50-app corpus)
-- [ ] **Milestone 10:** macOS on Apple silicon (planned; starts by choosing between translating aarch64
-  AppImages natively and running x86-64 ones under Rosetta 2)
+- [ ] **Milestone 10:** the macOS distribution for Apple silicon, translating aarch64 AppImages (planned)
 
 ## Contents
 
 - [Why this exists](#why-this-exists)
 - [The idea](#the-idea)
 - [How it works](#how-it-works)
+- [One project, one distribution per platform](#one-project-one-distribution-per-platform)
 - [Scope](#scope)
 - [Status](#status)
 - [Use Crossport on Windows](#use-crossport-on-windows)
@@ -129,6 +130,21 @@ lives in [docs/ROADMAP.md](docs/ROADMAP.md).
 - [Thanks](#thanks)
 - [License](#license)
 - [Why Crossport?](#why-crossport)
+
+## One project, one distribution per platform
+
+Crossport is a single project, but it is not a one-size-fits-all package. Each target platform gets its own
+distribution, and each distribution translates the AppImages built for that platform's own architecture:
+
+| Distribution | Translates | Status |
+|---|---|---|
+| Windows, x86-64 | x86-64 AppImages into Windows PE files, keeping the machine code | Under way (Milestones 0 to 9) |
+| macOS, Apple silicon | aarch64 AppImages into Mach-O arm64 files, natively | Planned (Milestone 10) |
+
+There is no universal download, no fat bundle and no emulation (Rosetta 2 is not used). An application that
+wants to reach both platforms publishes an x86-64 AppImage and an aarch64 AppImage, and each distribution
+converts the one that matches it. The guide below, "Use Crossport on Windows", is for the Windows
+distribution.
 
 ## Scope
 
@@ -141,8 +157,8 @@ starting with command-line tools, then Vulkan and GUI applications.
   includes Electron apps themselves. Crossport is not a way to run Electron apps elsewhere; it is a
   way to make Electron unnecessary for portability.
 - Non-x86-64 targets such as Windows on ARM.
-- macOS on Apple silicon is planned as Milestone 10, once the Windows path is proven. Apple silicon is
-  ARM64, so it needs its own approach; see the roadmap.
+- macOS on Apple silicon is planned as Milestone 10, once the Windows path is proven. It is a separate
+  distribution that translates aarch64 AppImages natively; see "One project, one distribution per platform".
 
 ## Status
 
