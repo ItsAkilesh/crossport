@@ -6,7 +6,7 @@
  *
  * Extensions are reported as absent, which every Xlib client must handle; clients then use the core
  * protocol. Window-manager hints and cursors are accepted and ignored where Windows has no equivalent.
- * Selections (the clipboard) answer "no owner" until clipboard support exists.
+ * Selections (the clipboard) are in xlib_selection.c.
  */
 
 #include <string.h>
@@ -366,33 +366,6 @@ LIBC_FN int sysv_XGrabKeyboard(XlDisplay *display, XlId window, int owner_events
 LIBC_FN int sysv_XUngrabKeyboard(XlDisplay *display, uint64_t time)
 {
     (void)display;
-    (void)time;
-    return 1;
-}
-
-LIBC_FN XlId sysv_XGetSelectionOwner(XlDisplay *display, XlId selection)
-{
-    (void)display;
-    (void)selection;
-    return 0;
-}
-
-LIBC_FN int sysv_XSetSelectionOwner(XlDisplay *display, XlId selection, XlId owner, uint64_t time)
-{
-    (void)display;
-    (void)selection;
-    (void)owner;
-    (void)time;
-    return 1;
-}
-
-LIBC_FN int sysv_XConvertSelection(XlDisplay *display, XlId selection, XlId target, XlId property, XlId requestor, uint64_t time)
-{
-    (void)display;
-    (void)selection;
-    (void)target;
-    (void)property;
-    (void)requestor;
     (void)time;
     return 1;
 }

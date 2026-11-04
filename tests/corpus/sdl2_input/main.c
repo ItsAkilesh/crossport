@@ -25,6 +25,8 @@
 #define FIRST_Y 90
 #define SECOND_X 120
 #define SECOND_Y 100
+#define PARK_X 500
+#define PARK_Y 400
 #define EXPOSE_TIMEOUT_MS 5000
 #define COLLECT_MS 3000
 #define POLL_DELAY_MS 10
@@ -139,19 +141,23 @@ int main(void)
         printf("init failed: %s\n", SDL_GetError());
         return 1;
     }
-    SDL_Window *window = SDL_CreateWindow("sdl2_input", ORIGIN, ORIGIN, WIDTH, HEIGHT, SDL_WINDOW_SHOWN);
+    SDL_Window *window = SDL_CreateWindow("sdl2_input", ORIGIN, ORIGIN, WIDTH, HEIGHT, SDL_WINDOW_HIDDEN);
     if (window == NULL) {
         printf("window failed: %s\n", SDL_GetError());
         SDL_Quit();
         return 1;
     }
-    printf("exposed=%d\n", wait_for_expose());
     SDL_SysWMinfo info;
     SDL_VERSION(&info.version);
     if (!SDL_GetWindowWMInfo(window, &info) || info.subsystem != SDL_SYSWM_X11) {
         puts("no X11 window");
         return 1;
     }
+    /* The pointer keeps its position between runs on Windows; park it away from where the window will appear. */
+    XTestFakeMotionEvent(info.info.x11.display, DefaultScreen(info.info.x11.display), PARK_X, PARK_Y, 0);
+    XSync(info.info.x11.display, False);
+    SDL_ShowWindow(window);
+    printf("exposed=%d\n", wait_for_expose());
     SDL_SetWindowInputFocus(window);
     SDL_StartTextInput();
     XSync(info.info.x11.display, False);

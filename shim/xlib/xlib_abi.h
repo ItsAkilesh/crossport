@@ -226,6 +226,42 @@ typedef struct {
     int32_t state;
 } XlPropertyEvent;
 
+/* SelectionClear, SelectionRequest and SelectionNotify: the clipboard conversation between two clients. */
+typedef struct {
+    int32_t type;
+    uint64_t serial;
+    int32_t send_event;
+    XlDisplay *display;
+    XlId window;
+    XlId selection;
+    uint64_t time;
+} XlSelectionClearEvent;
+
+typedef struct {
+    int32_t type;
+    uint64_t serial;
+    int32_t send_event;
+    XlDisplay *display;
+    XlId owner;
+    XlId requestor;
+    XlId selection;
+    XlId target;
+    XlId property;
+    uint64_t time;
+} XlSelectionRequestEvent;
+
+typedef struct {
+    int32_t type;
+    uint64_t serial;
+    int32_t send_event;
+    XlDisplay *display;
+    XlId requestor;
+    XlId selection;
+    XlId target;
+    XlId property;
+    uint64_t time;
+} XlSelectionEvent;
+
 /* EnterNotify and LeaveNotify. */
 typedef struct {
     int32_t type;
@@ -297,6 +333,9 @@ typedef union {
     XlStructureEvent structure;
     XlConfigureEvent configure;
     XlClientMessageEvent client;
+    XlSelectionClearEvent selection_clear;
+    XlSelectionRequestEvent selection_request;
+    XlSelectionEvent selection;
     int64_t pad[24];
 } XlEvent;
 
@@ -396,7 +435,8 @@ enum {
     XL_KEY_PRESS = 2, XL_KEY_RELEASE = 3, XL_BUTTON_PRESS = 4, XL_BUTTON_RELEASE = 5, XL_MOTION_NOTIFY = 6,
     XL_ENTER_NOTIFY = 7, XL_LEAVE_NOTIFY = 8, XL_FOCUS_IN = 9, XL_FOCUS_OUT = 10, XL_EXPOSE = 12,
     XL_DESTROY_NOTIFY = 17, XL_UNMAP_NOTIFY = 18, XL_MAP_NOTIFY = 19, XL_CONFIGURE_NOTIFY = 22,
-    XL_PROPERTY_NOTIFY = 28, XL_CLIENT_MESSAGE = 33
+    XL_PROPERTY_NOTIFY = 28, XL_SELECTION_CLEAR = 29, XL_SELECTION_REQUEST = 30, XL_SELECTION_NOTIFY = 31,
+    XL_CLIENT_MESSAGE = 33
 };
 enum {
     XL_MASK_KEY_PRESS = 1 << 0, XL_MASK_KEY_RELEASE = 1 << 1, XL_MASK_BUTTON_PRESS = 1 << 2,
@@ -407,6 +447,9 @@ enum {
 
 _Static_assert(sizeof(XlScreenFormat) == 24, "ScreenFormat is 24 bytes");
 _Static_assert(sizeof(XlPixmapFormat) == 12, "XPixmapFormatValues is 12 bytes");
+_Static_assert(sizeof(XlSelectionClearEvent) == 56, "XSelectionClearEvent is 56 bytes");
+_Static_assert(sizeof(XlSelectionRequestEvent) == 80, "XSelectionRequestEvent is 80 bytes");
+_Static_assert(sizeof(XlSelectionEvent) == 72, "XSelectionEvent is 72 bytes");
 _Static_assert(sizeof(XlVisualInfo) == 64, "XVisualInfo is 64 bytes");
 _Static_assert(sizeof(XlVisual) == 56, "Visual is 56 bytes");
 _Static_assert(sizeof(XlDepth) == 16, "Depth is 16 bytes");

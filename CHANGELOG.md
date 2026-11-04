@@ -5,6 +5,14 @@ being worked on. A feature commit that adds user-visible capability (a new flag,
 that runs) bumps the patch number; a fix does not. The version lives in `translator/Cargo.toml` and is
 bumped in the same commit as the change. Releases are tagged by the maintainer, not by automation.
 
+## 0.6.7
+
+- Selections: the clipboard conversation between the windows of one process works. Ownership, `SelectionClear`,
+  `SelectionRequest` and `SelectionNotify` follow the X protocol, so a program such as SDL2 can set and read its
+  clipboard. Windows' own clipboard is not connected yet.
+- The input samples park the pointer away from their window first, because Windows keeps the pointer where
+  the previous program left it.
+
 ## 0.6.6
 
 - SDL2 input: an unmodified Linux SDL2 program receives keyboard, text, pointer and wheel events through the shim

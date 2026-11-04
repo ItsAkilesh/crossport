@@ -155,13 +155,18 @@ LIBC_FN int sysv_XPutBackEvent(XlDisplay *display, const XlEvent *event)
     return xl_events_push_front(display, event) ? 1 : 0;
 }
 
-/* Delivers an event to a window of this process; messages for other windows (the root, a window manager) go nowhere. */
+/*
+ * Delivers an event to a window of this process; messages for other windows (the root, a window manager) go nowhere.
+ * Client messages and the selection events reach their window whatever it selected, as on a real server.
+ */
 LIBC_FN int sysv_XSendEvent(XlDisplay *display, XlId window, int should_propagate, int64_t mask, const XlEvent *event)
 {
     (void)should_propagate;
     xl_lock();
     XlDrawable *target = xl_drawable_find(window);
-    int is_delivered = target != NULL && (event->type == XL_CLIENT_MESSAGE || (target->event_mask & mask) != 0);
+    int is_unmasked = event->type == XL_CLIENT_MESSAGE || event->type == XL_SELECTION_NOTIFY ||
+                      event->type == XL_SELECTION_REQUEST || event->type == XL_SELECTION_CLEAR;
+    int is_delivered = target != NULL && (is_unmasked || (target->event_mask & mask) != 0);
     xl_unlock();
     if (is_delivered) {
         XlEvent sent = *event;

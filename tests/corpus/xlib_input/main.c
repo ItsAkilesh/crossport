@@ -26,6 +26,8 @@
 #define FIRST_Y 90
 #define SECOND_X 120
 #define SECOND_Y 100
+#define PARK_X 500
+#define PARK_Y 400
 #define EXPECTED_EVENTS 14
 #define WAIT_STEP_MICROSECONDS 100000
 #define WAIT_STEPS 100
@@ -156,6 +158,9 @@ int main(void)
     int major = 0;
     int minor = 0;
     printf("xtest=%d\n", XTestQueryExtension(display, &event_base, &error_base, &major, &minor));
+    /* The pointer keeps its position between runs on Windows; start with it away from where the window will be. */
+    XTestFakeMotionEvent(display, DefaultScreen(display), PARK_X, PARK_Y, 0);
+    XSync(display, False);
     Window root = DefaultRootWindow(display);
     XSetWindowAttributes attributes = {0};
     attributes.event_mask = ExposureMask | KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask |
