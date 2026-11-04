@@ -1,0 +1,181 @@
+{
+  "snapshot": "20261001T000000Z",
+  "packages": [
+    {
+      "name": "zlib1g",
+      "version": "1:1.2.11.dfsg-2ubuntu9.2",
+      "suite": "jammy-updates",
+      "url": "https://snapshot.ubuntu.com/ubuntu/20261001T000000Z/pool/main/z/zlib/zlib1g_1.2.11.dfsg-2ubuntu9.2_amd64.deb",
+      "sha256": "9dc17e51a1be2d9ed63b7b84ef0e4e29c5abe6f1bc62cb03e7181483cce8a2f2",
+      "size": 58406
+    },
+    {
+      "name": "libbz2-1.0",
+      "version": "1.0.8-5ubuntu0.1",
+      "suite": "jammy-updates",
+      "url": "https://snapshot.ubuntu.com/ubuntu/20261001T000000Z/pool/main/b/bzip2/libbz2-1.0_1.0.8-5ubuntu0.1_amd64.deb",
+      "sha256": "2fd35bb1ac601fa1bf35da2fa08dba3541766ca791927342b5efcb18ef17aecb",
+      "size": 34524
+    },
+    {
+      "name": "libexpat1",
+      "version": "2.4.7-1ubuntu0.9",
+      "suite": "jammy-updates",
+      "url": "https://snapshot.ubuntu.com/ubuntu/20261001T000000Z/pool/main/e/expat/libexpat1_2.4.7-1ubuntu0.9_amd64.deb",
+      "sha256": "0ee31596316d2275ab351d11290c63e7547fff0ecd7f431e56855cb7c5f18588",
+      "size": 96926
+    },
+    {
+      "name": "libpng16-16",
+      "version": "1.6.37-3ubuntu0.6",
+      "suite": "jammy-updates",
+      "url": "https://snapshot.ubuntu.com/ubuntu/20261001T000000Z/pool/main/libp/libpng1.6/libpng16-16_1.6.37-3ubuntu0.6_amd64.deb",
+      "sha256": "c50e4291d15bbe3489245f773ad1d2cdb63b1753a1382a393ad34ce1b8d70358",
+      "size": 192320
+    },
+    {
+      "name": "libbrotli1",
+      "version": "1.0.9-2build6",
+      "suite": "jammy",
+      "url": "https://snapshot.ubuntu.com/ubuntu/20261001T000000Z/pool/main/b/brotli/libbrotli1_1.0.9-2build6_amd64.deb",
+      "sha256": "8e6aa2dfd44df287b9fb227862f3b6062ec074dd39a247874edfe12e1dcc3841",
+      "size": 315164
+    },
+    {
+      "name": "libfreetype6",
+      "version": "2.11.1+dfsg-1ubuntu0.3",
+      "suite": "jammy-updates",
+      "url": "https://snapshot.ubuntu.com/ubuntu/20261001T000000Z/pool/main/f/freetype/libfreetype6_2.11.1+dfsg-1ubuntu0.3_amd64.deb",
+      "sha256": "729f5a3a72069ddcef6a54f6825178667477625574925504594769665897afbc",
+      "size": 388176
+    },
+    {
+      "name": "libfontconfig1",
+      "version": "2.13.1-4.2ubuntu5",
+      "suite": "jammy",
+      "url": "https://snapshot.ubuntu.com/ubuntu/20261001T000000Z/pool/main/f/fontconfig/libfontconfig1_2.13.1-4.2ubuntu5_amd64.deb",
+      "sha256": "6be0c141aed23d9eb801658d248fd667bea2b8a9ccab4db7b596a69ffe3393fd",
+      "size": 131434
+    },
+    {
+      "name": "libgraphite2-3",
+      "version": "1.3.14-1ubuntu0.1",
+      "suite": "jammy-updates",
+      "url": "https://snapshot.ubuntu.com/ubuntu/20261001T000000Z/pool/main/g/graphite2/libgraphite2-3_1.3.14-1ubuntu0.1_amd64.deb",
+      "sha256": "fefc2bc510b80a7a2a8570352be4f0bf9e2d36d122d2c8316cfa008103a2a7e5",
+      "size": 71614
+    },
+    {
+      "name": "libharfbuzz0b",
+      "version": "2.7.4-1ubuntu3.2",
+      "suite": "jammy-updates",
+      "url": "https://snapshot.ubuntu.com/ubuntu/20261001T000000Z/pool/main/h/harfbuzz/libharfbuzz0b_2.7.4-1ubuntu3.2_amd64.deb",
+      "sha256": "e895a3c842c60296549d09c2ffafb4098b853e501e28dc8de710b90357007616",
+      "size": 352528
+    },
+    {
+      "name": "libpcre2-8-0",
+      "version": "10.39-3ubuntu0.1",
+      "suite": "jammy-updates",
+      "url": "https://snapshot.ubuntu.com/ubuntu/20261001T000000Z/pool/main/p/pcre2/libpcre2-8-0_10.39-3ubuntu0.1_amd64.deb",
+      "sha256": "01a5a74f3d305cad32fffffdc200c2a92fd8e5a01bff97de76ac598fb444d53e",
+      "size": 220512
+    },
+    {
+      "name": "libffi8",
+      "version": "3.4.2-4",
+      "suite": "jammy",
+      "url": "https://snapshot.ubuntu.com/ubuntu/20261001T000000Z/pool/main/libf/libffi/libffi8_3.4.2-4_amd64.deb",
+      "sha256": "b4f88c91fa6f4c942097be6abfc365fb133c5e147640168cbb7704fd855eac10",
+      "size": 22326
+    },
+    {
+      "name": "libglib2.0-0",
+      "version": "2.72.4-0ubuntu2.10",
+      "suite": "jammy-updates",
+      "url": "https://snapshot.ubuntu.com/ubuntu/20261001T000000Z/pool/main/g/glib2.0/libglib2.0-0_2.72.4-0ubuntu2.10_amd64.deb",
+      "sha256": "b82973c5d9698e48297000e74d2dc7431e726db8f0f948ea56be7f9e4c9e66fb",
+      "size": 1468764
+    },
+    {
+      "name": "libuuid1",
+      "version": "2.37.2-4ubuntu3.6",
+      "suite": "jammy-updates",
+      "url": "https://snapshot.ubuntu.com/ubuntu/20261001T000000Z/pool/main/u/util-linux/libuuid1_2.37.2-4ubuntu3.6_amd64.deb",
+      "sha256": "97eaa1090c2e7ddaad55d58f9d0d7907d64b70f89228405d68a7ce7d56a89d67",
+      "size": 23978
+    },
+    {
+      "name": "libmount1",
+      "version": "2.37.2-4ubuntu3.6",
+      "suite": "jammy-updates",
+      "url": "https://snapshot.ubuntu.com/ubuntu/20261001T000000Z/pool/main/u/util-linux/libmount1_2.37.2-4ubuntu3.6_amd64.deb",
+      "sha256": "9f69b37420731477105d94c6bf2139437be04bef7c46ba7ffcaf3741e301bdba",
+      "size": 122186
+    },
+    {
+      "name": "libblkid1",
+      "version": "2.37.2-4ubuntu3.6",
+      "suite": "jammy-updates",
+      "url": "https://snapshot.ubuntu.com/ubuntu/20261001T000000Z/pool/main/u/util-linux/libblkid1_2.37.2-4ubuntu3.6_amd64.deb",
+      "sha256": "bf9ab18457e0a10879951b01c87156bdf503bdeb0f87ae0f0f81ec62cb000279",
+      "size": 103456
+    },
+    {
+      "name": "libselinux1",
+      "version": "3.3-1build2",
+      "suite": "jammy",
+      "url": "https://snapshot.ubuntu.com/ubuntu/20261001T000000Z/pool/main/libs/libselinux/libselinux1_3.3-1build2_amd64.deb",
+      "sha256": "b96c6b40ee2388bd51341cb11c0f1d5bcca29b9180b6e3a77a06b881f2913f7e",
+      "size": 74578
+    },
+    {
+      "name": "libdbus-1-3",
+      "version": "1.12.20-2ubuntu4.1",
+      "suite": "jammy-updates",
+      "url": "https://snapshot.ubuntu.com/ubuntu/20261001T000000Z/pool/main/d/dbus/libdbus-1-3_1.12.20-2ubuntu4.1_amd64.deb",
+      "sha256": "6a5171696c3b05aca273d637d9c0501c8033fda64a971e09fd545bc1ab72ca1e",
+      "size": 188562
+    },
+    {
+      "name": "libsystemd0",
+      "version": "249.11-0ubuntu3.22",
+      "suite": "jammy-updates",
+      "url": "https://snapshot.ubuntu.com/ubuntu/20261001T000000Z/pool/main/s/systemd/libsystemd0_249.11-0ubuntu3.22_amd64.deb",
+      "sha256": "4fae4644bcfd86f891faae12cedbf30aca280cf76a034768aec3a03fe42ddc25",
+      "size": 316392
+    },
+    {
+      "name": "libxkbcommon0",
+      "version": "1.4.0-1",
+      "suite": "jammy",
+      "url": "https://snapshot.ubuntu.com/ubuntu/20261001T000000Z/pool/main/libx/libxkbcommon/libxkbcommon0_1.4.0-1_amd64.deb",
+      "sha256": "a0470edb237d52b71ad41f755c043164abed01423585ed5ea19525b3baaf84f7",
+      "size": 124684
+    },
+    {
+      "name": "libxkbcommon-x11-0",
+      "version": "1.4.0-1",
+      "suite": "jammy",
+      "url": "https://snapshot.ubuntu.com/ubuntu/20261001T000000Z/pool/main/libx/libxkbcommon/libxkbcommon-x11-0_1.4.0-1_amd64.deb",
+      "sha256": "e29c40fab6e0f055218aee4c7e60cd61ea82283229d7ac7ac02e226e92a5b0d5",
+      "size": 14368
+    },
+    {
+      "name": "libstdc++6",
+      "version": "14.2.0-4ubuntu2~24.04.1",
+      "suite": "noble-updates",
+      "url": "https://snapshot.ubuntu.com/ubuntu/20261001T000000Z/pool/main/g/gcc-14/libstdc++6_14.2.0-4ubuntu2~24.04.1_amd64.deb",
+      "sha256": "a51f8de7829211db961a31f02158058ad1a95f92ac6d0a5dff6350e2821c54c0",
+      "size": 792064
+    },
+    {
+      "name": "libgcc-s1",
+      "version": "14.2.0-4ubuntu2~24.04.1",
+      "suite": "noble-updates",
+      "url": "https://snapshot.ubuntu.com/ubuntu/20261001T000000Z/pool/main/g/gcc-14/libgcc-s1_14.2.0-4ubuntu2~24.04.1_amd64.deb",
+      "sha256": "aa7fadbe33b78bcf99885318040601c550c208929565b179891d9a3cc2aa68cd",
+      "size": 78392
+    }
+  ]
+}

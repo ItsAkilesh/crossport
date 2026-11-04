@@ -1,0 +1,159 @@
+{
+  "snapshot": "20261001T000000Z",
+  "packages": [
+    {
+      "name": "zlib1g",
+      "suites": [
+        "jammy-updates",
+        "jammy"
+      ]
+    },
+    {
+      "name": "libbz2-1.0",
+      "suites": [
+        "jammy-updates",
+        "jammy"
+      ]
+    },
+    {
+      "name": "libexpat1",
+      "suites": [
+        "jammy-updates",
+        "jammy"
+      ]
+    },
+    {
+      "name": "libpng16-16",
+      "suites": [
+        "jammy-updates",
+        "jammy"
+      ]
+    },
+    {
+      "name": "libbrotli1",
+      "suites": [
+        "jammy-updates",
+        "jammy"
+      ]
+    },
+    {
+      "name": "libfreetype6",
+      "suites": [
+        "jammy-updates",
+        "jammy"
+      ]
+    },
+    {
+      "name": "libfontconfig1",
+      "suites": [
+        "jammy-updates",
+        "jammy"
+      ]
+    },
+    {
+      "name": "libgraphite2-3",
+      "suites": [
+        "jammy-updates",
+        "jammy"
+      ]
+    },
+    {
+      "name": "libharfbuzz0b",
+      "suites": [
+        "jammy-updates",
+        "jammy"
+      ]
+    },
+    {
+      "name": "libpcre2-8-0",
+      "suites": [
+        "jammy-updates",
+        "jammy"
+      ]
+    },
+    {
+      "name": "libffi8",
+      "suites": [
+        "jammy-updates",
+        "jammy"
+      ]
+    },
+    {
+      "name": "libglib2.0-0",
+      "suites": [
+        "jammy-updates",
+        "jammy"
+      ]
+    },
+    {
+      "name": "libuuid1",
+      "suites": [
+        "jammy-updates",
+        "jammy"
+      ]
+    },
+    {
+      "name": "libmount1",
+      "suites": [
+        "jammy-updates",
+        "jammy"
+      ]
+    },
+    {
+      "name": "libblkid1",
+      "suites": [
+        "jammy-updates",
+        "jammy"
+      ]
+    },
+    {
+      "name": "libselinux1",
+      "suites": [
+        "jammy-updates",
+        "jammy"
+      ]
+    },
+    {
+      "name": "libdbus-1-3",
+      "suites": [
+        "jammy-updates",
+        "jammy"
+      ]
+    },
+    {
+      "name": "libsystemd0",
+      "suites": [
+        "jammy-updates",
+        "jammy"
+      ]
+    },
+    {
+      "name": "libxkbcommon0",
+      "suites": [
+        "jammy-updates",
+        "jammy"
+      ]
+    },
+    {
+      "name": "libxkbcommon-x11-0",
+      "suites": [
+        "jammy-updates",
+        "jammy"
+      ]
+    },
+    {
+      "name": "libstdc++6",
+      "suites": [
+        "noble-updates",
+        "noble"
+      ]
+    },
+    {
+      "name": "libgcc-s1",
+      "suites": [
+        "noble-updates",
+        "noble"
+      ]
+    }
+  ]
+}

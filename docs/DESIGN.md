@@ -211,7 +211,11 @@ When nobody in the process owns CLIPBOARD but Windows holds text, requests are a
 reported. `GetClipboardSequenceNumber` tells when another program has replaced a published copy, and the owner is then
 sent `SelectionClear`. Other formats (images, files) are not bridged.
 
-Remaining for the milestone: fonts and text, and XKB and XInput2 answers.
+The runtime pack is built by `tools/runtime/`: `pack-spec.json` names packages and suites, `pin_pack.py` writes
+`pack.json` (URL and SHA-256 of every package, from a dated snapshot), and `fetch_pack.py <pack.json> <cache>
+<out>` verifies and unpacks the libraries; pass `<out>` to `--runtime`.
+
+Remaining for the milestone: running a real SDL2 AppImage with the pack.
 
 ## 3. Shim ABI
 

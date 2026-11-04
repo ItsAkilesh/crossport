@@ -5,6 +5,14 @@ being worked on. A feature commit that adds user-visible capability (a new flag,
 that runs) bumps the patch number; a fix does not. The version lives in `translator/Cargo.toml` and is
 bumped in the same commit as the change. Releases are tagged by the maintainer, not by automation.
 
+## 0.6.11
+
+- Runtime pack: `tools/runtime/pack-spec.json` lists the Ubuntu packages that supply freetype, fontconfig, glib,
+  harfbuzz, libxkbcommon and the libstdc++ and libgcc_s runtimes; `pin_pack.py` resolves them against a dated
+  Ubuntu snapshot (checking the index against the suite's InRelease hash) into `pack.json`; `fetch_pack.py`
+  downloads each package, verifies its SHA-256 and unpacks the shared libraries into one directory for
+  `--runtime`. Crossport hosts nothing.
+
 ## 0.6.10
 
 - Clipboard: text copied in a Windows program can be pasted in a translated one, and text a translated program copies
