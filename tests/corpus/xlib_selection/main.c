@@ -36,11 +36,25 @@ static void print_atom(const char *label, Atom atom)
     }
 }
 
+static void answer(const XSelectionRequestEvent *request, Atom utf8);
+
+/* A request from a window that is not ours comes from a clipboard manager (the shim's Windows bridge acts as one); it is answered and not reported. */
+static int is_foreign_request(const XEvent *event)
+{
+    return event->type == SelectionRequest && event->xselectionrequest.requestor != g_owner &&
+           event->xselectionrequest.requestor != g_requestor;
+}
+
 static void next_selection_event(XEvent *event)
 {
-    do {
+    for (;;) {
         XNextEvent(g_display, event);
-    } while (event->type != SelectionRequest && event->type != SelectionNotify && event->type != SelectionClear);
+        if (is_foreign_request(event)) {
+            answer(&event->xselectionrequest, XInternAtom(g_display, "UTF8_STRING", False));
+        } else if (event->type == SelectionRequest || event->type == SelectionNotify || event->type == SelectionClear) {
+            return;
+        }
+    }
 }
 
 static void print_request(const XSelectionRequestEvent *request)

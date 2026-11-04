@@ -37,6 +37,7 @@ env:
   TRANSLATED_CASES: ${{ inputs.cases || 'hello_dyn two_libs tls_basic threads vulkan_triangle vulkan_window cxx_exceptions cxx_dynamic posix_io sockets process mmap_files event_loop libc_breadth xlib_draw sdl2_window gl_window egl_window xlib_input sdl2_input xlib_selection xlib_shapes' }}
   ABORT_CASES: canary_smash
   CRASH_CASES: crash_null
+  CLIPBOARD_CASES: xlib_clipboard
   APPS: lua sqlite3 jq
   CARGO_PATHS: |
     ~/.cargo/registry/index
@@ -98,7 +99,7 @@ jobs:
         env:
           LIBGL_ALWAYS_SOFTWARE: "1"
         run: |
-          xvfb-run -a bash -c 'for corpus_case in $NATIVE_CASES $TRANSLATED_CASES $ABORT_CASES $CRASH_CASES; do tools/run-case.sh "$corpus_case" linux; done'
+          xvfb-run -a bash -c 'for corpus_case in $NATIVE_CASES $TRANSLATED_CASES $ABORT_CASES $CRASH_CASES $CLIPBOARD_CASES; do tools/run-case.sh "$corpus_case" linux; done'
       - name: Package the corpus apps and record their Linux results
         run: |
           for app in $APPS; do
@@ -214,7 +215,7 @@ jobs:
         env:
           GALLIUM_DRIVER: llvmpipe
         run: |
-          for corpus_case in $TRANSLATED_CASES $ABORT_CASES $CRASH_CASES; do
+          for corpus_case in $TRANSLATED_CASES $ABORT_CASES $CRASH_CASES $CLIPBOARD_CASES; do
             tools/run-translated.sh "$corpus_case"
           done
       - name: Show the translated results (single-case runs only)
@@ -224,6 +225,13 @@ jobs:
             cat "results/$corpus_case-windows.json" || true
             python3 tools/ci/symbolize.py "results/$corpus_case-windows.json" build/shim/crossport_libc.dll || true
           done
+      - name: The Windows clipboard reaches a translated program and its copy reaches Windows
+        if: inputs.cases == ''
+        shell: pwsh
+        run: |
+          foreach ($corpusCase in $env:CLIPBOARD_CASES -split ' ') {
+            ./tools/ci/check_clipboard.ps1 "build/bundle/$corpusCase/$corpusCase.exe"
+          }
       - name: Stress the threaded program for races
         if: inputs.cases == ''
         run: tools/stress.sh threads 200

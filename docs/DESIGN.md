@@ -205,7 +205,13 @@ and a rough call trail. Windows cannot unwind through translated frames (they ha
 vectored handler does the reporting instead of the unhandled-exception filter. `tools/ci/symbolize.py` turns
 the shim offsets in a report into function names.
 
-Remaining for the milestone: fonts and text, XKB and XInput2 answers, and the clipboard.
+The clipboard is bridged for text (`xlib_clipboard.c`, `xlib_selection.c`). When a program takes CLIPBOARD, the shim
+asks it for UTF8_STRING like any requestor (a pseudo window stands in) and puts the answer on the Windows clipboard.
+When nobody in the process owns CLIPBOARD but Windows holds text, requests are answered from it and a pseudo owner is
+reported. `GetClipboardSequenceNumber` tells when another program has replaced a published copy, and the owner is then
+sent `SelectionClear`. Other formats (images, files) are not bridged.
+
+Remaining for the milestone: fonts and text, and XKB and XInput2 answers.
 
 ## 3. Shim ABI
 

@@ -5,6 +5,13 @@ being worked on. A feature commit that adds user-visible capability (a new flag,
 that runs) bumps the patch number; a fix does not. The version lives in `translator/Cargo.toml` and is
 bumped in the same commit as the change. Releases are tagged by the maintainer, not by automation.
 
+## 0.6.10
+
+- Clipboard: text copied in a Windows program can be pasted in a translated one, and text a translated program copies
+  can be pasted in Windows. The shim converts between UTF-8 with LF and Windows' UTF-16 with CRLF, answers requests for
+  `CLIPBOARD` from the Windows text when no program owns it, and sends `SelectionClear` to a translated owner when
+  another Windows program replaces its copy. Only plain text is bridged.
+
 ## 0.6.9
 
 - Faster drawing: `XPutImage`, `XCopyArea`, `XGetImage` and rectangle fills copy whole rows when the pixels are 32-bit

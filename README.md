@@ -169,7 +169,7 @@ invocations. Vulkan programs render and present through the Windows Vulkan loade
 (X11 driver) opens a window, draws and receives keyboard, text, pointer and wheel events, and OpenGL
 (through GLX) and EGL programs, including an OpenGL ES 2 context, render the same pixels as on Linux. All of
 that runs on an in-process X11 (Xlib and xcb on Win32 windows) with no X server. `crossport convert` turns an
-AppImage into a runnable bundle in one step. What is not done: fonts and text drawing, the clipboard, XKB,
+AppImage into a runnable bundle in one step. The clipboard works for text. What is not done: fonts and text drawing, XKB,
 and real Qt and GTK applications (Milestone 7), then an installer and hardening; see docs/ROADMAP.md and
 [CHANGELOG.md](CHANGELOG.md).
 
@@ -193,7 +193,7 @@ installed system-wide, no registry keys are written and no administrator rights 
 | SDL2 programs using the X11 driver (windows, software drawing, keyboard, mouse) | Works for the test programs. |
 | OpenGL (GLX) and EGL programs, including OpenGL ES 2 | Works for the test programs. Needs an OpenGL driver. |
 | Qt and GTK applications | **Not yet.** They need fonts, XKB, D-Bus and more (Milestone 7). Try `coverage` first. |
-| Anything that draws text through X fonts or fontconfig, or uses the clipboard or sound | Not yet. Sound libraries are not provided, so audio is silent when they are stubbed. |
+| Anything that draws text through X fonts or fontconfig, or uses sound | Not yet. Sound libraries are not provided, so audio is silent when they are stubbed. |
 | Electron, the JVM and other apps that generate machine code at run time | Out of scope. |
 
 Most graphical AppImages in the wild are Qt, GTK or Electron, so **most will not run yet.** Command-line

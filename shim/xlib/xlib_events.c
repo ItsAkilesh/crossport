@@ -162,6 +162,9 @@ LIBC_FN int sysv_XPutBackEvent(XlDisplay *display, const XlEvent *event)
 LIBC_FN int sysv_XSendEvent(XlDisplay *display, XlId window, int should_propagate, int64_t mask, const XlEvent *event)
 {
     (void)should_propagate;
+    if (xl_selection_take_bridge_reply(event)) {
+        return 1;
+    }
     xl_lock();
     XlDrawable *target = xl_drawable_find(window);
     int is_unmasked = event->type == XL_CLIENT_MESSAGE || event->type == XL_SELECTION_NOTIFY ||

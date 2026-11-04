@@ -165,7 +165,7 @@
         },
         {
           "title": "Clipboard and selections",
-          "done": false
+          "done": true
         },
         {
           "title": "A real SDL2 AppImage runs",

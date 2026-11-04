@@ -231,6 +231,32 @@ LIBC_FN int sysv_XGetWindowProperty(XlDisplay *display, XlId window, XlId proper
     return SUCCESS;
 }
 
+int xl_property_put(XlId window, XlId property, XlId type, int format, const uint8_t *wire, size_t size)
+{
+    xl_lock();
+    int is_stored = store(window, property, type, format, MODE_REPLACE, (uint8_t *)(uintptr_t)wire, size);
+    xl_unlock();
+    return is_stored;
+}
+
+uint8_t *xl_property_take(XlId window, XlId property, size_t *size)
+{
+    uint8_t *copy = NULL;
+    *size = 0;
+    xl_lock();
+    Property *entry = find_property(window, property);
+    if (entry != NULL) {
+        copy = (uint8_t *)HeapAlloc(GetProcessHeap(), 0, entry->size + 1);
+        if (copy != NULL) {
+            memcpy(copy, entry->data, entry->size);
+            *size = entry->size;
+        }
+        remove_property(entry);
+    }
+    xl_unlock();
+    return copy;
+}
+
 LIBC_FN int sysv_XDeleteProperty(XlDisplay *display, XlId window, XlId property)
 {
     xl_next_request(display);

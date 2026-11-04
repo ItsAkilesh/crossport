@@ -59,6 +59,21 @@ void xl_drawable_remove(XlId id);
 /* Gives a window a buffer of the new size, keeping the old pixels at the top left, and asks for an Expose. */
 void xl_drawable_resize(XlDrawable *drawable, int32_t width, int32_t height);
 
+/* Properties the shim itself reads and writes (the clipboard bridge). Data is in wire form: format-32 items are 4 bytes. */
+int xl_property_put(XlId window, XlId property, XlId type, int format, const uint8_t *wire, size_t size);
+/* Copies a property's bytes into a new heap block (free it with HeapFree) and deletes the property; NULL when unset. */
+uint8_t *xl_property_take(XlId window, XlId property, size_t *size);
+
+/* The Windows clipboard as UTF-8 text with LF line ends (xlib_clipboard.c). */
+uint8_t *xl_clipboard_read(size_t *length);
+int xl_clipboard_publish(const uint8_t *text, size_t length);
+/* True when the clipboard holds text that this process did not publish. */
+int xl_clipboard_has_foreign_text(void);
+/* True once, when another program has replaced what this process published. */
+int xl_clipboard_was_replaced(void);
+/* Takes a reply to the shim's own clipboard request; returns 1 when the event was one. */
+SYSV int xl_selection_take_bridge_reply(const XlEvent *event);
+
 /* Called by the window procedure (on the thread that owns the window) for WM_PAINT and WM_SIZE. */
 int xl_paint_window(HWND window);
 void xl_size_window(HWND window, int width, int height);
