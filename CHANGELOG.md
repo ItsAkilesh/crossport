@@ -5,6 +5,14 @@ being worked on. A feature commit that adds user-visible capability (a new flag,
 that runs) bumps the patch number; a fix does not. The version lives in `translator/Cargo.toml` and is
 bumped in the same commit as the change. Releases are tagged by the maintainer, not by automation.
 
+## 0.6.9
+
+- Faster drawing: `XPutImage`, `XCopyArea`, `XGetImage` and rectangle fills copy whole rows when the pixels are 32-bit
+  and the operation is a plain copy. At 1080p, `XPutImage` takes 1.9 ms per frame instead of 12.6, `XCopyArea` 1.8
+  instead of 8.3, and a full fill 0.7 instead of 2.5.
+- Polygons are filled at pixel coordinates, as X does, and now match a real server pixel for pixel.
+- `XTestFakeMotionEvent` waits until the window has reported the move, so injected events keep their order.
+
 ## 0.6.8
 
 - Xlib drawing: `XFillPolygon` follows the X fill rule exactly (pixel centres, both fill rules, relative

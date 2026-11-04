@@ -54,8 +54,15 @@ static void fill_clipped(XlDrawable *drawable, const XlGc *gc, int32_t x, int32_
     int32_t bottom = y + height > drawable->height ? drawable->height : y + height;
     uint32_t pixel = xl_pixel(gc->values.foreground);
     for (int32_t row = top; row < bottom; row++) {
-        for (int32_t column = left; column < right; column++) {
-            put_pixel(drawable, column, row, pixel, gc->values.function);
+        uint32_t *line = &drawable->pixels[(size_t)row * (size_t)drawable->width];
+        if (gc->values.function == XL_GX_COPY) {
+            for (int32_t column = left; column < right; column++) {
+                line[column] = pixel;
+            }
+        } else {
+            for (int32_t column = left; column < right; column++) {
+                line[column] = xl_combine(pixel, line[column], gc->values.function);
+            }
         }
     }
 }
@@ -136,11 +143,50 @@ void xl_draw_point(XlId id, const XlGc *gc, int32_t x, int32_t y)
     xl_draw_line(id, gc, x, y, x, y);
 }
 
+/*
+ * A plain copy of a block that lies wholly inside the source: whole rows are moved at once. Rows are visited in the
+ * order that is safe when source and target are the same drawable and the blocks overlap. Returns 0 when the block
+ * does not qualify, and the caller then copies pixel by pixel.
+ */
+static int copy_rows(const XlDrawable *from, XlDrawable *to, int32_t sx, int32_t sy, int32_t width, int32_t height,
+                     int32_t dx, int32_t dy)
+{
+    if (sx < 0 || sy < 0 || sx + width > from->width || sy + height > from->height) {
+        return 0;
+    }
+    int32_t first_column = dx < 0 ? -dx : 0;
+    int32_t last_column = dx + width > to->width ? to->width - dx : width;
+    int32_t first_row = dy < 0 ? -dy : 0;
+    int32_t last_row = dy + height > to->height ? to->height - dy : height;
+    int is_upward = from == to && dy > sy;
+    for (int32_t step = first_row; step < last_row && first_column < last_column; step++) {
+        int32_t row = is_upward ? last_row - 1 - (step - first_row) : step;
+        const uint32_t *source = &from->pixels[(size_t)(sy + row) * (size_t)from->width + (size_t)(sx + first_column)];
+        uint32_t *target = &to->pixels[(size_t)(dy + row) * (size_t)to->width + (size_t)(dx + first_column)];
+        memmove(target, source, (size_t)(last_column - first_column) * sizeof(uint32_t));
+    }
+    return 1;
+}
+
 void xl_copy_area(XlId source, XlId target, const XlGc *gc, int32_t sx, int32_t sy, int32_t width, int32_t height,
                   int32_t dx, int32_t dy)
 {
     if (width <= 0 || height <= 0) {
         return;
+    }
+    if (gc->values.function == XL_GX_COPY) {
+        xl_lock();
+        XlDrawable *fast_from = xl_drawable_find(source);
+        XlDrawable *fast_to = xl_drawable_find(target);
+        int is_done = fast_from != NULL && fast_to != NULL && copy_rows(fast_from, fast_to, sx, sy, width, height, dx, dy);
+        int is_window = is_done && fast_to->is_window;
+        xl_unlock();
+        if (is_done) {
+            if (is_window) {
+                xl_invalidate(target, dx, dy, width, height);
+            }
+            return;
+        }
     }
     uint32_t *copy = (uint32_t *)HeapAlloc(GetProcessHeap(), 0, (size_t)width * (size_t)height * sizeof(uint32_t));
     if (copy == NULL) {

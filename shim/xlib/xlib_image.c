@@ -198,6 +198,31 @@ static SYSV uint32_t source_pixel(const XlImage *image, const XlGc *gc, int32_t 
     return xl_pixel(value);
 }
 
+/* A plain copy of 32-bit pixels from inside the image: whole rows are copied, then the unused top byte is cleared. */
+static SYSV int put_rows(XlDrawable *drawable, const XlImage *image, int32_t sx, int32_t sy, int32_t dx, int32_t dy,
+                         int32_t width, int32_t height)
+{
+    if (image->format != FORMAT_Z_PIXMAP || image->bits_per_pixel != BITS_PER_PIXEL_32 || image->xoffset != 0 || sx < 0 ||
+        sy < 0 || sx + width > image->width || sy + height > image->height) {
+        return 0;
+    }
+    int32_t first_column = dx < 0 ? -dx : 0;
+    int32_t last_column = dx + width > drawable->width ? drawable->width - dx : width;
+    int32_t first_row = dy < 0 ? -dy : 0;
+    int32_t last_row = dy + height > drawable->height ? drawable->height - dy : height;
+    for (int32_t row = first_row; row < last_row && first_column < last_column; row++) {
+        size_t count = (size_t)(last_column - first_column);
+        const uint8_t *source = (const uint8_t *)image->data + (size_t)(sy + row) * (size_t)image->bytes_per_line +
+                                (size_t)(sx + first_column) * sizeof(uint32_t);
+        uint32_t *target = &drawable->pixels[(size_t)(dy + row) * (size_t)drawable->width + (size_t)(dx + first_column)];
+        memcpy(target, source, count * sizeof(uint32_t));
+        for (size_t column = 0; column < count; column++) {
+            target[column] &= XL_PIXEL_MASK;
+        }
+    }
+    return 1;
+}
+
 LIBC_FN int sysv_XPutImage(XlDisplay *display, XlId id, const XlGc *gc, const XlImage *image, int sx, int sy, int dx, int dy,
                            unsigned width, unsigned height)
 {
@@ -205,7 +230,9 @@ LIBC_FN int sysv_XPutImage(XlDisplay *display, XlId id, const XlGc *gc, const Xl
     xl_lock();
     XlDrawable *drawable = xl_drawable_find(id);
     int is_window = drawable != NULL && drawable->is_window;
-    for (int32_t row = 0; drawable != NULL && row < (int32_t)height; row++) {
+    int is_done = drawable != NULL && gc->values.function == XL_GX_COPY &&
+                  put_rows(drawable, image, sx, sy, dx, dy, (int32_t)width, (int32_t)height);
+    for (int32_t row = 0; drawable != NULL && !is_done && row < (int32_t)height; row++) {
         for (int32_t column = 0; column < (int32_t)width; column++) {
             int32_t x = dx + column;
             int32_t y = dy + row;
@@ -225,6 +252,25 @@ LIBC_FN int sysv_XPutImage(XlDisplay *display, XlId id, const XlGc *gc, const Xl
     return 1;
 }
 
+/* Copies whole rows of a drawable into a new, zero-filled 32-bit image; what lies outside the drawable stays 0. */
+static SYSV int get_rows(const XlDrawable *drawable, XlImage *image, int32_t x, int32_t y)
+{
+    if (image->bits_per_pixel != BITS_PER_PIXEL_32) {
+        return 0;
+    }
+    int32_t first_column = x < 0 ? -x : 0;
+    int32_t last_column = x + image->width > drawable->width ? drawable->width - x : image->width;
+    int32_t first_row = y < 0 ? -y : 0;
+    int32_t last_row = y + image->height > drawable->height ? drawable->height - y : image->height;
+    for (int32_t row = first_row; row < last_row && first_column < last_column; row++) {
+        const uint32_t *source = &drawable->pixels[(size_t)(y + row) * (size_t)drawable->width + (size_t)(x + first_column)];
+        uint8_t *target = (uint8_t *)image->data + (size_t)row * (size_t)image->bytes_per_line +
+                          (size_t)first_column * sizeof(uint32_t);
+        memcpy(target, source, (size_t)(last_column - first_column) * sizeof(uint32_t));
+    }
+    return 1;
+}
+
 LIBC_FN XlImage *sysv_XGetImage(XlDisplay *display, XlId id, int x, int y, unsigned width, unsigned height, uint64_t plane_mask,
                                 int format)
 {
@@ -234,7 +280,8 @@ LIBC_FN XlImage *sysv_XGetImage(XlDisplay *display, XlId id, int x, int y, unsig
     xl_lock();
     XlDrawable *drawable = xl_drawable_find(id);
     XlImage *image = drawable != NULL ? allocate_image(drawable->depth, (int32_t)width, (int32_t)height) : NULL;
-    for (int32_t row = 0; image != NULL && row < (int32_t)height; row++) {
+    int is_done = image != NULL && get_rows(drawable, image, x, y);
+    for (int32_t row = 0; image != NULL && !is_done && row < (int32_t)height; row++) {
         for (int32_t column = 0; column < (int32_t)width; column++) {
             int32_t source_x = x + column;
             int32_t source_y = y + row;
