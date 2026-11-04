@@ -4,9 +4,10 @@
  * Author: Akilesh
  * Date: 2026-11-04
  *
- * Polygons follow the X rule exactly: a pixel is inside when its centre is inside, and a centre exactly on an
- * edge counts only for a left edge (the interior lies to its right). Scan conversion is in integers, so the
- * result does not depend on rounding. Arcs are approximated by a polygon or a polyline through points on the
+ * Polygons follow the X rule exactly. Pixel coordinates are the pixel centres (so a polygon's vertices lie on
+ * pixel centres and its boundary pixels count): a pixel is inside when its centre is inside, and a centre exactly on
+ * an edge counts only for a left or top edge (the interior lies to its right or below). Scan conversion is in
+ * integers, so the result does not depend on rounding. Arcs are approximated by a polygon or a polyline through points on the
  * ellipse, which differs from a real server by about a pixel along the curve; the fill and the end points are
  * right, and the shape is what a program draws.
  */
@@ -69,13 +70,12 @@ static size_t collect_edges(const Vertex *vertices, size_t count, Edge *edges)
     return kept;
 }
 
-/* The first pixel whose centre is at or right of where the edge crosses the centre line of row y. */
+/* The first pixel at or right of where the edge crosses row y (rows and columns are pixel centres). */
 static int32_t crossing_pixel(const Edge *edge, int32_t y)
 {
     int64_t dy = (int64_t)edge->y1 - edge->y0;
     int64_t dx = (int64_t)edge->x1 - edge->x0;
-    int64_t numerator = 2 * (int64_t)edge->x0 * dy + (2 * (int64_t)y + 1 - 2 * (int64_t)edge->y0) * dx - dy;
-    return ceil_divide(numerator, 2 * dy);
+    return ceil_divide((int64_t)edge->x0 * dy + ((int64_t)y - edge->y0) * dx, dy);
 }
 
 static size_t crossings_of_row(const Edge *edges, size_t count, int32_t y, Crossing *out)
