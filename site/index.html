@@ -1,0 +1,44 @@
+<!doctype html>
+<!--
+  File: site/index.html
+  Purpose: Page shell for the Crossport project page, served at itsakilesh.github.io/crossport
+  Author: Akilesh
+  Date: 2026-11-04
+-->
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Crossport: run Linux AppImages natively on Windows</title>
+    <meta
+      name="description"
+      content="Crossport translates a Linux AppImage into a native Windows program: the file format and the system interface, not the machine code. No emulation, no virtual machine, no bundled browser."
+    />
+    <meta name="color-scheme" content="dark light" />
+    <meta property="og:title" content="Crossport: Linux apps, translated. Not emulated." />
+    <meta property="og:description" content="Turn a Linux AppImage into a native Windows program. Early, open source, MIT." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://itsakilesh.github.io/crossport/" />
+    <link rel="icon" type="image/svg+xml" href="%BASE_URL%favicon.svg" />
+    <script>
+      /* Applies the saved or system theme before the first paint, so the page never flashes the wrong one. */
+      (function () {
+        var theme = null;
+        try {
+          theme = window.localStorage.getItem("crossport-theme");
+        } catch (error) {
+          theme = null;
+        }
+        if (theme !== "light" && theme !== "dark") {
+          theme = window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+        }
+        document.documentElement.dataset.theme = theme;
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>Crossport turns Linux AppImages into native Windows programs. This page's figures need JavaScript. The project is at https://github.com/ItsAkilesh/crossport.</noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

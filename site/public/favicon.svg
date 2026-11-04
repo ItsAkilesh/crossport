@@ -1,0 +1,10 @@
+<!-- File: favicon.svg | Purpose: Crossport logo mark: bars crossing a gate, amber (Linux) to blue (Windows) | Author: Akilesh | Date: 2026-11-04 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Crossport">
+  <rect x="4" y="6.75" width="24" height="9" rx="4.5" fill="#F59E0B"/>
+  <rect x="12" y="25.25" width="16" height="9" rx="4.5" fill="#F59E0B"/>
+  <rect x="8" y="43.75" width="20" height="9" rx="4.5" fill="#F59E0B"/>
+  <rect x="36" y="11.25" width="20" height="9" rx="4.5" fill="#0EA5E9"/>
+  <rect x="36" y="29.75" width="24" height="9" rx="4.5" fill="#0EA5E9"/>
+  <rect x="36" y="48.25" width="16" height="9" rx="4.5" fill="#0EA5E9"/>
+  <rect x="30.5" y="3" width="3" height="58" rx="1.5" fill="#D946EF"/>
+</svg>

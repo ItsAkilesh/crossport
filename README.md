@@ -30,6 +30,7 @@
 [![Platforms](https://img.shields.io/badge/targets-linux%20%E2%86%92%20windows-0E7490)](#the-idea)
 [![Milestones](https://img.shields.io/badge/milestones-5%20of%2011-1A7F37)](#what-you-get)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Website](https://img.shields.io/badge/website-itsakilesh.github.io%2Fcrossport-0E7490)](https://itsakilesh.github.io/crossport/)
 
 <p align="center">
   <img src="docs/progress.svg" alt="Crossport progress: 5 of 11 milestones done" width="880">
@@ -371,6 +372,7 @@ translator/target/release/crossport translate build/elf/two_libs/two_libs --shim
 | `tests/corpus/` | Test applications and differential test definitions |
 | `tools/` | The `difftest` runner, corpus scripts, coverage dashboard (planned) |
 | `third_party/` | Pinned Khronos registries (Vulkan, OpenGL) used to generate the shim's entry points |
+| `site/` | The project page ([itsakilesh.github.io/crossport](https://itsakilesh.github.io/crossport/)): Vite, React, three.js and Glisse, built and deployed by `.github/workflows/site.yml` |
 | `docs/` | Design, roadmap and logo |
 | `CHANGELOG.md` | Versions and what changed |
 

@@ -1,0 +1,330 @@
+/*
+ * File: site/src/styles/sections.css
+ * Purpose: Styles for the page's sections: the figures and their controls, legends, the milestone list, cards, install steps and the footer
+ * Author: Akilesh
+ * Date: 2026-11-04
+ */
+
+.section {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 26px;
+  padding: 56px 0;
+  border-top: 1px solid var(--rule);
+}
+
+.section-head {
+  display: grid;
+  gap: 14px;
+}
+
+/* A figure is a dark stage with the controls under it. The stage stays dark in both themes so the colours read. */
+.figure {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+}
+
+.scene {
+  position: relative;
+  width: 100%;
+  height: clamp(280px, 46vw, 460px);
+  overflow: hidden;
+  border: 1px solid var(--rule);
+  border-radius: 24px;
+  background: var(--stage, linear-gradient(160deg, #0b1220 0%, #060a12 100%));
+  touch-action: pan-y;
+}
+
+.scene-hero {
+  height: clamp(300px, 42vw, 440px);
+}
+
+.scene canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.scene-fallback {
+  display: none;
+  position: absolute;
+  inset: 0;
+  place-items: center;
+  padding: 24px;
+  color: #9aa8b8;
+  text-align: center;
+}
+
+.scene[data-webgl="unavailable"] .scene-fallback {
+  display: grid;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 24px;
+}
+
+.controls > :first-child {
+  max-width: 100%;
+}
+
+.slider-row {
+  min-width: 220px;
+}
+
+.detail,
+.legend-group,
+.card {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.detail {
+  display: grid;
+  gap: 12px;
+  padding: 22px 24px;
+  border: 1px solid var(--rule);
+  border-radius: 20px;
+  background: var(--surface);
+}
+
+.summary {
+  max-width: 70ch;
+}
+
+/* The command blocks. */
+.command {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.command pre {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 14px 16px;
+  overflow-x: auto;
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  background: rgb(0 0 0 / 0.28);
+  color: #e2e8f0;
+  white-space: pre;
+}
+
+/* The dependency legend. */
+.legend {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.legend-group {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  padding: 16px 18px;
+  border: 1px solid var(--rule);
+  border-radius: 16px;
+  background: var(--surface);
+}
+
+.legend-group h3 span {
+  margin-left: 6px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--surface-strong);
+  font: 500 0.8rem/1.6 var(--mono);
+}
+
+.legend-group ul,
+.plain,
+.tasks {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.legend-group li {
+  padding: 3px 8px;
+  border-radius: 8px;
+  cursor: default;
+}
+
+.legend-group li:hover,
+.legend-group li:focus-visible {
+  background: var(--surface-strong);
+}
+
+.kind-translated h3 {
+  color: var(--windows);
+}
+
+.kind-shim h3 {
+  color: var(--shim);
+}
+
+.kind-stubbed h3 {
+  color: var(--muted);
+}
+
+/* The milestone list. */
+.milestones {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+}
+
+.milestone {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.milestone:hover,
+.milestone[aria-pressed="true"] {
+  background: var(--surface-strong);
+  border-color: var(--windows);
+}
+
+.milestone-id,
+.milestone-count {
+  font: 500 0.8rem/1 var(--mono);
+  color: var(--muted);
+}
+
+.status-done .milestone-id {
+  color: var(--good);
+}
+
+.status-next .milestone-id {
+  color: var(--windows);
+}
+
+.tasks li {
+  display: grid;
+  grid-template-columns: 1.4rem 1fr;
+  gap: 8px;
+  color: var(--muted);
+}
+
+.tasks li.is-done {
+  color: var(--ink);
+}
+
+.tasks li.is-done > span:first-child {
+  color: var(--good);
+}
+
+/* Platforms and install. */
+.cards {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.card {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  padding: 26px;
+  border-radius: 28px;
+}
+
+.platform-windows h3 {
+  color: var(--windows);
+}
+
+.platform-macos h3 {
+  color: var(--shim);
+}
+
+.install-grid {
+  display: grid;
+  gap: 28px;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.install-grid > *,
+.steps li {
+  min-width: 0;
+}
+
+.steps {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+
+.steps li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  counter-increment: step;
+}
+
+.steps h3::before {
+  content: counter(step) ". ";
+  color: var(--muted);
+  font-family: var(--mono);
+}
+
+@media (min-width: 900px) {
+  .install-grid {
+    grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.6fr);
+  }
+}
+
+.footer {
+  display: grid;
+  gap: 14px;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 32px max(20px, env(safe-area-inset-left)) 56px;
+  border-top: 1px solid var(--rule);
+}
+
+.footer nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+}
+
+/* On a phone the segmented control scrolls inside its own box rather than widening the page. */
+@media (max-width: 480px) {
+  .controls > :first-child {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .scene {
+    border-radius: 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}

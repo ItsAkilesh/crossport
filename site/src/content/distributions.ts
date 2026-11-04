@@ -1,0 +1,67 @@
+/*
+ * File: site/src/content/distributions.ts
+ * Purpose: The per-platform distributions, install steps and honest limits shown on the page
+ * Author: Akilesh
+ * Date: 2026-11-04
+ *
+ * Mirrors README.md ("One project, one distribution per platform", "Use Crossport on Windows") and
+ * docs/DESIGN.md section 6; when those change, change this.
+ */
+
+export interface Distribution {
+  readonly id: string;
+  readonly platform: string;
+  readonly translates: string;
+  readonly status: string;
+  readonly isAvailable: boolean;
+}
+
+export const DISTRIBUTIONS: readonly Distribution[] = [
+  {
+    id: "windows",
+    platform: "Windows, x86-64",
+    translates: "x86-64 AppImages into Windows PE files, keeping the machine code",
+    status: "Under way: Milestones 0 to 9",
+    isAvailable: true,
+  },
+  {
+    id: "macos",
+    platform: "macOS, Apple silicon",
+    translates: "aarch64 AppImages into Mach-O arm64 files, natively",
+    status: "Planned: Milestone 10",
+    isAvailable: false,
+  },
+];
+
+export interface InstallStep {
+  readonly title: string;
+  readonly command: string;
+}
+
+export const INSTALL_STEPS: readonly InstallStep[] = [
+  { title: "Get the source", command: "git clone https://github.com/ItsAkilesh/crossport.git\ncd crossport" },
+  { title: "Build the translator", command: "cargo build --release --locked --manifest-path translator/Cargo.toml" },
+  { title: "Build the shim", command: "bash tools/build-shim.sh" },
+  {
+    title: "Convert an AppImage",
+    command:
+      "translator/target/release/crossport convert MyApp.AppImage --shim build/shim/crossport_libc.dll --out C:/Apps/MyApp",
+  },
+];
+
+export const REQUIREMENTS: readonly string[] = [
+  "Windows 10 or 11, 64-bit",
+  "Git (it includes Git Bash)",
+  "Rust, the stable toolchain",
+  "A 64-bit mingw-w64 gcc on your PATH",
+  "Python 3",
+];
+
+export const LIMITS: readonly string[] = [
+  "Qt and GTK applications do not run yet. They need fonts, XKB and more, which is Milestone 7.",
+  "Text drawn through X fonts or fontconfig, sound, and the system clipboard are not done.",
+  "Electron, the JVM and other programs that generate machine code at run time are out of scope.",
+  "There is no installer yet. You build Crossport once, then convert each AppImage.",
+];
+
+export const REPOSITORY_URL = "https://github.com/ItsAkilesh/crossport";

@@ -1,0 +1,76 @@
+# File: .github/workflows/site.yml
+# Purpose: Typecheck, test and build the project page (site/), and publish it to GitHub Pages from main
+# Author: Akilesh
+# Date: 2026-11-04
+#
+# The page is served at https://itsakilesh.github.io/crossport/ (a project page of the ItsAkilesh/crossport
+# repository; the user site itsakilesh.github.io is a separate repository and is not touched). Pages is set to
+# deploy from a workflow, so the built files never live in the repository. It runs only when the page's own code
+# (site/) or this workflow changes. The page also reads docs/progress.json and translator/Cargo.toml when it is
+# built, so the status figure and the version label catch up on the next site change; run the workflow by hand
+# (workflow_dispatch) to refresh them sooner.
+
+name: site
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - ".github/workflows/site.yml"
+  pull_request:
+    paths:
+      - "site/**"
+      - ".github/workflows/site.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: site
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22.12.0"
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+      - name: Install the pinned dependencies
+        run: npm ci
+      - name: Check the signatures of the installed packages
+        run: npm audit signatures
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Test
+        run: npm test
+      - name: Build
+        run: npm run build
+      - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
+        if: github.event_name != 'pull_request'
+        with:
+          path: site/dist
+
+  deploy:
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5
