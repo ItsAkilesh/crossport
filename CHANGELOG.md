@@ -5,6 +5,14 @@ being worked on. A feature commit that adds user-visible capability (a new flag,
 that runs) bumps the patch number; a fix does not. The version lives in `translator/Cargo.toml` and is
 bumped in the same commit as the change. Releases are tagged by the maintainer, not by automation.
 
+## 0.6.5
+
+- Input: `libXtst.so.6` is provided by the shim. A program can inject keys, pointer moves, clicks and wheel
+  notches into its own display, and they reach it through Windows input and the window procedure. Window
+  positions are now where X puts them (the client area's origin), key and button events carry the state from
+  before the event as X reports it, and input events carry root coordinates. A sample matches Linux event for
+  event.
+
 ## 0.6.4
 
 - EGL on Windows: `libEGL.so.1`, `libGLESv2.so.2` and `libGLESv1_CM.so.1` are provided by the shim on the same

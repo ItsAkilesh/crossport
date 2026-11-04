@@ -157,6 +157,12 @@ that report an unchanged size. Focus, enter and leave events come from the match
 
 - **Input:** Windows scancodes map to evdev keycodes plus 8, with a US keysym table; `XLookupString` handles
   Shift, Caps Lock and Control. There is no input method (`XOpenIM` returns NULL).
+  Windows reports key and button state after an event and X reports it from before, so the converter undoes
+  the change for the key or button that caused the event. A window's position is its client origin in every
+  call and event, as in X. XTest (`xlib_xtest.c`) turns `XTestFake*` calls into real input (`SendInput`,
+  `SetCursorPos`), after bringing one of the program's windows to the foreground. A pointer move is
+  delivered by Windows as a low-priority message, so the call dispatches the program's messages before it
+  returns, which keeps injected events in order. `xlib_input` compares the result with Xvfb.
 - **Properties:** a table keyed by window and atom, kept in wire form and widened to 8-byte longs for
   format-32 reads. `PropertyNotify` is posted when selected. The title and `WM_PROTOCOLS` properties also
   reach the xcb layer.
