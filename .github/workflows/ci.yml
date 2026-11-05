@@ -101,10 +101,10 @@ jobs:
         env:
           LIBGL_ALWAYS_SOFTWARE: "1"
         run: |
-          xvfb-run -a bash -c 'for corpus_case in $NATIVE_CASES $TRANSLATED_CASES $ABORT_CASES $CRASH_CASES $CLIPBOARD_CASES; do tools/run-case.sh "$corpus_case" linux; done'
+          xvfb-run -a bash -ec 'for corpus_case in $NATIVE_CASES $TRANSLATED_CASES $ABORT_CASES $CRASH_CASES $CLIPBOARD_CASES; do tools/run-case.sh "$corpus_case" linux; done'
       - name: Package the corpus apps and record their Linux results
         run: |
-          xvfb-run -a bash -c 'for app in $APPS; do tools/corpus/linux_baseline.sh "$app"; done'
+          xvfb-run -a bash -ec 'for app in $APPS; do tools/corpus/linux_baseline.sh "$app"; done'
       - name: Save the Cargo cache
         if: always() && steps.cargo.outputs.cache-hit != 'true'
         uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
