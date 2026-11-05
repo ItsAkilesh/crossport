@@ -20,3 +20,6 @@ pub mod report;
 
 #[cfg(windows)]
 pub mod win;
+
+#[cfg(windows)]
+pub mod ui;

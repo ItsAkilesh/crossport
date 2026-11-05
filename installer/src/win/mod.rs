@@ -94,3 +94,11 @@ pub fn announce_association_change() {
     // SAFETY: no item pointers are passed for a global association change.
     unsafe { SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, None, None) };
 }
+
+/// Make `println!` and `eprintln!` reach the terminal that started this windowed program, if there is one.
+pub fn attach_console() {
+    // SAFETY: attaching to the parent console has no pointer arguments; failure (no parent console) is fine.
+    unsafe {
+        let _ = windows::Win32::System::Console::AttachConsole(windows::Win32::System::Console::ATTACH_PARENT_PROCESS);
+    }
+}
