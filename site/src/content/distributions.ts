@@ -62,7 +62,7 @@ export const LIMITS: readonly string[] = [
   "Text drawn through X fonts or fontconfig, and sound, are not done. The clipboard works for text.",
   "Programs that make raw Linux system calls (rare outside the C library) are not translated; the translator warns about them.",
   "Electron, the JVM and other programs that generate machine code at run time are out of scope.",
-  "A setup wizard and an AppImage launcher exist (installer/package.sh builds them) but there is no signed download yet. You build Crossport once, then double-click AppImages or convert them by command.",
+  "A setup wizard and an AppImage launcher exist and a tagged release publishes them with a SHA-256 checksum, signed when a certificate is configured; no release has been cut yet, so for now you build Crossport once (installer/package.sh), then double-click AppImages or convert them by command. Updates are checked only when you ask (--check-update).",
 ];
 
 export const AUTHOR_NAME = "Akilesh Srinivasa Kumar";
