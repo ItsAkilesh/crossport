@@ -5,6 +5,29 @@ being worked on. A feature commit that adds user-visible capability (a new flag,
 that runs) bumps the patch number; a fix does not. The version lives in `translator/Cargo.toml` and is
 bumped in the same commit as the change. Releases are tagged by the maintainer, not by automation.
 
+## 0.7.7
+
+- KeePassXC 2.8.0 shows its window: the Qt `xcb` platform runs on the in-process X11, paints the main window and the
+  "check for updates" dialog with text, icons and menus, and receives the keyboard and the mouse. Found by running
+  the converted app and following each failure to its cause:
+  - `crossport convert` writes a `qt.conf` beside the program inside the AppDir when the app has none, a
+    `fonts.conf` that points fontconfig at the Windows fonts directory, and `CROSSPORT_PROGRAM` in `crossport.env`.
+    `QT_PLUGIN_PATH` alone cannot work: Qt splits it at every colon and a Windows path has one after the drive.
+  - `readlink("/proc/self/exe")` answers with the program's original place inside the AppDir, so the `../share`,
+    `../lib` and `../plugins` that toolkits and applications look for next to their program resolve as on Linux.
+    Before, Qt guessed the path from `argv[0]` and the current directory and failed when they were on different drives.
+  - The thread pointer read inline (`%fs:0x10`, glibc's `pthread_self`) now equals what `pthread_self()` returns.
+    Qt compared the two, decided every object lived in another thread, and queued every slot call: a deleted
+    button stayed in its dialog's lists and the next layout crashed.
+  - `/dev/urandom` and `/dev/random` open and read from the system generator (Botan seeds itself there).
+  - Mapping a window with `xcb_map_window` reports MapNotify, and unmapping reports UnmapNotify. A toolkit treats
+    a window as exposed only after its MapNotify and paints nothing before that. Xlib keeps reporting its own.
+  - `CROSSPORT_TRACE=1` prints the drawing requests and paints of the X layer to stderr.
+- A startup run of KeePassXC joins the corpus (`keepassxc/gui-start`: it must still be running after 40 seconds,
+  as it is on Linux under Xvfb).
+- Not yet: XKB (keys that need a keymap), icon themes beyond the built-in ones, auto-type, a check that
+  the window's contents are right, and GTK.
+
 ## 0.7.6
 
 - A real Qt application runs: KeePassXC 2.8.0 (Qt 6, 153 modules with its plugins) starts translated on Windows,

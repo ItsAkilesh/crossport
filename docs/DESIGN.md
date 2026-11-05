@@ -270,6 +270,16 @@ thread, and the event queue wakes waiters with a condition variable and the disp
 arrival hook. The rule from section 2.11 still holds: never call a Win32 function that waits for the window thread
 while holding the Xlib lock, because the window procedure takes it too.
 
+**What a toolkit expects of its process (found with KeePassXC).** `readlink("/proc/self/exe")` returns
+`CROSSPORT_PROGRAM`, which `convert` sets to the program's original place inside the AppDir, because toolkits find
+`../share`, `../lib` and `../plugins` from it. glibc keeps `pthread_self()` at `%fs:0x10` and Qt reads it inline, so the
+thread control block holds the same pthread object `pthread_self()` returns (a mismatch makes Qt queue every slot
+call). A window must report MapNotify (`xcb_map_window`) before a toolkit paints it. `/dev/urandom` is a descriptor
+kind that reads the system generator. fontconfig reads a `fonts.conf` that `convert` writes beside the program,
+listing the Windows fonts directory. For finding such gaps: run with `CROSSPORT_TRACE=1` (drawing requests and
+paints), and under `gdb` from MinGW, which resolves the exported names of translated libraries
+(`libQt6Core.so.6!_ZN7QObject6senderEv`) and so can count calls and read arguments.
+
 **Short thread-local accesses.** An FS-relative instruction shorter than the 5-byte jump that redirects it
 (a 4-byte `mov %fs:0x28(%rdx),%eax`, for instance) is moved into a stub with its neighbours. The group is the
 smallest straight-line run of at most three instructions on each side that is at least 5 bytes, contiguous, has no
