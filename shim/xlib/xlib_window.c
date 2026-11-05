@@ -83,7 +83,7 @@ LIBC_FN int sysv_XMapWindow(XlDisplay *display, XlId window)
     if (is_new) {
         xl_events_post_structure(display, XL_MAP_NOTIFY, window);
     }
-    sysv_xcb_map_window(NULL, (XcbId)window);
+    xcb_window_map((XcbId)window);
     return 1;
 }
 
@@ -102,7 +102,7 @@ LIBC_FN int sysv_XUnmapWindow(XlDisplay *display, XlId window)
         drawable->is_mapped = 0;
     }
     xl_unlock();
-    sysv_xcb_unmap_window(NULL, (XcbId)window);
+    xcb_window_unmap((XcbId)window);
     if (was_mapped) {
         xl_events_post_structure(display, XL_UNMAP_NOTIFY, window);
     }
