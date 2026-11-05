@@ -1,7 +1,7 @@
 // File: translator/src/appimage/extract.rs
 // Purpose: Extract an AppImage's SquashFS payload to a directory under strict size, path and collision limits
 // Author: Akilesh
-// Date: 2026-10-29
+// Date: 2026-11-05
 
 use std::collections::{HashMap, HashSet};
 use std::fs::{self, File, OpenOptions};
@@ -54,6 +54,22 @@ pub struct AppDir {
     /// Archive-relative components of the program `AppRun` runs (itself, when it is a regular file).
     pub apprun_target: Vec<String>,
     pub report: UnpackReport,
+}
+
+/// On a Unix host a program in the image must stay runnable (the Linux baseline of a prebuilt AppImage runs it
+/// in place). Read and execute bits are kept; the owner can always read and write; setuid and the like are dropped.
+#[cfg(unix)]
+fn apply_mode(path: &Path, mode: u16) -> Result<(), TranslateError> {
+    use std::os::unix::fs::PermissionsExt;
+    let kept = (u32::from(mode) & 0o755) | 0o600;
+    fs::set_permissions(path, fs::Permissions::from_mode(kept))
+        .map_err(|e| io_error(format!("setting the mode of {}", path.display()), e))
+}
+
+/// Windows has no execute bit.
+#[cfg(not(unix))]
+fn apply_mode(_path: &Path, _mode: u16) -> Result<(), TranslateError> {
+    Ok(())
 }
 
 fn io_error(context: String, source: std::io::Error) -> TranslateError {
@@ -179,6 +195,7 @@ impl<'a> Extraction<'a> {
                         reader.file_len() as u64,
                         filesystem.file(reader).reader(),
                     )?;
+                    apply_mode(&self.destination(&components), node.header.permissions)?;
                 }
                 InnerNode::Symlink(link) => self.links.push((components, link.link.clone())),
                 _ => self
@@ -340,5 +357,40 @@ impl<'a> Extraction<'a> {
             .get(&case_key(&apprun))
             .cloned()
             .unwrap_or(apprun)
+    }
+}
+
+#[cfg(all(test, unix))]
+mod mode_tests {
+    use super::*;
+    use std::os::unix::fs::PermissionsExt;
+
+    fn mode_after(mode: u16) -> u32 {
+        let path = std::env::temp_dir().join(format!("crossport-mode-{mode}"));
+        fs::write(&path, b"x").expect("writes");
+        apply_mode(&path, mode).expect("applies");
+        let kept = fs::metadata(&path).expect("exists").permissions().mode() & 0o7777;
+        let _ = fs::remove_file(&path);
+        kept
+    }
+
+    #[test]
+    fn a_program_keeps_its_execute_bits() {
+        assert_eq!(mode_after(0o755), 0o755);
+    }
+
+    #[test]
+    fn a_data_file_stays_unexecutable_and_the_owner_can_always_write() {
+        assert_eq!(mode_after(0o644), 0o644);
+        assert_eq!(
+            mode_after(0o444),
+            0o644,
+            "owner read and write are always kept"
+        );
+    }
+
+    #[test]
+    fn setuid_and_sticky_bits_are_dropped() {
+        assert_eq!(mode_after(0o4755), 0o755);
     }
 }

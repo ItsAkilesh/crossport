@@ -5,6 +5,16 @@ being worked on. A feature commit that adds user-visible capability (a new flag,
 that runs) bumps the patch number; a fix does not. The version lives in `translator/Cargo.toml` and is
 bumped in the same commit as the change. Releases are tagged by the maintainer, not by automation.
 
+## 0.7.3
+
+- Images Windows accepts: when ELF segments leave a gap between them, the section before the gap now runs up to the
+  next one. Windows refuses an image whose sections are not contiguous (`0xC000007B`), which hit 7 of the 153
+  modules of KeePassXC (zlib, expat, freetype, fontconfig, harfbuzz, libusb, wayland-client) and would have hit
+  other programs.
+- `unpack` keeps the read and execute bits of files on a Unix host, so a prebuilt AppImage can be run in place.
+- KeePassXC 2.8.0 joins the corpus (a prebuilt image, converted with the runtime pack and Qt's plugin path set by
+  `convert`); `libX11-xcb` is provided by the shim.
+
 ## 0.7.2
 
 First results from a real Qt application, KeePassXC 2.8.0 (Qt 6, 142 modules with its plugins):

@@ -1,7 +1,7 @@
 // File: translator/src/relink/layout.rs
 // Purpose: Place ELF PT_LOAD segments in the PE address space and build the module's virtual image
 // Author: Akilesh
-// Date: 2026-10-28
+// Date: 2026-11-05
 
 use crate::elf_model::{ElfInfo, LoadSegment};
 use crate::error::TranslateError;
@@ -90,6 +90,8 @@ pub(super) fn build_image(
     Ok(image)
 }
 
+/// One section per segment. Windows refuses an image whose sections leave a gap between them (the kernel
+/// answers STATUS_INVALID_IMAGE_FORMAT), and ELF segments often do, so a section reaches the next one.
 pub(super) fn elf_sections(layout: &Layout, image: &[u8]) -> Vec<PeSection> {
     layout
         .placements
@@ -98,10 +100,14 @@ pub(super) fn elf_sections(layout: &Layout, image: &[u8]) -> Vec<PeSection> {
         .map(|(index, placement)| {
             let start = placement.rva as usize;
             let raw_len = align_up(placement.file_len, PAGE_SIZE) as usize;
+            let reach = layout
+                .placements
+                .get(index + 1)
+                .map_or(0, |next| next.rva - placement.rva);
             PeSection {
                 name: format!(".elf{index}"),
                 rva: placement.rva as u32,
-                virtual_size: placement.mem_len as u32,
+                virtual_size: placement.mem_len.max(reach) as u32,
                 data: image[start..start + raw_len].to_vec(),
                 characteristics: placement.flags,
             }
@@ -152,6 +158,24 @@ mod tests {
         assert_eq!(layout.placements[1].rva, 0x4000);
         assert_eq!(layout.placements[1].mem_len, 0xde8 + 0x230);
         assert_eq!(layout.end_rva, 0x5000 + 0x1000);
+    }
+
+    #[test]
+    fn a_gap_between_segments_is_covered_so_the_sections_are_contiguous() {
+        let layout = plan(&[
+            segment(0, 0x1f38, 0x1f38, false),
+            segment(0x5000, 0x10b8, 0x10b8, true),
+        ])
+        .expect("plans");
+        let image = vec![0u8; layout.end_rva as usize];
+        let sections = elf_sections(&layout, &image);
+        assert_eq!(sections[0].rva, 0x1000);
+        assert_eq!(
+            u64::from(sections[0].virtual_size),
+            u64::from(sections[1].rva - sections[0].rva),
+            "the first section runs up to the second"
+        );
+        assert_eq!(sections[1].virtual_size, 0x10b8);
     }
 
     #[test]
