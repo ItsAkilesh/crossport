@@ -23,3 +23,6 @@ pub mod win;
 
 #[cfg(windows)]
 pub mod ui;
+
+#[cfg(windows)]
+pub mod flows;
