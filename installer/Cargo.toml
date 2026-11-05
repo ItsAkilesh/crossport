@@ -1,0 +1,28 @@
+# File: installer/Cargo.toml
+# Purpose: Manifest for the Crossport setup program and the AppImage launcher (one library, two binaries)
+# Author: Akilesh
+# Date: 2026-11-05
+
+[package]
+name = "crossport-setup"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[lib]
+name = "crossport_setup"
+path = "src/lib.rs"
+
+[[bin]]
+name = "crossport-setup"
+path = "src/bin/setup.rs"
+
+[[bin]]
+name = "crossport-open"
+path = "src/bin/open.rs"
+
+[dependencies]
+
+[lints.rust]
+unsafe_code = "deny"

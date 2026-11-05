@@ -2,7 +2,7 @@
   File: docs/DESIGN.md
   Purpose: Technical design for the Crossport ELF-to-PE static translator
   Author: Akilesh
-  Date: 2026-10-29
+  Date: 2026-11-05
 -->
 
 # Crossport Design
@@ -376,6 +376,24 @@ Built before the translator, because agents and humans both need fast, objective
 - **Core X fonts (decided 2026-11-04):** `XLoadQueryFont` and the other server-side font calls are not
   implemented and fail cleanly. Toolkits draw text with freetype and fontconfig from the runtime pack, which
   is what Milestone 6 and 7 programs use. Revisit if a real program needs core fonts.
+
+- **Installer technology (decided 2026-11-05):** a native Rust wizard under `installer/`, which is both the
+  Crossport setup program and the launcher that opens an `.AppImage`; both share one library for paths,
+  registry entries, shortcuts, uninstall manifests and the conversion report. Options considered:
+  - *MSIX package:* needs a trusted signing certificate to install at all, installs only under
+    `WindowsApps` (never `Program Files\Crossport` or a chosen path), has no path picker, and cannot register
+    an install per AppImage from a launcher. It may return later as an optional Store or winget package of
+    Crossport itself.
+  - *WiX MSI with a Burn bootstrapper:* a solid package for Crossport itself, but heavy XML, an extra
+    toolset to pin, and MSI is a poor fit for one install per AppImage created at run time, so the launcher
+    would still be a second technology.
+  - *Inno Setup:* the quickest wizard for Crossport itself, but a closed-source Pascal toolchain to pin, and
+    the launcher would again be separate.
+  - *Rust wizard (chosen):* one codebase and toolchain for both parts, no extra tools in CI, logic testable
+    without a GUI. The cost is writing the wizard and the install and uninstall steps ourselves.
+  An app installs to `Program Files\Crossport\<app>` (machine scope, elevation requested only then) or to
+  `%LOCALAPPDATA%\Programs\Crossport\<app>` (user scope, no elevation). Registration follows the scope:
+  `HKLM` for machine, `HKCU` for user.
 
 ### 2.9 Milestone 5 implementation notes
 
