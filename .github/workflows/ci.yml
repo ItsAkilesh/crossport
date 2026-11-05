@@ -38,7 +38,7 @@ env:
   ABORT_CASES: canary_smash
   CRASH_CASES: crash_null
   CLIPBOARD_CASES: xlib_clipboard
-  APPS: lua sqlite3 jq sdl2_tests
+  APPS: lua sqlite3 jq sdl2_tests keepassxc
   CARGO_PATHS: |
     ~/.cargo/registry/index
     ~/.cargo/registry/cache
@@ -105,12 +105,19 @@ jobs:
       - name: Package the corpus apps and record their Linux results
         run: |
           xvfb-run -a bash -ec 'for app in $APPS; do tools/corpus/linux_baseline.sh "$app"; done'
+      - name: Fetch the runtime pack (the host libraries AppImages expect), checked against its pins
+        run: python3 tools/runtime/fetch_pack.py tools/runtime/pack.json build/pack-cache build/runtime-pack
       - name: Save the Cargo cache
         if: always() && steps.cargo.outputs.cache-hit != 'true'
         uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
           path: ${{ env.CARGO_PATHS }}
           key: cargo-${{ github.job }}-${{ runner.os }}-${{ hashFiles('tools/difftest/Cargo.lock', 'translator/Cargo.lock') }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: runtime-pack
+          path: build/runtime-pack
+          if-no-files-found: error
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: apps-linux
@@ -250,6 +257,10 @@ jobs:
         with:
           name: apps-linux
           path: .
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: runtime-pack
+          path: build/runtime-pack
       - name: Unpack, translate and run the corpus apps on Windows
         if: inputs.cases == ''
         run: |

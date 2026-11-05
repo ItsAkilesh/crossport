@@ -142,6 +142,76 @@
       ]
     },
     {
+      "name": "libssl3",
+      "suites": [
+        "jammy-updates",
+        "jammy"
+      ]
+    },
+    {
+      "name": "libgmp10",
+      "suites": [
+        "jammy-updates",
+        "jammy"
+      ]
+    },
+    {
+      "name": "libgpg-error0",
+      "suites": [
+        "jammy-updates",
+        "jammy"
+      ]
+    },
+    {
+      "name": "libcom-err2",
+      "suites": [
+        "jammy-updates",
+        "jammy"
+      ]
+    },
+    {
+      "name": "libsm6",
+      "suites": [
+        "jammy-updates",
+        "jammy"
+      ]
+    },
+    {
+      "name": "libice6",
+      "suites": [
+        "jammy-updates",
+        "jammy"
+      ]
+    },
+    {
+      "name": "libbsd0",
+      "suites": [
+        "jammy-updates",
+        "jammy"
+      ]
+    },
+    {
+      "name": "libmd0",
+      "suites": [
+        "jammy-updates",
+        "jammy"
+      ]
+    },
+    {
+      "name": "libusb-1.0-0",
+      "suites": [
+        "jammy-updates",
+        "jammy"
+      ]
+    },
+    {
+      "name": "libwayland-client0",
+      "suites": [
+        "jammy-updates",
+        "jammy"
+      ]
+    },
+    {
       "name": "libstdc++6",
       "suites": [
         "noble-updates",

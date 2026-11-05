@@ -29,6 +29,8 @@ pub const SHIM_PROVIDED_LIBRARIES: &[&str] = &[
     "libxcb.so.1",
     // Xlib is provided in process on top of the same Win32 windows.
     "libX11.so.6",
+    // The xcb connection behind an Xlib display, which Qt asks for, is provided with it.
+    "libX11-xcb.so.1",
     // XTest, which drives the in-process display's keyboard and pointer, is provided with it.
     "libXtst.so.6",
     // OpenGL and GLX are provided on top of opengl32.dll (WGL) and the same Win32 windows.

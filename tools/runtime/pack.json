@@ -162,6 +162,86 @@
       "size": 14368
     },
     {
+      "name": "libssl3",
+      "version": "3.0.2-0ubuntu1.30",
+      "suite": "jammy-updates",
+      "url": "https://snapshot.ubuntu.com/ubuntu/20261001T000000Z/pool/main/o/openssl/libssl3_3.0.2-0ubuntu1.30_amd64.deb",
+      "sha256": "d1b4636e32ac6d3b95d583ac05ac548b1aa248414bae1c51b14f54be0f8fd7bc",
+      "size": 1907006
+    },
+    {
+      "name": "libgmp10",
+      "version": "2:6.2.1+dfsg-3ubuntu1",
+      "suite": "jammy",
+      "url": "https://snapshot.ubuntu.com/ubuntu/20261001T000000Z/pool/main/g/gmp/libgmp10_6.2.1+dfsg-3ubuntu1_amd64.deb",
+      "sha256": "d199a77e11701d4d620dd4f62e05740e3072dce893856ea3bbaa6ae9fa19fef1",
+      "size": 250148
+    },
+    {
+      "name": "libgpg-error0",
+      "version": "1.43-3",
+      "suite": "jammy",
+      "url": "https://snapshot.ubuntu.com/ubuntu/20261001T000000Z/pool/main/libg/libgpg-error/libgpg-error0_1.43-3_amd64.deb",
+      "sha256": "1fbacdf9bd1e431cee874a697b339f6f925182bc79bba5a112b53669b33265c5",
+      "size": 69684
+    },
+    {
+      "name": "libcom-err2",
+      "version": "1.46.5-2ubuntu1.2",
+      "suite": "jammy-updates",
+      "url": "https://snapshot.ubuntu.com/ubuntu/20261001T000000Z/pool/main/e/e2fsprogs/libcom-err2_1.46.5-2ubuntu1.2_amd64.deb",
+      "sha256": "552bc8169451cfdcf174a8da845b13ced0a55777149af5cf47491193161ed791",
+      "size": 9304
+    },
+    {
+      "name": "libsm6",
+      "version": "2:1.2.3-1build2",
+      "suite": "jammy",
+      "url": "https://snapshot.ubuntu.com/ubuntu/20261001T000000Z/pool/main/libs/libsm/libsm6_1.2.3-1build2_amd64.deb",
+      "sha256": "e652e286a79d9e8e15189d79b290bdce20aca83651f3dfed1b9b7dc0bbf0702f",
+      "size": 16736
+    },
+    {
+      "name": "libice6",
+      "version": "2:1.0.10-1build2",
+      "suite": "jammy",
+      "url": "https://snapshot.ubuntu.com/ubuntu/20261001T000000Z/pool/main/libi/libice/libice6_1.0.10-1build2_amd64.deb",
+      "sha256": "eea6d52d12ad610d70b0f70c825ed3c560dafb09f4c272e3c6b0b493d984d13f",
+      "size": 42606
+    },
+    {
+      "name": "libbsd0",
+      "version": "0.11.5-1",
+      "suite": "jammy",
+      "url": "https://snapshot.ubuntu.com/ubuntu/20261001T000000Z/pool/main/libb/libbsd/libbsd0_0.11.5-1_amd64.deb",
+      "sha256": "09367acdf59f28ffb71ba7bc36c516cff03b2765930cf9be7bb7ea7273e4c312",
+      "size": 44760
+    },
+    {
+      "name": "libmd0",
+      "version": "1.0.4-1build1",
+      "suite": "jammy",
+      "url": "https://snapshot.ubuntu.com/ubuntu/20261001T000000Z/pool/main/libm/libmd/libmd0_1.0.4-1build1_amd64.deb",
+      "sha256": "bcdad5e400aeb660f0337a1c5c1a77e3effa91d0803e64ce2d000e9006f67cdb",
+      "size": 22964
+    },
+    {
+      "name": "libusb-1.0-0",
+      "version": "2:1.0.25-1ubuntu2",
+      "suite": "jammy-updates",
+      "url": "https://snapshot.ubuntu.com/ubuntu/20261001T000000Z/pool/main/libu/libusb-1.0/libusb-1.0-0_1.0.25-1ubuntu2_amd64.deb",
+      "sha256": "99b98c9cc9c88c4d7f50e106e9f0cbff868c5d14809f516b1947d3d2c4638aae",
+      "size": 52688
+    },
+    {
+      "name": "libwayland-client0",
+      "version": "1.20.0-1ubuntu0.1",
+      "suite": "jammy-updates",
+      "url": "https://snapshot.ubuntu.com/ubuntu/20261001T000000Z/pool/main/w/wayland/libwayland-client0_1.20.0-1ubuntu0.1_amd64.deb",
+      "sha256": "2c06ef99bc387136e6357014fcb9fa6f47e0cb4e54d9b5ee10c750743a216e5a",
+      "size": 25950
+    },
+    {
       "name": "libstdc++6",
       "version": "14.2.0-4ubuntu2~24.04.1",
       "suite": "noble-updates",

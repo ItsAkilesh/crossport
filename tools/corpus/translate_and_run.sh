@@ -29,6 +29,20 @@ binary="$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["binary
 mkdir -p "$results"
 rm -rf "$unpacked" "$bundle" "$results/$app-translate-error.txt"
 
+# An app with "convert": true goes through the one-step command users run, with its flags.
+if python -c 'import json,sys; sys.exit(0 if json.load(open(sys.argv[1])).get("convert") else 1)' "$app_dir/app.json"; then
+  mapfile -t convert_flags < <(python -c 'import json,sys; print(*json.load(open(sys.argv[1])).get("translate_flags", []), sep="\n")' "$app_dir/app.json" | tr -d '\r' | grep -v '^$' || true)
+  if ! "$crossport" convert "$image" --shim "$root/build/shim/crossport_libc.dll" --out "$bundle" "${convert_flags[@]}" \
+    > "$results/$app-convert.log" 2> "$results/$app-translate-error.txt"; then
+    echo "$app: conversion failed: $(head -n 1 "$results/$app-translate-error.txt")"
+    exit 0
+  fi
+  rm -f "$results/$app-translate-error.txt"
+  python "$root/tools/corpus/run_app_tests.py" --app-dir "$app_dir" --exe "$bundle/$binary.exe" --label windows \
+    --work "$root/build/corpus/work-windows" --results "$results" --difftest "$difftest"
+  exit 0
+fi
+
 "$crossport" unpack "$image" --out "$unpacked"
 
 # Flags the app needs, for example --stub-missing for host libraries such as ALSA that AppImages never bundle.

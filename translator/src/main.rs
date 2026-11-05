@@ -308,8 +308,26 @@ fn convert_image(
         runtime: runtime_dirs,
         plugins: plugin_dirs,
     };
-    run_translation(&program, shim, out, directories, Some(appdir), missing)?;
-    let env_path = bundle::write_env_file(out, &[("APPDIR", "${BUNDLE}/appdir")])?;
+    run_translation(
+        &program,
+        shim,
+        out,
+        directories,
+        Some(appdir.clone()),
+        missing,
+    )?;
+    let mut variables = vec![("APPDIR", "${BUNDLE}/appdir".to_string())];
+    if appdir.join(QT_PLUGIN_DIR).is_dir() {
+        variables.push((
+            "QT_PLUGIN_PATH",
+            format!("${{BUNDLE}}/{APPDIR_NAME}/{QT_PLUGIN_DIR}"),
+        ));
+    }
+    let pairs: Vec<(&str, &str)> = variables
+        .iter()
+        .map(|(name, value)| (*name, value.as_str()))
+        .collect();
+    let env_path = bundle::write_env_file(out, &pairs)?;
     println!("wrote {}", env_path.display());
     Ok(())
 }

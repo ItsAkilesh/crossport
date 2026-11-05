@@ -2,7 +2,7 @@
 # File: tools/corpus/package.sh
 # Purpose: Build one corpus app from its pinned source and pack it into a real type 2 AppImage
 # Author: Akilesh
-# Date: 2026-10-28
+# Date: 2026-11-05
 #
 # Usage: tools/corpus/package.sh <app>
 # Output: build/corpus/appdirs/<app>/ (the AppDir) and build/corpus/images/<app>.AppImage
@@ -23,6 +23,29 @@ appdir="$work/appdirs/$app"
 image="$work/images/$app.AppImage"
 
 [[ -f "$app_dir/app.json" ]] || { echo "unknown app: $app" >&2; exit 2; }
+
+# An app that ships as a prebuilt AppImage ("image" in app.json) is downloaded, checked against its pin and
+# unpacked; there is nothing to build. The wrapper sets the environment AppRun would, for the Linux baseline.
+if python3 -c 'import json,sys; sys.exit(0 if "image" in json.load(open(sys.argv[1])) else 1)' "$app_dir/app.json"; then
+  pin="$work/downloads/$app.pin.json"
+  mkdir -p "$work/downloads" "$work/images"
+  python3 -c 'import json,sys; print(json.dumps(json.load(open(sys.argv[1]))["image"]))' "$app_dir/app.json" > "$pin"
+  python3 "$root/tools/corpus/fetch.py" file "$pin" "$image" > /dev/null
+  chmod +x "$image"
+  cargo build --release --locked --manifest-path "$root/translator/Cargo.toml"
+  rm -rf "$appdir"
+  "$root/translator/target/release/crossport" unpack "$image" --out "$appdir" > /dev/null
+  binary="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["binary"])' "$app_dir/app.json")"
+  cat > "$appdir/crossport-run" <<WRAPPER
+#!/usr/bin/env bash
+here="\$(cd "\$(dirname "\$0")" && pwd)"
+export APPDIR="\$here" LD_LIBRARY_PATH="\$here/usr/lib" QT_PLUGIN_PATH="\$here/usr/plugins"
+exec "\$here/usr/bin/$binary" "\$@"
+WRAPPER
+  chmod +x "$appdir/crossport-run"
+  echo "$image"
+  exit 0
+fi
 
 source_dir="$(python3 "$root/tools/corpus/fetch.py" source "$app_dir" "$work")"
 runtime="$(python3 "$root/tools/corpus/fetch.py" file "$root/tests/corpus/apps/runtime.json" "$work/downloads/runtime-x86_64")"
