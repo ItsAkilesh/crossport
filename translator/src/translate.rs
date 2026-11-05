@@ -1,11 +1,11 @@
 // File: translator/src/translate.rs
 // Purpose: Orchestrate a translation: load the module graph, resolve and relink every module, serialize the PE files
 // Author: Akilesh
-// Date: 2026-10-28
+// Date: 2026-11-05
 
 use crate::coverage::missing_symbols;
 use crate::error::TranslateError;
-use crate::graph;
+use crate::graph::{self, PluginFile};
 use crate::naming::ModuleName;
 use crate::pe_writer;
 use crate::relink::relink_module;
@@ -55,16 +55,30 @@ pub fn translate(
     shim: &ShimExports,
     on_missing: Missing,
 ) -> Result<Translation, TranslateError> {
+    translate_with_plugins(exe_name, exe_data, source, shim, on_missing, Vec::new())
+}
+
+/// Like `translate`, and also the plugins the program opens with `dlopen` (each is written as its own
+/// DLL, with the libraries only it needs, and is initialised when the program opens it).
+pub fn translate_with_plugins(
+    exe_name: ModuleName,
+    exe_data: Vec<u8>,
+    source: &dyn LibrarySource,
+    shim: &ShimExports,
+    on_missing: Missing,
+    plugins: Vec<PluginFile>,
+) -> Result<Translation, TranslateError> {
     if !shim.provides(START_SYMBOL) {
         return Err(TranslateError::Unsupported(format!(
             "the shim does not export {START_SYMBOL}"
         )));
     }
     let mut missing_libraries = Vec::new();
-    let graph = match on_missing {
-        Missing::Fail => graph::load(exe_name, exe_data, source)?,
-        Missing::Stub => graph::load_lenient(exe_name, exe_data, source, &mut missing_libraries)?,
+    let collected = match on_missing {
+        Missing::Fail => None,
+        Missing::Stub => Some(&mut missing_libraries),
     };
+    let graph = graph::load_with_plugins(exe_name, exe_data, source, plugins, collected)?;
     let missing = missing_symbols(&graph, shim);
     if on_missing == Missing::Fail && !missing.is_empty() {
         return Err(TranslateError::UnresolvedSymbols(missing));

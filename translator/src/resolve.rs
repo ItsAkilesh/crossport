@@ -1,7 +1,7 @@
 // File: translator/src/resolve.rs
 // Purpose: Resolve symbol references once, at translation time, using ELF global scope lookup order
 // Author: Akilesh
-// Date: 2026-10-28
+// Date: 2026-11-05
 
 use std::collections::HashSet;
 
@@ -56,9 +56,9 @@ impl<'a> Resolver<'a> {
         self
     }
 
-    /// ELF semantics: the first module in global scope order (executable, then
-    /// libraries breadth-first) that exports the name wins, even when the
-    /// importer defines the symbol itself (symbol interposition).
+    /// ELF semantics: the first module in the importer's scope (the executable, then
+    /// libraries breadth-first; a plugin adds itself and its own libraries) that exports the name wins,
+    /// even when the importer defines the symbol itself (symbol interposition).
     pub fn resolve(&self, importer: usize, symbol: &DynSymbol) -> Result<Target, TranslateError> {
         match symbol.definition {
             Definition::Absolute => {
@@ -72,7 +72,7 @@ impl<'a> Resolver<'a> {
             }
             _ => {}
         }
-        if let Some(definer) = self.first_definer(&symbol.name, 0) {
+        if let Some(definer) = self.first_definer(importer, &symbol.name, 0) {
             return self.target_for(importer, definer, &symbol.name);
         }
         self.fallback(importer, symbol)
@@ -85,7 +85,7 @@ impl<'a> Resolver<'a> {
         importer: usize,
         symbol: &DynSymbol,
     ) -> Result<Target, TranslateError> {
-        if let Some(definer) = self.first_definer(&symbol.name, 1) {
+        if let Some(definer) = self.first_definer(importer, &symbol.name, 1) {
             return Ok(Target::Library { module: definer });
         }
         if self.shim.provides(&symbol.name) {
@@ -122,7 +122,8 @@ impl<'a> Resolver<'a> {
                 offset: address,
             });
         }
-        for (module, candidate) in self.graph.modules.iter().enumerate() {
+        for &module in &self.graph.scopes[importer] {
+            let candidate = &self.graph.modules[module];
             if let Some(&index) = candidate.tls_exports.get(&symbol.name) {
                 let offset = candidate.info.symbols[index].address().unwrap_or(0);
                 return Ok(TlsTarget { module, offset });
@@ -131,8 +132,13 @@ impl<'a> Resolver<'a> {
         Err(self.unresolved(importer, symbol))
     }
 
-    fn first_definer(&self, name: &str, from: usize) -> Option<usize> {
-        (from..self.graph.modules.len())
+    /// The first module in the importer's scope (startup modules, then a plugin's own) at or after `from`
+    /// that exports the name.
+    fn first_definer(&self, importer: usize, name: &str, from: usize) -> Option<usize> {
+        self.graph.scopes[importer]
+            .iter()
+            .copied()
+            .filter(|&index| index >= from)
             .find(|&index| self.graph.modules[index].exports.contains_key(name))
     }
 

@@ -2,17 +2,20 @@
  * File: shim/dlfcn.c
  * Purpose: dlopen, dlsym, dlclose, dlerror and dladdr for the libraries the shim itself provides
  * Author: Akilesh
- * Date: 2026-10-29
+ * Date: 2026-11-05
  *
  * Programs look up functions at run time to probe for optional features (for example a C++ runtime asking
  * for a pthread function, or SDL looking for the X11 libraries). The shim answers for its own libraries
  * and for the default namespace; other libraries are reported as not found, which every such program must
- * already handle. Loading translated bundled libraries at run time is not supported yet.
+ * already handle. Plugins that the translator was told about (--plugin-dir) are translated as DLLs of their
+ * own and opened here by library name: their libraries load first, their imports are bound, and their
+ * constructors run (see shim_load_plugin in crossport_libc.c).
  */
 
 #include <string.h>
 
 #include "libc_abi.h"
+#include "startinfo.h"
 #include "thread_cell.h"
 
 #define RTLD_NEXT_HANDLE ((void *)-1)
@@ -65,18 +68,22 @@ LIBC_FN void *sysv_dlopen(const char *name, int flags)
     if (name == NULL || is_provided(name)) {
         return self_module();
     }
-    set_error(ERROR_MISSING);
-    return NULL;
+    void *plugin = shim_load_plugin(name);
+    if (plugin == NULL) {
+        set_error(ERROR_MISSING);
+    }
+    return plugin;
 }
 
 LIBC_FN void *sysv_dlsym(void *handle, const char *name)
 {
     set_error(NULL);
-    if (handle != NULL && handle != RTLD_NEXT_HANDLE && handle != self_module()) {
+    int is_plugin = shim_is_plugin(handle);
+    if (handle != NULL && handle != RTLD_NEXT_HANDLE && handle != self_module() && !is_plugin) {
         set_error(ERROR_HANDLE);
         return NULL;
     }
-    void *address = (void *)GetProcAddress(self_module(), name);
+    void *address = (void *)GetProcAddress(is_plugin ? (HMODULE)handle : self_module(), name);
     if (address == NULL) {
         set_error(ERROR_SYMBOL);
     }

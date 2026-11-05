@@ -180,11 +180,11 @@
       "tasks": [
         {
           "title": "Runtime pack decision and build",
-          "done": false
+          "done": true
         },
         {
           "title": "dlopen of translated libraries",
-          "done": false
+          "done": true
         },
         {
           "title": "Real Qt AppImage runs",

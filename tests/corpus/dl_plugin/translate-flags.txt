@@ -1,0 +1,2 @@
+--plugin-dir
+build/elf/dl_plugin

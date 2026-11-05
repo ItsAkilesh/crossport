@@ -354,7 +354,8 @@ build/app/app.exe        # the unpacked AppDir is in build/app/appdir
 
 When the AppImage starts through a shell script, the program is taken from the `Exec=` line of its
 desktop file. Libraries the AppImage expects from its host (libstdc++ and similar) can be supplied with
-`--runtime <dir>`, a directory of Linux copies of them.
+`--runtime <dir>`, a directory of Linux copies of them. A program that opens plugins with `dlopen` (Qt and GTK
+programs do) needs `--plugin-dir <dir>` on `translate`; `convert` also scans the AppDir's `usr/plugins`.
 
 You can also drive the translator directly:
 

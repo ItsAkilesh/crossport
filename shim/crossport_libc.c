@@ -2,7 +2,7 @@
  * File: shim/crossport_libc.c
  * Purpose: Startup of a translated program: load its libraries, bind imports, set up TLS, run constructors and main
  * Author: Akilesh
- * Date: 2026-10-29
+ * Date: 2026-11-05
  *
  * crossport_start is called by the PE entry stub with the Microsoft x64
  * convention; everything translated code calls uses sysv_abi (see internal.h).
@@ -29,7 +29,11 @@ void shim_set_program_name(char *full);
 
 static LoadedModule g_modules[MAX_MODULES + 1];
 static size_t g_module_count;
+static size_t g_executable_index; /* the executable is the last startup module; plugins follow it */
 static uint8_t *g_executable_base;
+static int g_argc;
+static char **g_argv;
+static char **g_envp;
 
 const LoadedModule *shim_loaded_modules(size_t *count)
 {
@@ -47,7 +51,7 @@ void *shim_data_home(void *shim_address)
     if (g_module_count == 0) {
         return shim_address;
     }
-    const LoadedModule *exe = &g_modules[g_module_count - 1];
+    const LoadedModule *exe = &g_modules[g_executable_index];
     const CopyRecord *copies = info_copies(exe->info);
     for (uint32_t i = 0; i < exe->info->copy_count; i++) {
         if (*(void **)(exe->base + copies[i].iat_rva) == shim_address) {
@@ -57,12 +61,17 @@ void *shim_data_home(void *shim_address)
     return shim_address;
 }
 
+int shim_info_is_valid(const StartInfo *info)
+{
+    return info != NULL && info->magic == INFO_MAGIC && info->version == INFO_VERSION &&
+           info->iat_binding_count <= MAX_RECORDS && info->exe_binding_count <= MAX_RECORDS &&
+           info->copy_count <= MAX_RECORDS && info->slot_fixup_count <= MAX_RECORDS &&
+           info->module_count <= MAX_MODULES;
+}
+
 static const StartInfo *validated(const StartInfo *info)
 {
-    if (info == NULL || info->magic != INFO_MAGIC || info->version != INFO_VERSION ||
-        info->iat_binding_count > MAX_RECORDS || info->exe_binding_count > MAX_RECORDS ||
-        info->copy_count > MAX_RECORDS || info->slot_fixup_count > MAX_RECORDS ||
-        info->module_count > MAX_MODULES) {
+    if (!shim_info_is_valid(info)) {
         shim_die("crossport: bad start info\n");
     }
     return info;
@@ -85,6 +94,7 @@ static void load_modules(const StartInfo *executable)
     }
     g_modules[g_module_count].info = executable;
     g_modules[g_module_count].base = g_executable_base;
+    g_executable_index = g_module_count;
     g_module_count++;
 }
 
@@ -151,6 +161,37 @@ void shim_run_destructors(void)
     }
 }
 
+const LoadedModule *shim_find_module(const void *handle)
+{
+    for (size_t i = 0; i < g_module_count; i++) {
+        if ((const void *)g_modules[i].base == handle) {
+            return &g_modules[i];
+        }
+    }
+    return NULL;
+}
+
+int shim_is_plugin(const void *handle)
+{
+    const LoadedModule *module = shim_find_module(handle);
+    return module != NULL && module > &g_modules[g_executable_index];
+}
+
+const LoadedModule *shim_activate_module(const StartInfo *info, void *handle)
+{
+    if (!shim_info_is_valid(info) || g_module_count >= MAX_MODULES) {
+        return NULL;
+    }
+    LoadedModule *slot = &g_modules[g_module_count];
+    slot->info = info;
+    slot->base = (uint8_t *)handle;
+    tls_register_module(slot);
+    bind_module(slot);
+    g_module_count++; /* visible to the unwinder and to new threads before its constructors run */
+    run_init(slot, g_argc, g_argv, g_envp);
+    return slot;
+}
+
 NORETURN void shim_finish(int status)
 {
     ExitProcess((UINT)status);
@@ -168,6 +209,9 @@ EXPORT SYSV int __libc_start_main(MainFn main_fn, int argc, char **argv, void (*
     if (argc > 0) {
         shim_set_program_name(argv[0]);
     }
+    g_argc = argc;
+    g_argv = argv;
+    g_envp = envp;
     for (size_t i = 0; i < g_module_count; i++) {
         run_init(&g_modules[i], argc, argv, envp);
     }
@@ -189,7 +233,8 @@ EXPORT void crossport_start(const StartInfo *info)
     for (size_t i = 0; i < g_module_count; i++) {
         bind_module(&g_modules[i]);
     }
-    perform_copies(&g_modules[g_module_count - 1]);
+    perform_copies(&g_modules[g_executable_index]);
+    shim_plugins_init();
 
     size_t slot_count = 0;
     uint64_t *template_block = args_build_stack(&slot_count);

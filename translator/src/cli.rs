@@ -9,8 +9,8 @@ use crate::error::TranslateError;
 use crate::translate::Missing;
 
 const USAGE: &str = "usage:\n  crossport unpack <app.AppImage> --out <new-or-empty-dir>\n  crossport analyze <elf>\n  crossport coverage --shim <crossport_libc.dll> [--appdir <dir>] [--lib-dir <dir>]... [--runtime <dir>]... [--allow-missing] <elf>...
-  crossport translate <elf> --shim <crossport_libc.dll> --out <dir> [--lib-dir <dir>]... [--appdir <dir>] [--runtime <dir>]... [--stub-missing]
-  crossport convert <app.AppImage> --shim <crossport_libc.dll> --out <new-or-empty-dir> [--runtime <dir>]... [--stub-missing]";
+  crossport translate <elf> --shim <crossport_libc.dll> --out <dir> [--lib-dir <dir>]... [--appdir <dir>] [--runtime <dir>]... [--plugin-dir <dir>]... [--stub-missing]
+  crossport convert <app.AppImage> --shim <crossport_libc.dll> --out <new-or-empty-dir> [--runtime <dir>]... [--plugin-dir <dir>]... [--stub-missing]";
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Action {
@@ -38,6 +38,8 @@ pub enum Action {
         out: PathBuf,
         /// Directories of libraries the AppImage expects from its host (libstdc++ and the like).
         runtime_dirs: Vec<PathBuf>,
+        /// Directories of plugins the program opens with `dlopen`, as well as the AppDir's `usr/plugins`.
+        plugin_dirs: Vec<PathBuf>,
         /// Bind what nobody provides to a stub instead of failing (see `--stub-missing`).
         missing: Missing,
     },
@@ -50,6 +52,8 @@ pub enum Action {
         appdir: Option<PathBuf>,
         /// Directories of host libraries (libstdc++ and the like) searched after the AppDir.
         runtime_dirs: Vec<PathBuf>,
+        /// Directories scanned for plugins the program opens with `dlopen`; each is translated as its own DLL.
+        plugin_dirs: Vec<PathBuf>,
         /// Libraries and symbols nobody provides: fail (default) or bind to a stub that returns 0.
         missing: Missing,
     },
@@ -75,7 +79,7 @@ pub fn parse(args: &[String]) -> Result<Action, TranslateError> {
 
 fn parse_convert(image: &str, flags: &[String]) -> Result<Action, TranslateError> {
     let (mut shim, mut out) = (None, None);
-    let mut runtime_dirs = Vec::new();
+    let (mut runtime_dirs, mut plugin_dirs) = (Vec::new(), Vec::new());
     let mut missing = Missing::Fail;
     let mut remaining = flags.iter();
     while let Some(flag) = remaining.next() {
@@ -88,6 +92,7 @@ fn parse_convert(image: &str, flags: &[String]) -> Result<Action, TranslateError
             "--shim" if shim.is_none() => shim = Some(value),
             "--out" if out.is_none() => out = Some(value),
             "--runtime" => runtime_dirs.push(value),
+            "--plugin-dir" => plugin_dirs.push(value),
             _ => return Err(usage()),
         }
     }
@@ -97,6 +102,7 @@ fn parse_convert(image: &str, flags: &[String]) -> Result<Action, TranslateError
             shim,
             out,
             runtime_dirs,
+            plugin_dirs,
             missing,
         }),
         _ => Err(usage()),
@@ -108,7 +114,7 @@ fn parse_translate(elf: &str, flags: &[String]) -> Result<Action, TranslateError
     let mut out = None;
     let mut lib_dirs = Vec::new();
     let mut appdir = None;
-    let mut runtime_dirs = Vec::new();
+    let (mut runtime_dirs, mut plugin_dirs) = (Vec::new(), Vec::new());
     let mut missing = Missing::Fail;
     let mut remaining = flags.iter();
     while let Some(flag) = remaining.next() {
@@ -123,6 +129,7 @@ fn parse_translate(elf: &str, flags: &[String]) -> Result<Action, TranslateError
             "--lib-dir" => lib_dirs.push(value),
             "--appdir" if appdir.is_none() => appdir = Some(value),
             "--runtime" => runtime_dirs.push(value),
+            "--plugin-dir" => plugin_dirs.push(value),
             _ => return Err(usage()),
         }
     }
@@ -134,6 +141,7 @@ fn parse_translate(elf: &str, flags: &[String]) -> Result<Action, TranslateError
             lib_dirs,
             appdir,
             runtime_dirs,
+            plugin_dirs,
             missing,
         }),
         _ => Err(usage()),
@@ -207,6 +215,7 @@ mod tests {
                 shim: PathBuf::from("s.dll"),
                 out: PathBuf::from("o"),
                 runtime_dirs: vec![PathBuf::from("r1"), PathBuf::from("r2")],
+                plugin_dirs: Vec::new(),
                 missing: Missing::Fail,
             }
         );
@@ -315,6 +324,7 @@ mod tests {
                 lib_dirs: vec![PathBuf::from("l1"), PathBuf::from("l2")],
                 appdir: None,
                 runtime_dirs: Vec::new(),
+                plugin_dirs: Vec::new(),
                 missing: Missing::Fail,
             }
         );
@@ -341,6 +351,7 @@ mod tests {
                 lib_dirs: vec![],
                 appdir: Some(PathBuf::from("app")),
                 runtime_dirs: Vec::new(),
+                plugin_dirs: Vec::new(),
                 missing: Missing::Fail,
             }
         );

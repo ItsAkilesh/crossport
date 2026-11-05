@@ -1,7 +1,7 @@
 // File: translator/src/relink/mod.rs
 // Purpose: Relink one ELF module of a graph into a PE image (executable or DLL) bound to its dependencies and the shim
 // Author: Akilesh
-// Date: 2026-10-29
+// Date: 2026-11-05
 
 mod layout;
 mod patch;
@@ -258,7 +258,7 @@ fn module_info(
         dependencies: if index == 0 {
             dependency_dlls(graph)
         } else {
-            Vec::new()
+            lazy_dependency_dlls(graph, index)
         },
         tls,
         eh_frame_hdr_rva: elf.eh_frame_header.map_or(0, rva),
@@ -273,6 +273,21 @@ fn dependency_dlls(graph: &ModuleGraph) -> Vec<String> {
         .filter(|&&module| module != 0)
         .map(|&module| graph.modules[module].name.dll_file_name())
         .collect()
+}
+
+/// For a module loaded by `dlopen`: the DLLs of the plugin libraries it needs that are not loaded yet,
+/// dependencies first. A startup library lists nothing, its dependencies are already loaded.
+fn lazy_dependency_dlls(graph: &ModuleGraph, module: usize) -> Vec<String> {
+    graph
+        .lazy_init
+        .get(module)
+        .map(|order| {
+            order
+                .iter()
+                .map(|&dependency| graph.modules[dependency].name.dll_file_name())
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 /// Exports every symbol the library defines plus the start-info pointer.

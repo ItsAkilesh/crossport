@@ -91,7 +91,7 @@ matching Linux. Text clipboard bridged with Windows, and a real SDL2 program (SD
 
 - **Runtime pack:** decide and build where host libraries come from (docs/DESIGN.md section 6), pinned and
   checksum-verified, translated once and shipped with the translator.
-- **`dlopen` of translated libraries:** Qt and GTK load plugins at run time, so plugins in the AppDir are
+- **`dlopen` of translated libraries (done in 0.7.0, see DESIGN 2.12):** Qt and GTK load plugins at run time, so plugins in the AppDir are
   translated too and `dlopen` finds them.
 - **Qt first** (the `xcb` platform plugin on the in-process X), then **GTK**, with D-Bus over Unix-domain
   sockets, fontconfig, GSettings and icon themes as needed.

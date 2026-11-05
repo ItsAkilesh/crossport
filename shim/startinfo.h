@@ -2,7 +2,7 @@
  * File: shim/startinfo.h
  * Purpose: The per-module start-info table the translator emits; a contract with translator/src/shim_abi.rs and startup.rs
  * Author: Akilesh
- * Date: 2026-10-29
+ * Date: 2026-11-05
  */
 
 #ifndef CROSSPORT_STARTINFO_H
@@ -69,8 +69,28 @@ typedef struct {
     uint8_t *base;
 } LoadedModule;
 
-/* The modules of this process, dependencies first and the executable last (defined in crossport_libc.c). */
+/*
+ * The modules of this process (defined in crossport_libc.c): the startup modules, dependencies first and the
+ * executable last, then the plugins opened with dlopen in the order they were opened.
+ */
 const LoadedModule *shim_loaded_modules(size_t *count);
+
+/*
+ * Opens a translated plugin by library name (its directory is ignored: the bundle is flat), loading its own
+ * libraries first, binding it and running its constructors. Returns its module handle, or NULL.
+ * Opening a plugin that is already open returns the same handle.
+ */
+void *shim_load_plugin(const char *library_name);
+
+/* True when `handle` is the module handle of a plugin opened by shim_load_plugin. */
+int shim_is_plugin(const void *handle);
+
+/* Internals shared by crossport_libc.c (the module table) and plugin_load.c (opening plugins). */
+int shim_info_is_valid(const StartInfo *info);
+const LoadedModule *shim_find_module(const void *handle);
+/* Adds a loaded DLL to the module table, binds it, sets up its TLS and runs its constructors. */
+const LoadedModule *shim_activate_module(const StartInfo *info, void *handle);
+void shim_plugins_init(void);
 
 /* The address a shim data variable has for the program: its own copy in the executable, if it made one. */
 void *shim_data_home(void *shim_address);

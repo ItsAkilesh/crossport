@@ -79,7 +79,7 @@ Emit the translated `.exe` and DLLs, the shim DLLs, and the AppDir data files in
 - **Fail closed.** The translator refuses, with the instruction's address, sites it cannot patch safely: shorter than 5 bytes, `%rsp`-relative, RIP-relative or vector-indexed operands, TLS descriptors, and a module that has no `.eh_frame` falls back to sweeping its executable segments. Per-module counts of canary and stub sites are printed by `crossport translate`.
 - **Threads.** The shim implements pthreads on Win32 threads: create, join, detach, self, exit and attributes; normal, recursive and error-checking mutexes whose static initialisers work unchanged (a zeroed `pthread_mutex_t` is a valid unlocked `SRWLOCK`); condition variables; `pthread_once`; thread-specific keys with destructors; and a per-thread `errno`. A `pthread_t` is a heap object that outlives the Windows thread until it is joined or detached.
 - **Dynamic loader.** `ld-linux-x86-64.so.2` (home of `__tls_get_addr`), `libpthread.so.0`, `libdl.so.2` and `librt.so.1` are provided by the shim, like `libc.so.6`.
-- **Known limits.** Translated code must run on the main thread or a thread created by `pthread_create`; a foreign thread has no TLS block. `dlopen` and TLS descriptors are not supported. A process that already uses all 64 inline Windows TLS slots cannot start.
+- **Known limits.** Translated code must run on the main thread or a thread created by `pthread_create`; a foreign thread has no TLS block. TLS descriptors are not supported, and `dlopen` opens only the shim's libraries and plugins named at translation time (section 2.12). A process that already uses all 64 inline Windows TLS slots cannot start.
 - **Verification.** CI translates `tls_basic` (all four TLS models and live canaries) and `threads`, stresses `threads` 200 times for identical output, and requires `canary_smash` to abort with exit 134 and glibc's message.
 
 ### 2.10 Milestone 6 groundwork (measured on a real Qt AppImage, 2026-10-29)
@@ -139,7 +139,7 @@ What it showed, and what has been done about it:
   compiler TLS (emulated TLS calls pthread functions that resolve to the shim's own SysV exports).
   Microsoft-convention code does not call SysV functions: older GCC releases crash compiling that mix.
 - **Smaller pieces:** `dlopen`, `dlsym`, `dlerror` and `dladdr` answer for the shim's own libraries
-  (`dlopen` of bundled libraries is still out of scope), `aligned_alloc`, `posix_memalign` and
+  (`dlopen` of bundled plugins arrived in Milestone 7), `aligned_alloc`, `posix_memalign` and
   `memalign` (page-backed above 16-byte alignment), read-write locks, condition variables with
   monotonic clocks, random numbers (`getrandom`, `arc4random`), and the `_FORTIFY_SOURCE` variants of
   the string, read, poll, scanf and select calls.
@@ -222,6 +222,29 @@ their outputs unset, so SDL freed garbage). A stub that returns success without 
 to avoid.
 
 Milestone 6 is complete; Qt and GTK applications are Milestone 7.
+
+### 2.12 Milestone 7: plugins
+
+Qt and GTK open their plugins with `dlopen`, so plugins are translated ahead of time like everything else.
+
+- **Which files.** `--plugin-dir <dir>` (repeatable) names directories scanned, recursively and without following
+  links, for ELF shared objects. `convert` adds the AppDir's `usr/plugins` when it exists. A file that is already a
+  startup library is skipped. More than 128 plugins is an error (the wrong directory, usually). The bundle is
+  flat, so two plugins with one file name are refused.
+- **Graph.** Plugins, and libraries only they need, come after the startup modules (`ModuleGraph::lazy_start`).
+  Startup order and the executable's module list never include them. Each lazy module records the lazy modules
+  to initialise before it (`lazy_init`), and its start-info table lists them, dependencies first.
+- **Scope.** Every module has a lookup scope (`ModuleGraph::scopes`): all startup modules, then for a plugin itself
+  and the lazy libraries it needs. Interposition by the program still wins, as in ELF, and two plugins exporting one
+  name do not see each other.
+- **Run time.** `dlopen("dir/libx.so")` maps the base name to `libx.so.dll` beside the executable (`plugin_load.c`),
+  loads the libraries its start info lists, then `shim_activate_module` adds it to the module table, patches its
+  thread-local stubs, binds its imports, and runs its constructors. The table is the one the unwinder and crash
+  reports read, so exceptions and reports cover plugins. `dlsym` on the handle reads the DLL's exports.
+- **Limits.** Threads that exist when a plugin opens see zeroed thread-local storage for it (later threads get its
+  template), `dlclose` does not unload, and `dlsym` does not search a plugin's libraries.
+- **Verification.** `dl_plugin` runs on Linux and translated on Windows with the same output: a missing library,
+  construction order, calls into the program, same-named exports, reopening, and a thread-local counter.
 
 ## 3. Shim ABI
 

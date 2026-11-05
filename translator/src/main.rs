@@ -15,12 +15,14 @@ use crossport_translator::naming::ModuleName;
 use crossport_translator::shim_exports::ShimExports;
 use crossport_translator::source::{read_bounded, AppDirSource, DirectorySource, LibrarySource};
 use crossport_translator::translate::Missing;
-use crossport_translator::{bundle, coverage, graph, translate};
+use crossport_translator::{bundle, coverage, graph, plugins, translate};
 
 const EXIT_ERROR: u8 = 2;
 const DEFAULT_PROGRAM_NAME: &str = "program";
 /// Where `convert` puts the unpacked AppDir inside the output directory.
 const APPDIR_NAME: &str = "appdir";
+/// Where Qt applications keep their plugins inside an AppDir; scanned by `convert` when it exists.
+const QT_PLUGIN_DIR: &str = "usr/plugins";
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -56,8 +58,9 @@ fn execute(action: Action) -> Result<(), TranslateError> {
             shim,
             out,
             runtime_dirs,
+            plugin_dirs,
             missing,
-        } => convert_image(&image, &shim, &out, runtime_dirs, missing),
+        } => convert_image(&image, &shim, &out, (runtime_dirs, plugin_dirs), missing),
         Action::Translate {
             elf,
             shim,
@@ -65,8 +68,20 @@ fn execute(action: Action) -> Result<(), TranslateError> {
             lib_dirs,
             appdir,
             runtime_dirs,
+            plugin_dirs,
             missing,
-        } => run_translation(&elf, &shim, &out, (lib_dirs, runtime_dirs), appdir, missing),
+        } => run_translation(
+            &elf,
+            &shim,
+            &out,
+            Directories {
+                libraries: lib_dirs,
+                runtime: runtime_dirs,
+                plugins: plugin_dirs,
+            },
+            appdir,
+            missing,
+        ),
     }
 }
 
@@ -202,26 +217,37 @@ fn library_source(
     Ok(Box::new(DirectorySource::new(lib_dirs)))
 }
 
+/// Where a translation looks for libraries and plugins besides the AppDir.
+struct Directories {
+    libraries: Vec<PathBuf>,
+    /// Host libraries (libstdc++ and the like), searched after the AppDir.
+    runtime: Vec<PathBuf>,
+    /// Scanned for plugins the program opens with `dlopen`.
+    plugins: Vec<PathBuf>,
+}
+
 fn run_translation(
     elf: &Path,
     shim: &Path,
     out: &Path,
-    (lib_dirs, runtime_dirs): (Vec<PathBuf>, Vec<PathBuf>),
+    directories: Directories,
     appdir: Option<PathBuf>,
     missing: Missing,
 ) -> Result<(), TranslateError> {
-    let source = library_source(elf, appdir, lib_dirs, &runtime_dirs)?;
+    let source = library_source(elf, appdir, directories.libraries, &directories.runtime)?;
+    let plugins = plugins::discover(&directories.plugins)?;
     let stem = elf
         .file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or(DEFAULT_PROGRAM_NAME);
     let exports = ShimExports::from_dll(&read_file(shim)?)?;
-    let translation = translate::translate(
+    let translation = translate::translate_with_plugins(
         ModuleName::sanitized(stem)?,
         read_file(elf)?,
         source.as_ref(),
         &exports,
         missing,
+        plugins,
     )?;
     for library in &translation.missing_libraries {
         println!("not found, left out: {library}");
@@ -257,7 +283,7 @@ fn convert_image(
     image: &Path,
     shim: &Path,
     out: &Path,
-    runtime_dirs: Vec<PathBuf>,
+    (runtime_dirs, mut plugin_dirs): (Vec<PathBuf>, Vec<PathBuf>),
     missing: Missing,
 ) -> Result<(), TranslateError> {
     let appdir = out.join(APPDIR_NAME);
@@ -267,14 +293,16 @@ fn convert_image(
         .iter()
         .fold(appdir.clone(), |path, part| path.join(part));
     println!("program: {}", unpacked.apprun_target.join("/"));
-    run_translation(
-        &program,
-        shim,
-        out,
-        (Vec::new(), runtime_dirs),
-        Some(appdir),
-        missing,
-    )?;
+    let qt_plugins = appdir.join(QT_PLUGIN_DIR);
+    if qt_plugins.is_dir() {
+        plugin_dirs.push(qt_plugins);
+    }
+    let directories = Directories {
+        libraries: Vec::new(),
+        runtime: runtime_dirs,
+        plugins: plugin_dirs,
+    };
+    run_translation(&program, shim, out, directories, Some(appdir), missing)?;
     let env_path = bundle::write_env_file(out, &[("APPDIR", "${BUNDLE}/appdir")])?;
     println!("wrote {}", env_path.display());
     Ok(())

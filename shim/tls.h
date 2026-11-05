@@ -2,7 +2,7 @@
  * File: shim/tls.h
  * Purpose: Thread-local storage interface: per-thread blocks, the thread pointer, stack canaries
  * Author: Akilesh
- * Date: 2026-10-28
+ * Date: 2026-11-05
  */
 
 #ifndef CROSSPORT_TLS_H
@@ -17,6 +17,13 @@
  * `modules` must stay valid for the life of the process.
  */
 void tls_init(const LoadedModule *modules, size_t count);
+
+/*
+ * Makes a plugin opened after startup usable: patches its stubs and canary cell and initialises its TLS template
+ * for the calling thread. Other threads that already exist see a zeroed block for the plugin; threads created
+ * later get the template.
+ */
+void tls_register_module(const LoadedModule *module);
 
 /* Allocates and initialises this thread's TLS block and thread pointer. Returns NULL on failure. */
 uint8_t *tls_attach_thread(void);

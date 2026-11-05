@@ -2,7 +2,7 @@
  * File: shim/tls.c
  * Purpose: Per-thread TLS blocks, the thread pointer in a Windows TLS slot, stack canaries and __tls_get_addr
  * Author: Akilesh
- * Date: 2026-10-29
+ * Date: 2026-11-05
  *
  * Windows resets a user-set FS base at the next context switch, so translated
  * code never uses %fs. The translator rewrites those accesses to read the thread
@@ -37,8 +37,6 @@ typedef struct {
 static DWORD g_slot = TLS_OUT_OF_INDEXES;
 static size_t g_total_size;
 static size_t g_alignment = MIN_THREAD_POINTER_ALIGN;
-static const LoadedModule *g_modules;
-static size_t g_module_count;
 static uint64_t g_canary;
 
 static void generate_canary(void)
@@ -73,8 +71,6 @@ static void patch_module(const LoadedModule *module)
 void tls_init(const LoadedModule *modules, size_t count)
 {
     const StartInfo *executable = modules[count - 1].info;
-    g_modules = modules;
-    g_module_count = count;
     g_total_size = executable->tls_total_size;
     if (executable->tls_max_align > g_alignment) {
         g_alignment = executable->tls_max_align;
@@ -100,15 +96,28 @@ uint8_t *tls_thread_pointer(void)
     return (uint8_t *)__readgsqword(TEB_TLS_SLOTS_OFFSET + 8u * g_slot);
 }
 
+static void initialise_template(const LoadedModule *module, uint8_t *thread_pointer)
+{
+    const StartInfo *info = module->info;
+    if (info->tls_mem_size != 0 && info->tls_file_size != 0) {
+        memcpy(thread_pointer + info->tls_offset, module->base + info->tls_init_rva, info->tls_file_size);
+    }
+}
+
 /* Copies each module's initial-data template to its place below the thread pointer. */
 static void initialise_templates(uint8_t *thread_pointer)
 {
-    for (size_t i = 0; i < g_module_count; i++) {
-        const StartInfo *info = g_modules[i].info;
-        if (info->tls_mem_size != 0 && info->tls_file_size != 0) {
-            memcpy(thread_pointer + info->tls_offset, g_modules[i].base + info->tls_init_rva, info->tls_file_size);
-        }
+    size_t count = 0;
+    const LoadedModule *modules = shim_loaded_modules(&count);
+    for (size_t i = 0; i < count; i++) {
+        initialise_template(&modules[i], thread_pointer);
     }
+}
+
+void tls_register_module(const LoadedModule *module)
+{
+    patch_module(module);
+    initialise_template(module, tls_thread_pointer());
 }
 
 uint8_t *tls_attach_thread(void)

@@ -17,6 +17,7 @@ pub mod imports;
 pub mod naming;
 pub mod pe_model;
 pub mod pe_writer;
+pub mod plugins;
 pub mod relink;
 pub mod resolve;
 pub mod rewrite;

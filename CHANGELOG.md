@@ -5,6 +5,18 @@ being worked on. A feature commit that adds user-visible capability (a new flag,
 that runs) bumps the patch number; a fix does not. The version lives in `translator/Cargo.toml` and is
 bumped in the same commit as the change. Releases are tagged by the maintainer, not by automation.
 
+## 0.7.0
+
+Milestone 7 starts with the plugin loading toolkits need.
+
+- `dlopen` opens translated plugins. `--plugin-dir <dir>` (repeatable; `convert` also scans the AppDir's
+  `usr/plugins`) names directories whose shared objects are translated as DLLs of their own, with the libraries
+  only they need. Opening one loads those libraries first, binds the plugin, runs its constructors, and gives
+  `dlsym` its exported functions. A plugin looks symbols up in the program and its libraries first, then in itself
+  and its own libraries, so two plugins that export one name each use their own.
+- Plugins reach the program's exported functions and can use thread-local variables; C++ exceptions unwind
+  through them and crash reports cover them. `dlclose` still leaves a plugin loaded.
+
 ## 0.6.12
 
 - A real SDL2 program runs: SDL 2.30.9's own test harness, built from source, packaged as an AppImage and
