@@ -2,7 +2,7 @@
  * File: shim/xcb/xcb_internal.h
  * Purpose: State and helpers shared by the xcb shim's source files: the connection, the window table and the event queue
  * Author: Akilesh
- * Date: 2026-11-01
+ * Date: 2026-11-05
  */
 
 #ifndef CROSSPORT_XCB_INTERNAL_H
@@ -50,6 +50,19 @@ void xcb_window_forget(HWND handle);
 /* The atom the program registered as its WM_DELETE_WINDOW protocol on a window, or 0 when it did not. */
 void xcb_window_set_delete_atom(XcbId id, uint32_t delete_atom);
 uint32_t xcb_window_delete_atom(XcbId id);
+
+/* The window thread (xcb_ui.c): the thread that owns every window and runs their message loop. */
+typedef void (*XcbUiTask)(void *argument);
+/* Runs `task` on the window thread and waits for it (directly when already there). */
+void xcb_ui_run(XcbUiTask task, void *argument);
+int xcb_ui_is_window_thread(void);
+void xcb_ui_set_focus(HWND window);
+void xcb_ui_set_capture(HWND window);
+void xcb_ui_release_capture(void);
+
+/* Called, on the window thread or whoever queued the event, each time an event is added to the queue. */
+typedef void (SYSV *XcbArrivalHook)(void);
+void xcb_events_set_arrival_hook(XcbArrivalHook hook);
 
 /* Event queue, filled by the window procedure and drained by xcb_poll_for_event / xcb_wait_for_event. */
 void xcb_events_push(const XcbEvent *event);

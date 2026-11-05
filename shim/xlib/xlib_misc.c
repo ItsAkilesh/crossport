@@ -329,7 +329,7 @@ LIBC_FN int sysv_XGrabPointer(XlDisplay *display, XlId window, int owner_events,
     (void)time;
     HWND handle = xcb_window_handle((XcbId)window);
     if (handle != NULL) {
-        SetCapture(handle);
+        xcb_ui_set_capture(handle);
     }
     return GRAB_SUCCESS;
 }
@@ -338,7 +338,7 @@ LIBC_FN int sysv_XUngrabPointer(XlDisplay *display, uint64_t time)
 {
     (void)display;
     (void)time;
-    ReleaseCapture();
+    xcb_ui_release_capture();
     return 1;
 }
 

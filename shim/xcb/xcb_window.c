@@ -2,7 +2,7 @@
  * File: shim/xcb/xcb_window.c
  * Purpose: xcb window requests (create, map, destroy, configure, properties, geometry) backed by Win32 windows
  * Author: Akilesh
- * Date: 2026-11-01
+ * Date: 2026-11-05
  *
  * A window is created on the calling thread, and its messages arrive on that thread, so the program must
  * poll for events from the thread that created the window (the normal single-threaded X client).
@@ -121,6 +121,40 @@ static XcbCookie next_cookie(void)
     return (XcbCookie){.sequence = xcb_next_sequence()};
 }
 
+/* What a window needs to be created; the window thread fills in `handle`. */
+typedef struct {
+    XcbId window;
+    XcbId parent;
+    int16_t x;
+    int16_t y;
+    uint16_t width;
+    uint16_t height;
+} CreateRequest;
+
+static void create_on_window_thread(void *argument)
+{
+    CreateRequest *request = (CreateRequest *)argument;
+    xcb_events_register_class();
+    HWND parent_handle = request->parent == XCB_ROOT_WINDOW_ID ? NULL : xcb_window_handle(request->parent);
+    HWND handle;
+    if (parent_handle != NULL) {
+        handle = CreateWindowExW(0, XCB_WINDOW_CLASS, L"", WS_CHILD | WS_CLIPSIBLINGS, request->x, request->y,
+                                 request->width, request->height, parent_handle, NULL, GetModuleHandleW(NULL), NULL);
+    } else {
+        RECT frame = {0, 0, request->width, request->height};
+        AdjustWindowRect(&frame, WINDOW_STYLE, FALSE);
+        /* X places a window by its client area, so the frame Windows adds goes outside (above and left of) x, y. */
+        int is_unplaced = request->x == 0 && request->y == 0;
+        int left = is_unplaced ? CW_USEDEFAULT : request->x + frame.left;
+        int top = is_unplaced ? CW_USEDEFAULT : request->y + frame.top;
+        handle = CreateWindowExW(0, XCB_WINDOW_CLASS, L"", WINDOW_STYLE, left, top, frame.right - frame.left,
+                                 frame.bottom - frame.top, NULL, NULL, GetModuleHandleW(NULL), NULL);
+    }
+    if (handle != NULL && !store_window(request->window, handle)) {
+        DestroyWindow(handle);
+    }
+}
+
 LIBC_FN XcbCookie sysv_xcb_create_window(void *connection, uint8_t depth, XcbId window, XcbId parent, int16_t x, int16_t y,
                                          uint16_t width, uint16_t height, uint16_t border_width, uint16_t window_class,
                                          XcbId visual, uint32_t value_mask, const void *value_list)
@@ -132,24 +166,8 @@ LIBC_FN XcbCookie sysv_xcb_create_window(void *connection, uint8_t depth, XcbId 
     (void)visual;
     (void)value_mask;
     (void)value_list;
-    xcb_events_register_class();
-    HWND parent_handle = parent == XCB_ROOT_WINDOW_ID ? NULL : xcb_window_handle(parent);
-    HWND handle;
-    if (parent_handle != NULL) {
-        handle = CreateWindowExW(0, XCB_WINDOW_CLASS, L"", WS_CHILD | WS_CLIPSIBLINGS, x, y, width, height, parent_handle,
-                                 NULL, GetModuleHandleW(NULL), NULL);
-    } else {
-        RECT frame = {0, 0, width, height};
-        AdjustWindowRect(&frame, WINDOW_STYLE, FALSE);
-        /* X places a window by its client area, so the frame Windows adds goes outside (above and left of) x, y. */
-        int left = (x == 0 && y == 0) ? CW_USEDEFAULT : x + frame.left;
-        int top = (x == 0 && y == 0) ? CW_USEDEFAULT : y + frame.top;
-        handle = CreateWindowExW(0, XCB_WINDOW_CLASS, L"", WINDOW_STYLE, left, top, frame.right - frame.left,
-                                 frame.bottom - frame.top, NULL, NULL, GetModuleHandleW(NULL), NULL);
-    }
-    if (handle != NULL && !store_window(window, handle)) {
-        DestroyWindow(handle);
-    }
+    CreateRequest request = {.window = window, .parent = parent, .x = x, .y = y, .width = width, .height = height};
+    xcb_ui_run(create_on_window_thread, &request);
     return next_cookie();
 }
 
@@ -174,12 +192,17 @@ LIBC_FN XcbCookie sysv_xcb_unmap_window(void *connection, XcbId window)
     return next_cookie();
 }
 
+static void destroy_on_window_thread(void *argument)
+{
+    DestroyWindow((HWND)argument);
+}
+
 LIBC_FN XcbCookie sysv_xcb_destroy_window(void *connection, XcbId window)
 {
     (void)connection;
     HWND handle = xcb_window_handle(window);
     if (handle != NULL) {
-        DestroyWindow(handle);
+        xcb_ui_run(destroy_on_window_thread, handle);
     }
     return next_cookie();
 }

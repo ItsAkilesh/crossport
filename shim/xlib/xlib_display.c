@@ -2,7 +2,7 @@
  * File: shim/xlib/xlib_display.c
  * Purpose: libX11 connection functions: XOpenDisplay, XCloseDisplay, XSync, atoms and the Display accessor functions
  * Author: Akilesh
- * Date: 2026-10-29
+ * Date: 2026-11-05
  *
  * There is no X server to connect to. A Display is a block of memory that looks like Xlib's (the part
  * programs read through macros is laid out exactly) and the "server" is the set of Win32 windows and pixel
@@ -81,6 +81,20 @@ static void SYSV pump_display(void)
     }
 }
 
+/* An event reached the queue, perhaps on the window thread: make the display's descriptor readable for poll. */
+static void SYSV on_event_arrival(void)
+{
+    XlDisplay *display = g_display;
+    if (display == NULL) {
+        return;
+    }
+    XlDisplayData *data = xl_display_data(display);
+    if (!data->is_signalled) {
+        sysv_eventfd_write(display->fd, 1);
+        data->is_signalled = 1;
+    }
+}
+
 static XlId SYSV allocate_for_macro(XlDisplay *display)
 {
     return xl_allocate_id(display);
@@ -138,6 +152,7 @@ LIBC_FN XlDisplay *sysv_XOpenDisplay(const char *name)
     xcb_events_set_hooks(xl_paint_window, xl_size_window);
     g_display = &data->pub;
     shim_poll_set_message_source(data->pub.fd, pump_display);
+    xcb_events_set_arrival_hook(on_event_arrival);
     return &data->pub;
 }
 

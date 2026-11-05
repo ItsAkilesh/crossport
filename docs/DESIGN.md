@@ -253,6 +253,15 @@ a `call` would also write the return address into the red zone of the leaf funct
 redirect must be a jump with the return address kept in a register or a per-thread cell. The corpus, the SDL
 harness and the libstdc++ runtimes contain none.
 
+**The window thread.** Win32 delivers a window's messages only to the thread that created it, and a toolkit reads
+events on a different thread than the one that made its windows. `xcb_ui.c` therefore starts a thread of the shim's
+own, the first time a window is made, that creates every window and runs the message loop. Creating, destroying
+and focusing a window (and the pointer capture) run there; `ShowWindow`, `SetWindowPos` and the like are made from
+the caller's thread and carried out by the window thread. The window procedure turns messages into X events on that
+thread, and the event queue wakes waiters with a condition variable and the display's poll descriptor with an
+arrival hook. The rule from section 2.11 still holds: never call a Win32 function that waits for the window thread
+while holding the Xlib lock, because the window procedure takes it too.
+
 **Short thread-local accesses.** An FS-relative instruction shorter than the 5-byte jump that redirects it
 (a 4-byte `mov %fs:0x28(%rdx),%eax`, for instance) is moved into a stub with its neighbours. The group is the
 smallest straight-line run of at most three instructions on each side that is at least 5 bytes, contiguous, has no

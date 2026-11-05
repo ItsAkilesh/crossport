@@ -2,10 +2,11 @@
  * File: shim/xcb/xcb_events.c
  * Purpose: Turn Win32 window messages into X events and serve xcb_poll_for_event and xcb_wait_for_event
  * Author: Akilesh
- * Date: 2026-11-01
+ * Date: 2026-11-05
  *
- * The window procedure runs inside the program's own call to PeekMessage or GetMessage, on the thread that
- * created the window, and appends X events to a queue that the polling functions then drain.
+ * The window procedure runs on the window thread (xcb_ui.c), whatever the program's threads are doing, and
+ * appends X events to a queue that the polling functions drain. A thread waiting for an event sleeps on a
+ * condition variable that each added event wakes.
  */
 
 #include <string.h>
@@ -45,6 +46,8 @@ static XcbEvent g_queue[QUEUE_CAPACITY];
 static size_t g_head;
 static size_t g_count;
 static SRWLOCK g_queue_lock = SRWLOCK_INIT;
+static CONDITION_VARIABLE g_arrived = CONDITION_VARIABLE_INIT;
+static XcbArrivalHook g_arrival_hook;
 static XcbPaintHook g_paint_hook;
 static XcbSizeHook g_size_hook;
 
@@ -63,6 +66,15 @@ void xcb_events_push(const XcbEvent *event)
         g_count++;
     }
     ReleaseSRWLockExclusive(&g_queue_lock);
+    WakeAllConditionVariable(&g_arrived);
+    if (g_arrival_hook != NULL) {
+        g_arrival_hook();
+    }
+}
+
+void xcb_events_set_arrival_hook(XcbArrivalHook hook)
+{
+    g_arrival_hook = hook;
 }
 
 /* Removes the oldest event into `out`; returns 0 when none is waiting. */
@@ -372,6 +384,9 @@ int xcb_events_pending(void)
     return has_events;
 }
 
+/* How long a waiting thread sleeps before it looks at its own message queue again (windows it owns itself, if any). */
+#define WAIT_SLICE_MILLISECONDS 20
+
 int xcb_events_take(XcbEvent *out, int should_wait)
 {
     for (;;) {
@@ -382,7 +397,11 @@ int xcb_events_take(XcbEvent *out, int should_wait)
         if (!should_wait) {
             return 0;
         }
-        WaitMessage();
+        AcquireSRWLockExclusive(&g_queue_lock);
+        if (g_count == 0) {
+            SleepConditionVariableSRW(&g_arrived, &g_queue_lock, WAIT_SLICE_MILLISECONDS, 0);
+        }
+        ReleaseSRWLockExclusive(&g_queue_lock);
     }
 }
 

@@ -5,6 +5,15 @@ being worked on. A feature commit that adds user-visible capability (a new flag,
 that runs) bumps the patch number; a fix does not. The version lives in `translator/Cargo.toml` and is
 bumped in the same commit as the change. Releases are tagged by the maintainer, not by automation.
 
+## 0.7.4
+
+- A window thread: every X window now belongs to one shim thread that runs the message loop, so events arrive
+  whatever the program's own threads are doing. Toolkits create windows on one thread and read events on another;
+  a Win32 window only receives messages on the thread that made it, which would have left Qt without events.
+  Creating, destroying and focusing a window run on that thread (other calls are carried out for the caller), a
+  thread waiting for an event sleeps on a condition variable, and a poll on the display descriptor wakes when an
+  event arrives.
+
 ## 0.7.3
 
 - Images Windows accepts: when ELF segments leave a gap between them, the section before the gap now runs up to the

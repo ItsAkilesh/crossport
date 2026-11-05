@@ -2,7 +2,7 @@
  * File: shim/xlib/xlib_window.c
  * Purpose: libX11 window functions: create, map, destroy, move and resize, attributes, geometry, titles and window-manager hints
  * Author: Akilesh
- * Date: 2026-10-29
+ * Date: 2026-11-05
  *
  * A window is a Win32 window (made through the xcb layer, so xcb and Xlib windows are the same thing) plus
  * a drawable record that holds its pixels and the events the program selected. Window-manager hints have
@@ -264,7 +264,7 @@ LIBC_FN int sysv_XSetInputFocus(XlDisplay *display, XlId window, int revert_to, 
     xl_next_request(display);
     HWND handle = xcb_window_handle((XcbId)window);
     if (handle != NULL) {
-        SetFocus(handle);
+        xcb_ui_set_focus(handle);
     }
     return 1;
 }
