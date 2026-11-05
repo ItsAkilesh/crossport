@@ -38,7 +38,7 @@ env:
   ABORT_CASES: canary_smash
   CRASH_CASES: crash_null
   CLIPBOARD_CASES: xlib_clipboard
-  APPS: lua sqlite3 jq
+  APPS: lua sqlite3 jq sdl2_tests
   CARGO_PATHS: |
     ~/.cargo/registry/index
     ~/.cargo/registry/cache
@@ -93,7 +93,7 @@ jobs:
           key: cargo-${{ github.job }}-${{ runner.os }}-${{ hashFiles('tools/difftest/Cargo.lock', 'translator/Cargo.lock') }}
           restore-keys: cargo-${{ github.job }}-${{ runner.os }}-
       - name: Install the build tools, a Vulkan software driver, X11, SDL2 and SquashFS tools
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq glslang-tools libvulkan-dev mesa-vulkan-drivers libxcb1-dev libx11-dev libxtst-dev libsdl2-dev libgl-dev libglx-dev libegl-dev libegl-mesa0 libgl1-mesa-dri xvfb squashfs-tools
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq glslang-tools libvulkan-dev mesa-vulkan-drivers libxcb1-dev libx11-dev libxext-dev libxtst-dev libsdl2-dev libgl-dev libglx-dev libegl-dev libegl-mesa0 libgl1-mesa-dri xvfb squashfs-tools
       - name: Check the xcb structure layouts against the real headers
         run: gcc -fsyntax-only -Wall -Wextra -Werror tests/shim/xcb_layout_check.c tests/shim/xlib_layout_check.c
       - name: Build and run corpus cases
@@ -103,9 +103,7 @@ jobs:
           xvfb-run -a bash -c 'for corpus_case in $NATIVE_CASES $TRANSLATED_CASES $ABORT_CASES $CRASH_CASES $CLIPBOARD_CASES; do tools/run-case.sh "$corpus_case" linux; done'
       - name: Package the corpus apps and record their Linux results
         run: |
-          for app in $APPS; do
-            tools/corpus/linux_baseline.sh "$app"
-          done
+          xvfb-run -a bash -c 'for app in $APPS; do tools/corpus/linux_baseline.sh "$app"; done'
       - name: Save the Cargo cache
         if: always() && steps.cargo.outputs.cache-hit != 'true'
         uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
