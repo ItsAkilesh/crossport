@@ -556,7 +556,8 @@ LIBC_FN XcbCookie sysv_xcb_get_property(void *connection, uint8_t should_delete,
     if (reply != NULL && is_found) {
         reply->format = (uint8_t)copy.format;
         reply->type = copy.type;
-        reply->bytes_after = (uint32_t)(is_wrong_type ? copy.size : available - taken);
+        /* Xorg reports the whole property in items, not bytes, when the requested type does not match. */
+        reply->bytes_after = (uint32_t)(is_wrong_type ? copy.size / (copy.format / 8u) : available - taken);
         reply->value_len = (uint32_t)(taken / (copy.format / 8u));
         memcpy(reply + 1, copy.data + start, taken);
     }
