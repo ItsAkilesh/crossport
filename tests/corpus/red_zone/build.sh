@@ -28,7 +28,7 @@ gcc "${common[@]}" -fPIE -pie -Wl,-z,now -pthread -o "$out/red_zone" "$src/main.
 
 # Disassemble to a file first: under pipefail, grep -q ending the pipe early would make objdump look like a failure.
 objdump -d "$out/red_zone" > "$out/red_zone.dis"
-if ! grep -Eq -- '-0x[0-9a-f]+\(%rsp\)' "$out/red_zone.dis"; then
+if ! grep -Eq -- '-0x[0-9a-f]+\(%rsp[,)]' "$out/red_zone.dis"; then
   echo "red_zone: the compiler did not use the red zone, so this test would prove nothing" >&2
   exit 1
 fi
