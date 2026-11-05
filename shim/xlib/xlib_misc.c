@@ -2,7 +2,7 @@
  * File: shim/xlib/xlib_misc.c
  * Purpose: libX11 functions toolkits call at start-up: extension queries, visuals, colormaps, hints, cursors, pointer and selections
  * Author: Akilesh
- * Date: 2026-10-29
+ * Date: 2026-11-05
  *
  * Extensions are reported as absent, which every Xlib client must handle; clients then use the core
  * protocol. Window-manager hints and cursors are accepted and ignored where Windows has no equivalent.

@@ -2,7 +2,7 @@
  * File: shim/xlib/xlib_abi.h
  * Purpose: The Xlib structures and constants translated programs read directly (Display, Screen, Visual, events, XImage)
  * Author: Akilesh
- * Date: 2026-10-29
+ * Date: 2026-11-05
  *
  * Xlib hands programs pointers to its own memory, and Xlib's macros (DefaultScreen, DisplayWidth, XGetPixel,
  * ...) read the fields of these structures inline, so the layouts are part of the ABI. Linux x86-64 `long`
