@@ -20,7 +20,7 @@ cmake -S "$src" -B "$build" -DCMAKE_BUILD_TYPE=Release -DSDL_TESTS=ON -DSDL_INST
   -DSDL_SNDIO=OFF -DSDL_OSS=OFF -DSDL_LIBUDEV=OFF -DSDL_DBUS=OFF -DSDL_IBUS=OFF -DSDL_HIDAPI=OFF \
   -DSDL_VULKAN=OFF -DSDL_X11_XCURSOR=OFF -DSDL_X11_XINPUT=OFF -DSDL_X11_XFIXES=OFF -DSDL_X11_XRANDR=OFF \
   -DSDL_X11_XSCRNSAVER=OFF -DSDL_X11_XSHAPE=OFF -DSDL_X11_XDBE=OFF > /dev/null
-cmake --build "$build" --target testautomation -j"$(nproc)" > /dev/null
+cmake --build "$build" --target SDL2 testautomation -j"$(nproc)" > /dev/null
 
 install -D "$build/test/testautomation" "$appdir/usr/bin/testautomation"
 lib="$(find "$build" -name 'libSDL2-2.0.so*' -type f | head -n 1)"
