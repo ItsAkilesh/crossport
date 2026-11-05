@@ -2,7 +2,7 @@
 """File: tools/corpus/fetch.py
 Purpose: Download a pinned file over HTTPS, verify its SHA-256, and extract source tarballs without trusting them
 Author: Akilesh
-Date: 2026-10-28
+Date: 2026-11-05
 
 Usage:
   fetch.py source <app-dir> <dest-root>   download and extract the app's source; prints the source directory
@@ -18,12 +18,15 @@ import json
 import re
 import sys
 import tarfile
+import time
 import urllib.request
 from pathlib import Path
 
 MAX_DOWNLOAD_BYTES = 256 * 1024 * 1024
 CHUNK_BYTES = 1024 * 1024
 TIMEOUT_SECONDS = 120
+DOWNLOAD_ATTEMPTS = 3
+RETRY_SECONDS = 5
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 
 
@@ -52,9 +55,29 @@ def sha256_of(path: Path) -> str:
 
 
 def download(url: str, destination: Path, expected_sha256: str) -> None:
-    """Streams `url` to `destination`, refusing oversized downloads and wrong hashes."""
+    """Streams `url` to `destination`, refusing oversized downloads and wrong hashes.
+
+    A network failure (a timeout, a reset connection) is tried again a few times; a file that arrives but is wrong
+    is refused at once."""
     destination.parent.mkdir(parents=True, exist_ok=True)
     partial = destination.with_suffix(destination.suffix + ".partial")
+    for attempt in range(1, DOWNLOAD_ATTEMPTS + 1):
+        try:
+            digest = stream_to(url, partial)
+            break
+        except OSError:
+            partial.unlink(missing_ok=True)
+            if attempt == DOWNLOAD_ATTEMPTS:
+                raise
+            time.sleep(RETRY_SECONDS * attempt)
+    if digest != expected_sha256:
+        partial.unlink(missing_ok=True)
+        raise PinError(f"{url}: sha256 is {digest}, the pin says {expected_sha256}")
+    partial.replace(destination)
+
+
+def stream_to(url: str, partial: Path) -> str:
+    """One attempt: writes the response to `partial` and returns its SHA-256."""
     hasher = hashlib.sha256()
     received = 0
     with urllib.request.urlopen(url, timeout=TIMEOUT_SECONDS) as response, partial.open("wb") as out:
@@ -65,10 +88,7 @@ def download(url: str, destination: Path, expected_sha256: str) -> None:
                 raise PinError(f"{url} is larger than {MAX_DOWNLOAD_BYTES} bytes")
             hasher.update(chunk)
             out.write(chunk)
-    if hasher.hexdigest() != expected_sha256:
-        partial.unlink(missing_ok=True)
-        raise PinError(f"{url}: sha256 is {hasher.hexdigest()}, the pin says {expected_sha256}")
-    partial.replace(destination)
+    return hasher.hexdigest()
 
 
 def ensure_pinned(url: str, digest: str, destination: Path) -> Path:

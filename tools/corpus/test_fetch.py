@@ -1,7 +1,7 @@
 """File: tools/corpus/test_fetch.py
 Purpose: Tests for fetch.py: pin validation, hash enforcement and refusal of hostile tarballs
 Author: Akilesh
-Date: 2026-10-28
+Date: 2026-11-05
 """
 
 from __future__ import annotations
@@ -11,6 +11,7 @@ import io
 import tarfile
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 import fetch
@@ -81,6 +82,28 @@ class ExtractTest(unittest.TestCase):
 
 
 class CacheTest(unittest.TestCase):
+    def test_a_network_failure_is_retried_and_a_wrong_hash_is_not(self) -> None:
+        calls = []
+
+        def flaky(url: str, partial: Path) -> str:
+            calls.append(url)
+            if len(calls) < 3:
+                raise OSError("timed out")
+            partial.write_bytes(b"ok")
+            return hashlib.sha256(b"ok").hexdigest()
+
+        with tempfile.TemporaryDirectory() as directory, mock.patch.object(fetch, "stream_to", flaky), mock.patch.object(
+            fetch.time, "sleep"
+        ):
+            target = Path(directory) / "file"
+            fetch.download("https://example.test/f", target, hashlib.sha256(b"ok").hexdigest())
+            self.assertEqual(len(calls), 3)
+            self.assertEqual(target.read_bytes(), b"ok")
+            calls.clear()
+            with self.assertRaises(fetch.PinError):
+                fetch.download("https://example.test/f", Path(directory) / "other", "0" * 64)
+            self.assertEqual(len(calls), 3, "the third attempt succeeded, then the hash was wrong: no further attempts")
+
     def test_a_cached_file_with_the_right_hash_is_reused_without_downloading(self) -> None:
         directory = Path(tempfile.mkdtemp(prefix="crossport-cache-"))
         cached = directory / "file.bin"
