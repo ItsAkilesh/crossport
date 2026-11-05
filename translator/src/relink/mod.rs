@@ -141,6 +141,7 @@ fn rewrite_fs_accesses(
     plan: &mut SectionPlan,
 ) -> Result<Rewritten, TranslateError> {
     let sites = rewrite::find_sites(image, &module.info)?;
+    let syscall_sites = rewrite::count_syscalls(image, &module.info)?;
     let mut canary_cell_rva = 0;
     if rewrite::count_canary_sites(&sites) > 0 {
         canary_cell_rva = plan.next_rva();
@@ -163,7 +164,10 @@ fn rewrite_fs_accesses(
         plan.push(".ctls", result.stubs, SCN_READ | SCN_WRITE);
     }
     Ok(Rewritten {
-        stats: result.stats,
+        stats: RewriteStats {
+            syscall_sites,
+            ..result.stats
+        },
         canary_cell_rva,
         slot_fixups,
         stubs_rva: if stubs_size == 0 { 0 } else { stubs_rva },

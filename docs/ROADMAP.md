@@ -95,7 +95,7 @@ matching Linux. Text clipboard bridged with Windows, and a real SDL2 program (SD
   translated too and `dlopen` finds them.
 - **Qt first** (the `xcb` platform plugin on the in-process X), then **GTK**, with D-Bus over Unix-domain
   sockets, fontconfig, GSettings and icon themes as needed.
-- **The red zone:** a design answer for threads that receive window messages (docs/DESIGN.md section 6).
+- **The red zone (done in 0.7.1, see DESIGN 2.12):** audited, enforced in CI, and tested with red-zone code.
 - **Exit criterion:** a real Qt AppImage and a real GTK AppImage run with usable input and rendering, and
   a regression suite of their startup and basic interaction runs in CI.
 

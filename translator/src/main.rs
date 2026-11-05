@@ -1,7 +1,7 @@
 // File: translator/src/main.rs
 // Purpose: crossport command-line entry point; exit code 0 = success, 2 = error
 // Author: Akilesh
-// Date: 2026-10-29
+// Date: 2026-11-05
 
 use std::fs::File;
 use std::path::{Path, PathBuf};
@@ -271,6 +271,12 @@ fn run_translation(
             println!(
                 "  {}: rewrote {} canary and {} thread-local access sites",
                 report.name, stats.canary_sites, stats.stub_sites
+            );
+        }
+        if stats.syscall_sites > 0 {
+            println!(
+                "  warning: {} has {} raw syscall instructions, which are not translated and will misbehave if reached",
+                report.name, stats.syscall_sites
             );
         }
     }

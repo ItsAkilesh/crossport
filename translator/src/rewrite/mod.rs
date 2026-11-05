@@ -1,7 +1,7 @@
 // File: translator/src/rewrite/mod.rs
 // Purpose: Rewrite FS-relative instructions, which Windows cannot run, into canary reads and thread-pointer stubs
 // Author: Akilesh
-// Date: 2026-10-28
+// Date: 2026-11-05
 
 mod scan;
 mod stub;
@@ -19,7 +19,7 @@ const JMP_LEN: usize = 5;
 const NOP: u8 = 0x90;
 const INT3: u8 = 0xCC;
 
-pub use scan::find_sites;
+pub use scan::{count_syscalls, find_sites};
 
 /// How many sites of each kind were rewritten.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -28,6 +28,8 @@ pub struct RewriteStats {
     pub canary_sites: usize,
     /// Every other FS-relative access, redirected to a stub with a 5-byte jump.
     pub stub_sites: usize,
+    /// Raw `syscall` instructions, which are not translated (reported, not rewritten).
+    pub syscall_sites: usize,
 }
 
 pub struct Rewrite {

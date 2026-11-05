@@ -1,11 +1,11 @@
 // File: translator/src/rewrite/scan.rs
 // Purpose: Find instructions with an FS-relative memory operand inside a module's real code ranges
 // Author: Akilesh
-// Date: 2026-10-28
+// Date: 2026-11-05
 
 use std::collections::BTreeMap;
 
-use iced_x86::{Decoder, DecoderOptions, Instruction, OpKind, Register};
+use iced_x86::{Code, Decoder, DecoderOptions, Instruction, OpKind, Register};
 
 use crate::elf_model::{CodeRange, ElfInfo};
 use crate::error::TranslateError;
@@ -22,6 +22,32 @@ pub struct Site {
 /// A module without `.eh_frame` falls back to its executable segments.
 pub fn find_sites(image: &[u8], info: &ElfInfo) -> Result<Vec<Site>, TranslateError> {
     let mut sites: BTreeMap<u64, Site> = BTreeMap::new();
+    for_each_instruction(image, info, &mut |instruction| {
+        if uses_fs_memory(&instruction) {
+            sites.entry(instruction.ip()).or_insert(Site {
+                rva: instruction.ip(),
+                instruction,
+            });
+        }
+    })?;
+    Ok(sites.into_values().collect())
+}
+
+/// How many raw `syscall` instructions the module's code holds. Linux system calls cannot run on Windows, so
+/// each one is a place where the program would misbehave; the translator reports them.
+pub fn count_syscalls(image: &[u8], info: &ElfInfo) -> Result<usize, TranslateError> {
+    let mut count = 0;
+    for_each_instruction(image, info, &mut |instruction| {
+        count += usize::from(instruction.code() == Code::Syscall);
+    })?;
+    Ok(count)
+}
+
+fn for_each_instruction(
+    image: &[u8],
+    info: &ElfInfo,
+    visit: &mut dyn FnMut(Instruction),
+) -> Result<(), TranslateError> {
     for range in code_ranges(info) {
         let start = usize::try_from(RVA_BIAS + range.start)
             .map_err(|_| TranslateError::Elf("code range is too large".into()))?;
@@ -31,9 +57,9 @@ pub fn find_sites(image: &[u8], info: &ElfInfo) -> Result<Vec<Site>, TranslateEr
         let bytes = image
             .get(start..end)
             .ok_or_else(|| TranslateError::Elf("code range lies outside the image".into()))?;
-        collect(bytes, start as u64, &mut sites);
+        decode(bytes, start as u64, visit);
     }
-    Ok(sites.into_values().collect())
+    Ok(())
 }
 
 fn code_ranges(info: &ElfInfo) -> Vec<CodeRange> {
@@ -50,7 +76,7 @@ fn code_ranges(info: &ElfInfo) -> Vec<CodeRange> {
         .collect()
 }
 
-fn collect(bytes: &[u8], ip: u64, sites: &mut BTreeMap<u64, Site>) {
+fn decode(bytes: &[u8], ip: u64, visit: &mut dyn FnMut(Instruction)) {
     let mut decoder = Decoder::with_ip(64, bytes, ip, DecoderOptions::NONE);
     while decoder.can_decode() {
         let position = decoder.position();
@@ -62,12 +88,7 @@ fn collect(bytes: &[u8], ip: u64, sites: &mut BTreeMap<u64, Site>) {
             decoder.set_ip(ip + position as u64 + 1);
             continue;
         }
-        if uses_fs_memory(&instruction) {
-            sites.entry(instruction.ip()).or_insert(Site {
-                rva: instruction.ip(),
-                instruction,
-            });
-        }
+        visit(instruction);
     }
 }
 
@@ -121,6 +142,23 @@ mod tests {
         let info = analyze(TLS_BASIC).expect("parses");
         let sites = find_sites(&image_of(TLS_BASIC, &info), &info).expect("scans");
         assert!(sites.windows(2).all(|pair| pair[0].rva < pair[1].rva));
+    }
+
+    #[test]
+    fn counts_the_syscall_instructions_in_the_code_ranges_only() {
+        let mut info = analyze(TLS_BASIC).expect("parses");
+        let mut image = image_of(TLS_BASIC, &info);
+        let (inside, outside) = (0x200_0000u64, 0x200_0100u64);
+        for address in [inside, inside + 2, outside] {
+            let at = (RVA_BIAS + address) as usize;
+            image.resize(image.len().max(at + 4), 0);
+            image[at..at + 2].copy_from_slice(&[0x0f, 0x05]);
+        }
+        info.code_ranges = vec![CodeRange {
+            start: inside,
+            len: 4,
+        }];
+        assert_eq!(count_syscalls(&image, &info).expect("scans"), 2);
     }
 
     #[test]

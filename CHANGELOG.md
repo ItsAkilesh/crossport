@@ -5,6 +5,15 @@ being worked on. A feature commit that adds user-visible capability (a new flag,
 that runs) bumps the patch number; a fix does not. The version lives in `translator/Cargo.toml` and is
 bumped in the same commit as the change. Releases are tagged by the maintainer, not by automation.
 
+## 0.7.1
+
+- Red zone: audited and enforced. Nothing in the shim enters an alertable wait or queues an APC, and a check in
+  CI (`tools/ci/check_alertable.py`) keeps it that way, so Windows never runs asynchronous code on the stack
+  below a translated thread's stack pointer. `red_zone` runs red-zone leaf functions on several threads while
+  the X11 layer dispatches events, and matches Linux.
+- The translator now counts raw `syscall` instructions in each module and warns about them; they are not
+  translated, and until now nothing said so.
+
 ## 0.7.0
 
 Milestone 7 starts with the plugin loading toolkits need.

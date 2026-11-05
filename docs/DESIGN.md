@@ -223,7 +223,37 @@ to avoid.
 
 Milestone 6 is complete; Qt and GTK applications are Milestone 7.
 
-### 2.12 Milestone 7: plugins
+### 2.12 Milestone 7: the red zone and plugins
+
+**The red zone.** x86-64 Linux code may keep data in the 128 bytes below its stack pointer, and real AppImages
+are built that way (the corpus uses `-mno-red-zone`, except `red_zone`). Windows writes below a thread's stack
+pointer in three cases: it runs an APC or I/O completion routine, it dispatches an exception, or the thread
+calls into the kernel and a callback comes back (window messages, hooks). The audit:
+
+- *Callbacks and window messages* happen inside a call into the shim. A function that makes a call keeps nothing
+  live below its stack pointer (only a leaf function does, and a leaf function makes no calls), so they are safe.
+  Window procedures only record events; they never run translated code.
+- *APCs* arrive only while a thread is in an alertable wait or has requested a completion routine. The shim uses
+  none (`SleepEx`, the `Ex` waits, `ReadFileEx`, `QueueUserAPC`, `SuspendThread` and the like), and
+  `tools/ci/check_alertable.py` fails the build if one appears.
+- *Signals* are never delivered asynchronously: `raise` and `abort` call the handler on the raising thread.
+- *Exceptions*: a hardware fault in translated code is reported and ends the process; nothing resumes translated
+  code after one.
+- *What is left* is code outside Crossport: a debugger, an overlay or an antivirus product that queues a special
+  user APC on a running thread, or injects a thread. Nothing in a user-mode program can stop that.
+
+So the decision recorded in section 6 needed no separate message threads: the shim already runs translated code
+only on threads that never enter an alertable wait. `red_zone` (built with the red zone, and failing to build if
+the compiler stops using it) runs leaf functions on three threads while the main thread sends and receives X11
+events, and prints checksums that must match Linux's.
+
+**Raw system calls.** Section 2.4 says raw `syscall` instructions are redirected into the shim. They are not yet:
+the translator counts them per module and warns, and a program that executes one misbehaves. A redirect that used
+a `call` would also write the return address into the red zone of the leaf function that executed it, so the
+redirect must be a jump with the return address kept in a register or a per-thread cell. The corpus, the SDL
+harness and the libstdc++ runtimes contain none.
+
+**Plugins.**
 
 Qt and GTK open their plugins with `dlopen`, so plugins are translated ahead of time like everything else.
 
@@ -321,9 +351,10 @@ Built before the translator, because agents and humans both need fast, objective
   Libraries inside the AppImage always win over the pack, and anything that touches the operating system is
   implemented by the shim. Crossport does not host binaries. A library nobody supplies is bound to
   `--stub-missing`.
-- **Red zone (decided 2026-11-04):** translated code runs only on threads that never enter an alertable wait,
-  and window messages and I/O completions are delivered on separate shim threads, so Windows never dispatches
-  an APC onto a thread that is using the 128 bytes below `rsp`. Exceptions are the exception: the vectored crash
+- **Red zone (decided 2026-11-04):** translated code runs only on threads that never enter an alertable wait, and the shim never queues
+  an APC (CI enforces it), so Windows never dispatches one onto a thread that is using the 128 bytes below
+  `rsp`. Window messages arrive inside shim calls, never between the instructions of a leaf function, so separate
+  message threads proved unnecessary (section 2.12). Exceptions are the exception: the vectored crash
   handler only reports and never resumes translated code.
 - **Core X fonts (decided 2026-11-04):** `XLoadQueryFont` and the other server-side font calls are not
   implemented and fail cleanly. Toolkits draw text with freetype and fontconfig from the runtime pack, which
