@@ -316,11 +316,32 @@ fn convert_image(
         Some(appdir.clone()),
         missing,
     )?;
-    let mut variables = vec![("APPDIR", "${BUNDLE}/appdir".to_string())];
+    let mut variables = vec![
+        ("APPDIR", "${BUNDLE}/appdir".to_string()),
+        (
+            "CROSSPORT_PROGRAM",
+            format!(
+                "${{BUNDLE}}/{APPDIR_NAME}/{}",
+                unpacked.apprun_target.join("/")
+            ),
+        ),
+    ];
     if appdir.join(QT_PLUGIN_DIR).is_dir() {
+        let program_dir = program.parent().unwrap_or(&appdir);
+        if !program_dir.join(bundle::QT_CONF_FILE).exists() {
+            bundle::write_qt_conf(program_dir, "..", "plugins")?;
+        }
         variables.push((
             "QT_PLUGIN_PATH",
             format!("${{BUNDLE}}/{APPDIR_NAME}/{QT_PLUGIN_DIR}"),
+        ));
+    }
+    if let Ok(windows_dir) = std::env::var("SystemRoot") {
+        let fonts = bundle::windows_fonts_dir(&windows_dir);
+        bundle::write_fonts_conf(out, &[fonts])?;
+        variables.push((
+            "FONTCONFIG_FILE",
+            format!("${{BUNDLE}}/{}", bundle::FONTS_CONF_FILE),
         ));
     }
     let pairs: Vec<(&str, &str)> = variables
