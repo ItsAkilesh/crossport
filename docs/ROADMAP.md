@@ -72,10 +72,10 @@ mappings, wide characters and locales, iconv, the rest of the everyday libc (usa
 KeePassXC 50% to 80%), `crossport convert`, the desktop-entry fallback for shell-script launchers, and a
 runtime directory for host libraries (libstdc++ and similar).
 
-Done so far in M6: the in-process Xlib (windows, events, keyboard, properties, drawing, images, a wakeable
+Milestone 6 is done: its exit criterion is met (an SDL2 AppImage with input and a GL sample match Linux under CI). What it delivered: the in-process Xlib (windows, events, keyboard, properties, drawing, images, a wakeable
 display descriptor), `--stub-missing`, crash reports with symbolized shim frames, and the SDL2
 window-surface sample matching Linux pixel for pixel, and OpenGL through GLX and EGL on WGL with samples
-matching Linux. Text clipboard bridged with Windows. Still to do: fonts and text, and XKB and XInput2 answers.
+matching Linux. Text clipboard bridged with Windows, and a real SDL2 program (SDL's own test harness) runs as translated. Core X fonts and XKB are deferred by decision (DESIGN section 6); toolkit text arrives with the runtime pack in Milestone 7.
 
 - **X11 in process:** an X server inside the shim behind libxcb and libX11. Drawing (pixmaps, graphics
   contexts, `PutImage`, `CopyArea`, `GetImage`) on a DIB per window, properties, input events, cursors,

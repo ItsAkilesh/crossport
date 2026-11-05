@@ -215,7 +215,13 @@ The runtime pack is built by `tools/runtime/`: `pack-spec.json` names packages a
 `pack.json` (URL and SHA-256 of every package, from a dated snapshot), and `fetch_pack.py <pack.json> <cache>
 <out>` verifies and unpacks the libraries; pass `<out>` to `--runtime`.
 
-Remaining for the milestone: running a real SDL2 AppImage with the pack.
+A real SDL2 program is part of the corpus: `tests/corpus/apps/sdl2_tests` builds SDL 2.30.9 and its `testautomation`
+harness from pinned source, packages them as an AppImage, and runs the suites on Linux under Xvfb and translated on
+Windows. The Render and Video suites found two real gaps (`XQueryTree` and the text-property calls, whose stubs left
+their outputs unset, so SDL freed garbage). A stub that returns success without writing its outputs is the pattern
+to avoid.
+
+Milestone 6 is complete; Qt and GTK applications are Milestone 7.
 
 ## 3. Shim ABI
 

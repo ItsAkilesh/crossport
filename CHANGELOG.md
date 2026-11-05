@@ -5,6 +5,15 @@ being worked on. A feature commit that adds user-visible capability (a new flag,
 that runs) bumps the patch number; a fix does not. The version lives in `translator/Cargo.toml` and is
 bumped in the same commit as the change. Releases are tagged by the maintainer, not by automation.
 
+## 0.6.12
+
+- A real SDL2 program runs: SDL 2.30.9's own test harness, built from source, packaged as an AppImage and
+  translated, passes the Platform, Rect, Pixels, Surface, Render, Keyboard and Events suites exactly as on Linux,
+  and the Video suite with the same two failing cases as on Linux.
+- Window titles: `XmbTextListToTextProperty`, `Xutf8TextListToTextProperty`, `XStringListToTextProperty` and
+  `XSetTextProperty` are implemented; before, SDL freed a garbage pointer when it set a title and the program
+  crashed. `XQueryTree` answers with the flat window tree the shim keeps.
+
 ## 0.6.11
 
 - Runtime pack: `tools/runtime/pack-spec.json` lists the Ubuntu packages that supply freetype, fontconfig, glib,

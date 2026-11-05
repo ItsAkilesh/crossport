@@ -169,8 +169,8 @@ invocations. Vulkan programs render and present through the Windows Vulkan loade
 (X11 driver) opens a window, draws and receives keyboard, text, pointer and wheel events, and OpenGL
 (through GLX) and EGL programs, including an OpenGL ES 2 context, render the same pixels as on Linux. All of
 that runs on an in-process X11 (Xlib and xcb on Win32 windows) with no X server. `crossport convert` turns an
-AppImage into a runnable bundle in one step. The clipboard works for text. What is not done: fonts and text drawing, XKB,
-and real Qt and GTK applications (Milestone 7), then an installer and hardening; see docs/ROADMAP.md and
+AppImage into a runnable bundle in one step. The clipboard works for text. Milestone 6 is complete: a real SDL2 program (SDL's own test harness) runs, and so do GL samples. What is not done:
+text drawing through fonts, XKB, and real Qt and GTK applications (Milestone 7), then an installer and hardening; see docs/ROADMAP.md and
 [CHANGELOG.md](CHANGELOG.md).
 
 The verification harness came first so every step has fast, objective feedback: a `difftest` runner

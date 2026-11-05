@@ -31,15 +31,6 @@ LIBC_FN int sysv_XStoreName(XlDisplay *display, XlId window, const char *name);
 LIBC_FN int sysv_XUnmapWindow(XlDisplay *display, XlId window);
 LIBC_FN XlId sysv_XCreatePixmap(XlDisplay *display, XlId parent, unsigned width, unsigned height, unsigned depth);
 
-typedef struct {
-    unsigned char *value;
-    XlId encoding;
-    int32_t format;
-    uint64_t item_count;
-} XlTextProperty;
-
-_Static_assert(sizeof(XlTextProperty) == 32, "XTextProperty is 32 bytes");
-
 LIBC_FN int sysv_XQueryExtension(XlDisplay *display, const char *name, int *opcode, int *first_event, int *first_error)
 {
     (void)display;

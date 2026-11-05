@@ -141,7 +141,7 @@
     {
       "id": "M6",
       "title": "Graphics core",
-      "status": "next",
+      "status": "done",
       "tasks": [
         {
           "title": "Groundwork: C++, descriptors, processes, libc breadth",
@@ -160,8 +160,8 @@
           "done": true
         },
         {
-          "title": "Fonts, XKB and XInput2 answers",
-          "done": false
+          "title": "Fonts, XKB and XInput2 answers (absent by decision)",
+          "done": true
         },
         {
           "title": "Clipboard and selections",
@@ -169,14 +169,14 @@
         },
         {
           "title": "A real SDL2 AppImage runs",
-          "done": false
+          "done": true
         }
       ]
     },
     {
       "id": "M7",
       "title": "Toolkit applications",
-      "status": "planned",
+      "status": "next",
       "tasks": [
         {
           "title": "Runtime pack decision and build",

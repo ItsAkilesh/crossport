@@ -484,4 +484,14 @@ _Static_assert(sizeof(XlSetAttributes) == 112, "XSetWindowAttributes is 112 byte
 _Static_assert(sizeof(XlWindowAttributes) == 136, "XWindowAttributes is 136 bytes");
 _Static_assert(sizeof(XlGcValues) == 128, "XGCValues is 128 bytes");
 
+/* XTextProperty: a string (or list of strings, separated by NUL) with the property type that says how it is encoded. */
+typedef struct {
+    unsigned char *value;
+    XlId encoding;
+    int32_t format;
+    uint64_t item_count;
+} XlTextProperty;
+
+_Static_assert(sizeof(XlTextProperty) == 32, "XTextProperty is 32 bytes");
+
 #endif
