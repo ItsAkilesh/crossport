@@ -6,6 +6,7 @@
 #![allow(unsafe_code)]
 
 pub mod registry;
+pub mod shortcut;
 
 use std::path::PathBuf;
 
@@ -53,7 +54,7 @@ pub fn is_elevated() -> bool {
     }
 }
 
-fn known_folder(id: &windows::core::GUID) -> Option<PathBuf> {
+pub(crate) fn known_folder(id: &windows::core::GUID) -> Option<PathBuf> {
     // SAFETY: the returned buffer is freed with CoTaskMemFree after it is copied.
     unsafe {
         let raw: PWSTR = SHGetKnownFolderPath(id, KF_FLAG_DEFAULT, None).ok()?;

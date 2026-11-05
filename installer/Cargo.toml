@@ -23,6 +23,7 @@ name = "crossport-open"
 path = "src/bin/open.rs"
 
 [dependencies]
+backhand = { version = "=0.25.5", default-features = false, features = ["gzip", "zstd", "xz"] }
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "=0.61.3", features = [
