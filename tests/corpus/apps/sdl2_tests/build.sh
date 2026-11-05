@@ -23,5 +23,6 @@ cmake -S "$src" -B "$build" -DCMAKE_BUILD_TYPE=Release -DSDL_TESTS=ON -DSDL_INST
 cmake --build "$build" --target testautomation -j"$(nproc)" > /dev/null
 
 install -D "$build/test/testautomation" "$appdir/usr/bin/testautomation"
-lib="$(find "$build" -maxdepth 1 -name 'libSDL2-2.0.so.0.*' | head -n 1)"
+lib="$(find "$build" -name 'libSDL2-2.0.so*' -type f | head -n 1)"
+[[ -n "$lib" ]] || { echo "the SDL build produced no library" >&2; find "$build" -name '*.so*' >&2; exit 1; }
 install -D "$lib" "$appdir/usr/lib/libSDL2-2.0.so.0"
