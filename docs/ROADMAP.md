@@ -2,7 +2,7 @@
   File: docs/ROADMAP.md
   Purpose: Milestones and exit criteria for Crossport
   Author: Akilesh
-  Date: 2026-11-04
+  Date: 2026-11-05
 -->
 
 # Crossport Roadmap
@@ -107,6 +107,10 @@ matching Linux. Text clipboard bridged with Windows, and a real SDL2 program (SD
   reproducible translation so a given AppImage always yields the same bytes.
 - **First-run experience:** one drag-and-drop or one command; clear messages when an app uses something
   unsupported (a report of what is missing rather than a crash).
+- **Status (2026-11-05):** the installer and launcher are built (`installer/`, decision in DESIGN section 6): a setup
+  wizard for Crossport, an AppImage launcher with its own wizard, file association, per-app uninstall, elevation only
+  when needed, and a readable unsupported-app report. Still to do: code signing, update checks, a release download,
+  and the three-AppImage run on a clean machine (blocked on Qt, Milestone 7).
 - **Exit criterion:** someone who has never seen Crossport installs and runs three different AppImages
   from a signed installer with no terminal.
 

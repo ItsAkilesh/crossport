@@ -23,7 +23,7 @@
 >
 > <sub>Crossport is a working name and the project is at an early stage. It translates real command-line
 > AppImages and runs SDL2, Vulkan, OpenGL and EGL programs; Qt and GTK applications are the next step.
-> There is no installer yet: see [Use Crossport on Windows](#use-crossport-on-windows) to build and use it.</sub>
+> A Windows installer and an AppImage launcher exist but have no signed download yet: see [Install Crossport with the installer](#install-crossport-with-the-installer) to build one, or [Use Crossport on Windows](#use-crossport-on-windows) for the command line.</sub>
 
 [![CI](https://github.com/ItsAkilesh/crossport/actions/workflows/ci.yml/badge.svg)](https://github.com/ItsAkilesh/crossport/actions/workflows/ci.yml)
 [![Rust](https://img.shields.io/badge/tooling-rust-000000?logo=rust&logoColor=white)](https://www.rust-lang.org)
@@ -112,7 +112,7 @@ lives in [docs/ROADMAP.md](docs/ROADMAP.md).
 - [x] **Milestone 5:** Vulkan rendering in a window
 - [ ] **Milestone 6:** graphics core (X11 in process, OpenGL and EGL, SDL2 apps)
 - [ ] **Milestone 7:** real Qt and GTK applications
-- [ ] **Milestone 8:** everyday use (installer, file associations, signing)
+- [ ] **Milestone 8:** everyday use (installer and launcher built; signing and updates to come)
 - [ ] **Milestone 9:** hardening and breadth (performance, security, a 50-app corpus)
 - [ ] **Milestone 10:** the macOS distribution for Apple silicon, translating aarch64 AppImages (planned)
 
@@ -179,8 +179,9 @@ run.
 
 ## Use Crossport on Windows
 
-There is no installer or download yet (that is Milestone 8), so for now you build the two pieces yourself,
-once, and then convert each AppImage you want to run. Everything stays in folders you choose: nothing is
+There is no signed download yet (that is Milestone 8), so for now you build Crossport yourself. The next section
+builds a normal Windows installer; the sections after it use the command line directly. Either way, you build the
+two pieces once and then convert each AppImage you want to run. Everything stays in folders you choose: nothing is
 installed system-wide, no registry keys are written and no administrator rights are needed.
 
 ### What works today
@@ -238,6 +239,68 @@ Optionally copy them to a folder of your own, for example `%LOCALAPPDATA%\Crossp
 your `PATH`. The rest of this guide writes `crossport` for the translator and `crossport_libc.dll` for the
 shim, so use their full paths if you did not do that.
 
+### Install Crossport with the installer
+
+`installer/` builds `Crossport-Setup.exe`, a wizard (welcome, licence, folder, options, progress, finish) that installs
+Crossport itself, and `crossport-open.exe`, the launcher that turns an AppImage into an installed Windows app.
+After the two build steps above (translator and shim), in Git Bash:
+
+```bash
+bash installer/package.sh build/installer
+```
+
+<p>
+  <img src="docs/images/setup-1-welcome.png" alt="Crossport Setup: welcome page" width="31%">
+  <img src="docs/images/setup-3-folder.png" alt="Crossport Setup: install folder page" width="31%">
+  <img src="docs/images/setup-4-options.png" alt="Crossport Setup: options page" width="31%">
+</p>
+
+Run `build/installer/Crossport-Setup.exe`. It installs the translator, the shim and the launcher into
+`Program Files\Crossport` (or a folder you pick, or your own account with "Install for me only", which needs no
+administrator permission). Options: Start menu and desktop shortcuts, adding the folder to `PATH`, and opening
+`.AppImage` files with Crossport (on by default). It adds an entry to Apps and features that removes everything it
+installed. No apps or settings come with it.
+
+Then download any x86-64 AppImage and double-click it. Windows 10 and 11 keep the default app per file type in a
+protected setting that programs cannot change, so the first time, choose **Crossport** in the "How do you want to open
+this file" box and select **Always** (or use Open with). The launcher then shows a small wizard:
+
+1. the app's name and icon (read from the AppImage) and an editable name;
+2. an install folder, `Program Files\Crossport\<app name>` by default with a Browse button, or a folder in your own
+   account (no administrator permission);
+3. Start menu and desktop shortcuts;
+4. a progress page while it converts the app;
+5. a result page, with a button to start the app now.
+
+<p>
+  <img src="docs/images/lua-1-name.png" alt="Launcher: name page" width="31%">
+  <img src="docs/images/lua-3-shortcuts.png" alt="Launcher: shortcuts page" width="31%">
+  <img src="docs/images/lua-5-result.png" alt="Launcher: installed" width="31%">
+</p>
+
+Administrator permission is requested only when the chosen folder needs it. Each app gets its own entry in Apps and
+features and its own `uninstall.exe`, so removing Crossport never breaks an installed app. If an app cannot be
+converted (a missing library, a program that is not position independent, raw system calls) the last page lists what
+is unsupported and what to try, and nothing is left behind. VLC 3.0.11 stops this way today (its program is not
+position independent), and KeePassXC reports its missing libraries.
+
+When an app cannot be converted, the last page says why (here VLC 3.0.11):
+
+<img src="docs/images/vlc-5-result.png" alt="Launcher: this app cannot be converted yet" width="48%">
+
+Both programs also run without a window for scripts and tests:
+
+```bash
+Crossport-Setup.exe --silent --user --dir C:/Tools/Crossport --path
+crossport-open.exe MyApp.AppImage --silent --user --desktop
+crossport-open.exe --uninstall "C:/Tools/Crossport/MyApp" --quiet
+```
+
+The runtime pack (Linux libraries such as libstdc++ that AppImages expect from their host) is optional at build time:
+`installer/package.sh build/installer --runtime <folder>` takes the output of `tools/runtime/fetch_pack.py`.
+Windows draws the wizard bitmap-scaled on high-DPI screens for now, and the installer is not code signed yet, so
+SmartScreen may warn about it.
+
 ### Convert an AppImage and run it
 
 Download an x86-64 Linux AppImage from the project that makes it, then convert it into a new, empty folder:
@@ -261,7 +324,7 @@ C:/Apps/MyApp/
 
 Run `myapp.exe` from that folder (double-click it, or start it from a terminal to see its output). The
 folder can be moved as a whole. To start it from the Start menu or the desktop, make a shortcut to the
-`.exe` yourself; file associations and a launcher arrive with Milestone 8.
+`.exe` yourself, or use the installer above, whose launcher does this for you.
 
 Conversion prints what it did. Two lines are worth reading:
 
@@ -371,6 +434,7 @@ translator/target/release/crossport translate build/elf/two_libs/two_libs --shim
 | `translator/` | AppImage unpacker, ELF analyzer, ELF-to-PE relinker, instruction rewriter |
 | `shim/` | Linux ABI implemented on Win32 (libc, pthreads, Xlib and xcb, OpenGL, EGL, Vulkan) |
 | `tests/corpus/` | Test applications and differential test definitions |
+| `installer/` | The Windows setup wizard, the AppImage launcher (`crossport-open.exe`) and their install, uninstall and registry code |
 | `tools/` | The `difftest` runner, corpus scripts, coverage dashboard (planned) |
 | `third_party/` | Pinned Khronos registries (Vulkan, OpenGL) used to generate the shim's entry points |
 | `site/` | The project page ([itsakilesh.github.io/crossport](https://itsakilesh.github.io/crossport/)): Vite, React, three.js and Glisse, built and deployed by `.github/workflows/site.yml` |
