@@ -5,6 +5,19 @@ being worked on. A feature commit that adds user-visible capability (a new flag,
 that runs) bumps the patch number; a fix does not. The version lives in `translator/Cargo.toml` and is
 bumped in the same commit as the change. Releases are tagged by the maintainer, not by automation.
 
+## Unreleased: hardening (Milestone 9 security work, no version bump)
+
+- Fuzzing: `fuzz/` holds eight targets for hostile input (ELF analysis, translation with a hostile executable or
+  library, the shim export reader, the AppImage and SquashFS reader, `convert`, the command line), seed corpora built
+  from the test fixtures, and a stable-Rust driver for local runs. `.github/workflows/fuzz.yml` runs a 60 second smoke
+  run per target on pull requests and a long scheduled run. `docs/THREAT_REVIEW.md` reviews how the translator handles
+  hostile input.
+- Fixed: an address in an ELF file (a symbol, relocation, entry point, array or code range) near the top of the 64-bit
+  range overflowed the arithmetic that places it in the PE image and panicked a debug build (a release build produced
+  a wrong address). Analysis now rejects any address beyond the 256 MiB module image limit.
+- Fixed: an archive entry whose name is not UTF-8 made the SquashFS reader panic on Windows; `unpack` and `convert`
+  now report a malformed archive instead.
+
 ## 0.7.6
 
 - A real Qt application runs: KeePassXC 2.8.0 (Qt 6, 153 modules with its plugins) starts translated on Windows,
