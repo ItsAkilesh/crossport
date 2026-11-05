@@ -2,7 +2,7 @@
  * File: site/src/styles/sections.css
  * Purpose: Styles for the page's sections: the figures and their controls, legends, the milestone list, cards, install steps and the footer
  * Author: Akilesh
- * Date: 2026-11-04
+ * Date: 2026-11-05
  */
 
 .section {
@@ -67,8 +67,27 @@
   gap: 16px 24px;
 }
 
-.controls > :first-child {
-  max-width: 100%;
+/* The tab control keeps its natural width and the row scrolls sideways when the screen is narrower. The padding
+   holds the control's glass edge, which reaches 12px past it; without it the row would scroll a few pixels even
+   when everything fits. */
+.scroll-row {
+  min-width: 0;
+  max-width: calc(100% + 32px);
+  padding: 6px 16px;
+  margin: -6px -16px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.scroll-row::-webkit-scrollbar {
+  display: none;
+}
+
+.scroll-row > * {
+  width: max-content;
+  max-width: none;
 }
 
 .slider-row {
@@ -311,13 +330,7 @@
   gap: 8px 22px;
 }
 
-/* On a phone the segmented control scrolls inside its own box rather than widening the page. */
 @media (max-width: 480px) {
-  .controls > :first-child {
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-
   .scene {
     border-radius: 18px;
   }

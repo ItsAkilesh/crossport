@@ -2,10 +2,10 @@
  * File: site/src/components/Footer.tsx
  * Purpose: The page footer: where to read more, the licence, and credit for the libraries the page uses
  * Author: Akilesh
- * Date: 2026-11-04
+ * Date: 2026-11-05
  */
 
-import { REPOSITORY_URL } from "../content/distributions";
+import { AUTHOR_NAME, REPOSITORY_URL } from "../content/distributions";
 
 const LINKS = [
   { label: "Source", href: REPOSITORY_URL },
@@ -25,7 +25,7 @@ export function Footer() {
         ))}
       </nav>
       <p className="fineprint">
-        Crossport v{__CROSSPORT_VERSION__} &middot; MIT licence &middot; the figures use{" "}
+        Crossport v{__CROSSPORT_VERSION__} by {AUTHOR_NAME} &middot; MIT licence &middot; the figures use{" "}
         <a href="https://threejs.org">three.js</a> and the controls are <a href="https://github.com/0kzh/glisse">Glisse</a>.
       </p>
     </footer>

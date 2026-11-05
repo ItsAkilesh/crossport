@@ -2,10 +2,10 @@
  * File: site/src/components/Hero.tsx
  * Purpose: The opening: the claim, what Crossport does in one paragraph, the two actions and the live hero figure
  * Author: Akilesh
- * Date: 2026-11-04
+ * Date: 2026-11-05
  */
 
-import { REPOSITORY_URL } from "../content/distributions";
+import { AUTHOR_NAME, REPOSITORY_URL } from "../content/distributions";
 import { loadHeroScene } from "../three/loaders";
 import { SceneCanvas } from "./SceneCanvas";
 
@@ -22,6 +22,7 @@ export function Hero() {
           system interface, not the machine code, so the app runs at full speed with no virtual machine and no
           bundled browser.
         </p>
+        <p className="byline">By {AUTHOR_NAME}</p>
         <div className="actions">
           <a className="pill pill-primary" href="#install">
             Get started
@@ -31,7 +32,7 @@ export function Hero() {
           </a>
         </div>
         <p className="fineprint">
-          Command-line tools, Vulkan, OpenGL and SDL2 programs work today. Qt and GTK are next.
+          Command-line tools, Vulkan, OpenGL and SDL2 programs work today, including SDL's own test harness. Plugin loading is in. Qt and GTK are next.
         </p>
       </div>
       <SceneCanvas

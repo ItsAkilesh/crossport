@@ -2,7 +2,7 @@
  * File: site/src/components/ProgramsSection.tsx
  * Purpose: The "Your app" section: pick a real corpus program and see which of its libraries are translated, replaced by the shim or stubbed
  * Author: Akilesh
- * Date: 2026-11-04
+ * Date: 2026-11-05
  */
 
 import { SegmentedControl } from "glisse";
@@ -11,6 +11,7 @@ import { PROGRAMS, countByKind, type ModuleKind, type Program } from "../content
 import type { GraphInput } from "../three/graph-scene";
 import { loadGraphScene } from "../three/loaders";
 import { SceneCanvas } from "./SceneCanvas";
+import { ScrollRow } from "./ScrollRow";
 import { Section } from "./Section";
 
 const PROGRAM_ITEMS = PROGRAMS.map((program) => ({ value: program.id, label: program.label }));
@@ -83,7 +84,9 @@ export function ProgramsSection() {
           label={`${program.title}: ${counts.translated} bundled libraries translated, ${counts.shim} host libraries replaced by the shim, ${counts.stubbed} stubbed.`}
         />
         <div className="controls">
-          <SegmentedControl aria-label="Program" items={PROGRAM_ITEMS} value={programId} onValueChange={setProgramId} />
+          <ScrollRow selection={programId}>
+            <SegmentedControl aria-label="Program" items={PROGRAM_ITEMS} value={programId} onValueChange={setProgramId} />
+          </ScrollRow>
         </div>
       </div>
       <p className="summary" aria-live="polite">

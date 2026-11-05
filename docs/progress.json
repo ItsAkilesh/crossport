@@ -187,6 +187,10 @@
           "done": true
         },
         {
+          "title": "Red zone answer, enforced in CI",
+          "done": true
+        },
+        {
           "title": "Real Qt AppImage runs",
           "done": false
         },

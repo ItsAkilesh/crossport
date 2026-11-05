@@ -2,7 +2,7 @@
  * File: site/src/components/PipelineSection.tsx
  * Purpose: The "How it works" section: pick a step of the translation and watch one small app go through it
  * Author: Akilesh
- * Date: 2026-11-04
+ * Date: 2026-11-05
  */
 
 import { SegmentedControl, Slider } from "glisse";
@@ -12,6 +12,7 @@ import { loadPipelineScene } from "../three/loaders";
 import type { PipelineInput } from "../three/pipeline-scene";
 import { CommandBlock } from "./CommandBlock";
 import { SceneCanvas } from "./SceneCanvas";
+import { ScrollRow } from "./ScrollRow";
 import { Section } from "./Section";
 
 const STAGE_ITEMS = PIPELINE_STAGES.map((stage, index) => ({ value: String(index), label: stage.name }));
@@ -38,12 +39,14 @@ export function PipelineSection() {
           label={`A small app at the ${current?.name ?? ""} step: blocks for a program and its libraries, with lines showing what depends on what.`}
         />
         <div className="controls">
-          <SegmentedControl
-            aria-label="Translation step"
-            items={STAGE_ITEMS}
-            value={String(stage)}
-            onValueChange={(value) => setStage(Number(value))}
-          />
+          <ScrollRow selection={String(stage)}>
+            <SegmentedControl
+              aria-label="Translation step"
+              items={STAGE_ITEMS}
+              value={String(stage)}
+              onValueChange={(value) => setStage(Number(value))}
+            />
+          </ScrollRow>
           <label className="slider-row">
             <span>Spread</span>
             <Slider aria-label="Spread the blocks apart" value={spread} min={0} max={1} step={SPREAD_STEP} onValueChange={setSpread} />

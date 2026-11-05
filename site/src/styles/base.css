@@ -2,7 +2,7 @@
  * File: site/src/styles/base.css
  * Purpose: Design tokens (dark and light), the page's typography and layout, the glass header and the hero
  * Author: Akilesh
- * Date: 2026-11-04
+ * Date: 2026-11-05
  *
  * Colours name what they mean: amber is Linux, blue is Windows, fuchsia is the shim. Glisse's own tokens
  * (--lg-*) follow the same data-theme attribute, so its controls match the page.
@@ -244,6 +244,13 @@ pre {
   gap: 32px;
   padding: 48px 0 56px;
   align-items: center;
+}
+
+.byline {
+  margin: -4px 0 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+  letter-spacing: 0.01em;
 }
 
 .hero-copy {
