@@ -23,7 +23,6 @@
 /* Thread control block above the thread pointer; glibc-compatible landmarks. */
 #define TCB_BYTES 0x100u
 #define TCB_SELF_OFFSET 0x00u
-#define TCB_PTHREAD_SELF_OFFSET 0x10u
 #define TCB_CANARY_OFFSET 0x28u
 #define TCB_RAW_BLOCK_OFFSET 0x80u /* private: where the unaligned allocation is remembered */
 #define MIN_THREAD_POINTER_ALIGN 64u
@@ -130,7 +129,7 @@ uint8_t *tls_attach_thread(void)
     uintptr_t aligned = ((uintptr_t)raw + g_alignment - 1) & ~((uintptr_t)g_alignment - 1);
     uint8_t *thread_pointer = (uint8_t *)aligned + g_total_size;
     *(uint8_t **)(thread_pointer + TCB_SELF_OFFSET) = thread_pointer;
-    *(uint8_t **)(thread_pointer + TCB_PTHREAD_SELF_OFFSET) = thread_pointer;
+    *(uint8_t **)(thread_pointer + TCB_PTHREAD_SELF_OFFSET) = thread_pointer; /* until a pthread object replaces it */
     *(uint64_t *)(thread_pointer + TCB_CANARY_OFFSET) = g_canary;
     *(uint8_t **)(thread_pointer + TCB_RAW_BLOCK_OFFSET) = raw;
     initialise_templates(thread_pointer);

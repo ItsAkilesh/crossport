@@ -171,9 +171,8 @@ XcbCookie xcb_window_create(void *connection, uint8_t depth, XcbId window, XcbId
     return next_cookie();
 }
 
-LIBC_FN XcbCookie sysv_xcb_map_window(void *connection, XcbId window)
+XcbCookie xcb_window_map(XcbId window)
 {
-    (void)connection;
     HWND handle = xcb_window_handle(window);
     if (handle != NULL) {
         ShowWindow(handle, SW_SHOW);
@@ -182,14 +181,43 @@ LIBC_FN XcbCookie sysv_xcb_map_window(void *connection, XcbId window)
     return next_cookie();
 }
 
-LIBC_FN XcbCookie sysv_xcb_unmap_window(void *connection, XcbId window)
+XcbCookie xcb_window_unmap(XcbId window)
 {
-    (void)connection;
     HWND handle = xcb_window_handle(window);
     if (handle != NULL) {
         ShowWindow(handle, SW_HIDE);
     }
     return next_cookie();
+}
+
+/* MapNotify and UnmapNotify: event window, window, and one flag byte (override_redirect or from_configure). */
+static void push_map_event(uint8_t type, XcbId window)
+{
+    XcbEvent event = {.response_type = type};
+    memcpy(event.body, &window, sizeof(window));
+    memcpy(event.body + sizeof(window), &window, sizeof(window));
+    xcb_events_push(&event);
+}
+
+/* Toolkits treat a window as exposed only after its MapNotify, so a map request reports it. */
+LIBC_FN XcbCookie sysv_xcb_map_window(void *connection, XcbId window)
+{
+    (void)connection;
+    XcbCookie cookie = xcb_window_map(window);
+    if (xcb_window_handle(window) != NULL) {
+        push_map_event(XCB_EVENT_MAP_NOTIFY, window);
+    }
+    return cookie;
+}
+
+LIBC_FN XcbCookie sysv_xcb_unmap_window(void *connection, XcbId window)
+{
+    (void)connection;
+    XcbCookie cookie = xcb_window_unmap(window);
+    if (xcb_window_handle(window) != NULL) {
+        push_map_event(XCB_EVENT_UNMAP_NOTIFY, window);
+    }
+    return cookie;
 }
 
 static void destroy_on_window_thread(void *argument)
