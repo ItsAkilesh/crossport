@@ -24,6 +24,33 @@ pub struct Report {
     pub findings: Vec<Finding>,
 }
 
+const FIELD_SEP: char = '\u{1f}';
+const FINDING_SEP: char = '\u{1e}';
+
+impl Report {
+    /// A plain-text form for handing a report to another process through a file.
+    pub fn encode(&self) -> String {
+        let findings: Vec<String> =
+            self.findings.iter().map(|f| format!("{}{FIELD_SEP}{}", f.summary, f.advice)).collect();
+        let head = if self.succeeded { "ok" } else { "fail" };
+        format!("{head}{FINDING_SEP}{}", findings.join(&FINDING_SEP.to_string()))
+    }
+
+    pub fn decode(text: &str) -> Option<Report> {
+        let mut parts = text.split(FINDING_SEP);
+        let succeeded = match parts.next()? {
+            "ok" => true,
+            "fail" => false,
+            _ => return None,
+        };
+        let findings = parts
+            .filter(|p| !p.is_empty())
+            .map(|p| p.split_once(FIELD_SEP).map(|(s, a)| Finding { summary: s.into(), advice: a.into() }))
+            .collect::<Option<Vec<_>>>()?;
+        Some(Report { succeeded, findings })
+    }
+}
+
 fn finding(summary: String, advice: &str) -> Finding {
     Finding { summary, advice: advice.to_string() }
 }
@@ -128,6 +155,16 @@ crossport: unsupported: only position-independent executables and shared objects
         let report = analyze(text, false);
         assert_eq!(report.findings.len(), 1);
         assert!(report.findings[0].advice.contains("fixed-address"));
+    }
+
+    #[test]
+    fn reports_survive_a_trip_through_a_file() {
+        let text = "not found, left out: libasound.so.2\ncrossport: library libx.so was not found in any --lib-dir\n";
+        let report = analyze(text, false);
+        assert_eq!(Report::decode(&report.encode()), Some(report));
+        let clean = Report { succeeded: true, findings: vec![] };
+        assert_eq!(Report::decode(&clean.encode()), Some(clean));
+        assert_eq!(Report::decode("garbage"), None);
     }
 
     #[test]

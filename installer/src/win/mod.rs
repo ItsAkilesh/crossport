@@ -5,6 +5,7 @@
 
 #![allow(unsafe_code)]
 
+pub mod elevate;
 pub mod registry;
 pub mod shortcut;
 

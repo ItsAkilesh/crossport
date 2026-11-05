@@ -4,12 +4,15 @@
 // Date: 2026-11-05
 
 pub mod appimage_meta;
+pub mod cli;
 pub mod command;
 #[cfg(windows)]
 pub mod engine;
 pub mod ico;
 pub mod manifest;
 pub mod names;
+#[cfg(windows)]
+pub mod ops;
 pub mod paths;
 pub mod payload;
 pub mod regplan;
