@@ -24,7 +24,12 @@ pub const LIB_GREET: &[u8] =
 pub const LIB_MATH: &[u8] = include_bytes!("../../translator/tests/fixtures/two_libs/libmath.so.1");
 pub const HELLO_ELF: &[u8] = include_bytes!("../../translator/tests/fixtures/hello_dyn.elf");
 
-const SHIM_SYMBOLS: [&str; 4] = ["puts", "__libc_start_main", "crossport_start", "crossport_unavailable"];
+const SHIM_SYMBOLS: [&str; 4] = [
+    "puts",
+    "__libc_start_main",
+    "crossport_start",
+    "crossport_unavailable",
+];
 const EXE_NAME: &str = "fuzzed";
 const LIB_GREET_NAME: &str = "libgreet.so.1";
 const LIB_MATH_NAME: &str = "libmath.so.1";

@@ -73,4 +73,7 @@ The inputs are kept in `translator/tests/fixtures/fuzz/`. The driver found them 
 of a build with overflow checks; the same driver without overflow checks found nothing in 13 minutes, which is why
 the harness builds with them on.
 
+One `translate_exe` hang report from the local driver did not reproduce: the input translates in milliseconds, and the
+machine was starved of CPU at the time. No hang or over-allocation has been found.
+
 The `backhand` panic should also be reported upstream; until a fixed release is pinned the catch in `unpack` stays.
