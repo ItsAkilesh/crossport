@@ -28,6 +28,25 @@
       ],
       "timeout": 180,
       "stderr_keep": "(?!)"
+    },
+    {
+      "id": "gui-start",
+      "args": [],
+      "timeout": 40,
+      "stderr_keep": "(?!)",
+      "env": {
+        "QT_QPA_PLATFORM": "xcb"
+      }
+    },
+    {
+      "id": "gui-probe",
+      "args": [],
+      "timeout": 40,
+      "env": {
+        "QT_QPA_PLATFORM": "xcb",
+        "QT_LOGGING_RULES": "qt.qpa.*=true;qt.core.plugin.*=true;*.debug=false",
+        "QT_DEBUG_PLUGINS": "1"
+      }
     }
   ]
 }
