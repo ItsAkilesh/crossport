@@ -249,6 +249,12 @@ After the two build steps above (translator and shim), in Git Bash:
 bash installer/package.sh build/installer
 ```
 
+<p>
+  <img src="docs/images/setup-1-welcome.png" alt="Crossport Setup: welcome page" width="31%">
+  <img src="docs/images/setup-3-folder.png" alt="Crossport Setup: install folder page" width="31%">
+  <img src="docs/images/setup-4-options.png" alt="Crossport Setup: options page" width="31%">
+</p>
+
 Run `build/installer/Crossport-Setup.exe`. It installs the translator, the shim and the launcher into
 `Program Files\Crossport` (or a folder you pick, or your own account with "Install for me only", which needs no
 administrator permission). Options: Start menu and desktop shortcuts, adding the folder to `PATH`, and opening
@@ -266,11 +272,21 @@ this file" box and select **Always** (or use Open with). The launcher then shows
 4. a progress page while it converts the app;
 5. a result page, with a button to start the app now.
 
+<p>
+  <img src="docs/images/lua-1-name.png" alt="Launcher: name page" width="31%">
+  <img src="docs/images/lua-3-shortcuts.png" alt="Launcher: shortcuts page" width="31%">
+  <img src="docs/images/lua-5-result.png" alt="Launcher: installed" width="31%">
+</p>
+
 Administrator permission is requested only when the chosen folder needs it. Each app gets its own entry in Apps and
 features and its own `uninstall.exe`, so removing Crossport never breaks an installed app. If an app cannot be
 converted (a missing library, a program that is not position independent, raw system calls) the last page lists what
 is unsupported and what to try, and nothing is left behind. VLC 3.0.11 stops this way today (its program is not
 position independent), and KeePassXC reports its missing libraries.
+
+When an app cannot be converted, the last page says why (here VLC 3.0.11):
+
+<img src="docs/images/vlc-5-result.png" alt="Launcher: this app cannot be converted yet" width="48%">
 
 Both programs also run without a window for scripts and tests:
 
