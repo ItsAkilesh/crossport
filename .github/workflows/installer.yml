@@ -1,0 +1,31 @@
+# File: .github/workflows/installer.yml
+# Purpose: Build and test the Windows installer and AppImage launcher in installer/
+# Author: Akilesh
+# Date: 2026-11-05
+
+name: installer
+
+on:
+  push:
+    paths: ["installer/**", ".github/workflows/installer.yml"]
+  pull_request:
+    paths: ["installer/**", ".github/workflows/installer.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  installer:
+    runs-on: windows-2022
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Unit and integration tests
+        run: cargo test --locked --manifest-path installer/Cargo.toml
+      - name: Lints
+        run: cargo clippy --locked --all-targets --manifest-path installer/Cargo.toml -- -D warnings
+      - name: Build the programs
+        run: cargo build --release --locked --manifest-path installer/Cargo.toml

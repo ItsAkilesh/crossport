@@ -1,8 +1,8 @@
 /*
  * File: site/src/components/InstallSection.tsx
- * Purpose: How to build Crossport and convert an AppImage today (there is no installer yet), and what does not work yet
+ * Purpose: How to build Crossport and convert an AppImage today (an installer can be built from source; there is no signed download yet), and what does not work yet
  * Author: Akilesh
- * Date: 2026-11-04
+ * Date: 2026-11-05
  */
 
 import { INSTALL_STEPS, LIMITS, REPOSITORY_URL, REQUIREMENTS } from "../content/distributions";
@@ -15,7 +15,7 @@ export function InstallSection() {
       id="install"
       eyebrow="Install"
       title="Build it once, then convert any AppImage."
-      intro="There is no installer or download yet. You build the translator and the shim from source, then give the translator an x86-64 Linux AppImage. Nothing is installed system-wide and no administrator rights are needed."
+      intro="There is no signed download yet. You build the translator and the shim from source, then give the translator an x86-64 Linux AppImage. The command line installs nothing system-wide; installer/package.sh builds a setup wizard and an AppImage launcher if you prefer double-clicking."
     >
       <div className="install-grid">
         <div>
