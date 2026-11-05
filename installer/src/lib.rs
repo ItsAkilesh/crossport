@@ -5,6 +5,8 @@
 
 pub mod appimage_meta;
 pub mod command;
+#[cfg(windows)]
+pub mod engine;
 pub mod ico;
 pub mod manifest;
 pub mod names;

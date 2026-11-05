@@ -16,6 +16,7 @@ use windows::Win32::Security::{GetTokenInformation, TokenElevation, TOKEN_ELEVAT
 use windows::Win32::System::Com::CoTaskMemFree;
 use windows::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
 use windows::Win32::UI::Shell::{
+    SHChangeNotify, SHCNE_ASSOCCHANGED, SHCNF_IDLIST,
     FOLDERID_LocalAppData, FOLDERID_ProgramFiles, SHGetKnownFolderPath, KF_FLAG_DEFAULT,
 };
 
@@ -85,4 +86,10 @@ pub fn can_write(dir: &std::path::Path) -> bool {
     let ok = std::fs::write(&file, b"").is_ok();
     let _ = std::fs::remove_file(&file);
     ok
+}
+
+/// Tell Explorer that file associations changed, so icons and Open with refresh.
+pub fn announce_association_change() {
+    // SAFETY: no item pointers are passed for a global association change.
+    unsafe { SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, None, None) };
 }

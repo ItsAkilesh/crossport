@@ -6,6 +6,10 @@
 #![allow(unsafe_code)]
 
 use windows::Win32::Foundation::ERROR_FILE_NOT_FOUND;
+use windows::Win32::Foundation::{LPARAM, WPARAM};
+use windows::Win32::UI::WindowsAndMessaging::{
+    SendMessageTimeoutW, HWND_BROADCAST, SMTO_ABORTIFHUNG, WM_SETTINGCHANGE,
+};
 use windows::Win32::System::Registry::{
     RegCloseKey, RegCreateKeyExW, RegDeleteTreeW, RegOpenKeyExW, RegQueryValueExW, RegSetValueExW,
     HKEY, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, KEY_QUERY_VALUE, KEY_SET_VALUE, KEY_WRITE,
@@ -14,6 +18,8 @@ use windows::Win32::System::Registry::{
 
 use super::{pcwstr, wide};
 use crate::regplan::{Hive, RegEntry, RegValue};
+
+const BROADCAST_TIMEOUT_MS: u32 = 2000;
 
 /// A registry writer. With a `redirect`, every key lands under that key in `HKCU`, so tests never touch
 /// real classes or uninstall entries.
@@ -119,5 +125,22 @@ impl Registry {
             let _ = RegCloseKey(handle);
             result.ok().map_err(|e| format!("set Path: {e}"))
         }
+    }
+}
+
+/// Tell running programs (Explorer, new terminals) that environment variables changed.
+pub fn announce_environment_change() {
+    let setting = wide("Environment");
+    // SAFETY: the setting string outlives the call; the broadcast has a short timeout so a hung window cannot stall it.
+    unsafe {
+        let _ = SendMessageTimeoutW(
+            HWND_BROADCAST,
+            WM_SETTINGCHANGE,
+            WPARAM(0),
+            LPARAM(setting.as_ptr() as isize),
+            SMTO_ABORTIFHUNG,
+            BROADCAST_TIMEOUT_MS,
+            None,
+        );
     }
 }

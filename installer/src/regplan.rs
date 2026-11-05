@@ -29,6 +29,15 @@ impl Hive {
         }
     }
 
+    /// The hive named `HKCU` or `HKLM` in a manifest.
+    pub fn from_name(name: &str) -> Option<Self> {
+        match name {
+            "HKCU" => Some(Hive::CurrentUser),
+            "HKLM" => Some(Hive::LocalMachine),
+            _ => None,
+        }
+    }
+
     pub fn name(self) -> &'static str {
         match self {
             Hive::CurrentUser => "HKCU",
