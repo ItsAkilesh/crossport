@@ -23,6 +23,7 @@ name = "crossport-open"
 path = "src/bin/open.rs"
 
 [dependencies]
+miniz_oxide = { version = "=0.8.9", default-features = false, features = ["with-alloc"] }
 backhand = { version = "=0.25.5", default-features = false, features = ["gzip", "zstd", "xz"] }
 
 [target.'cfg(windows)'.dependencies]

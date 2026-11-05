@@ -9,6 +9,7 @@ pub mod ico;
 pub mod manifest;
 pub mod names;
 pub mod paths;
+pub mod payload;
 pub mod regplan;
 pub mod report;
 
