@@ -22,6 +22,16 @@ bumped in the same commit as the change. Releases are tagged by the maintainer, 
   `xcb_requests` compares the answers with a real X server.
 - A window can be as small as X allows: Windows' minimum window size is lowered by the window procedure.
 
+## Installer (separate crate, not versioned with the translator)
+
+- `installer/` adds a native Windows setup wizard (`crossport-setup`) and an `.AppImage` launcher (`crossport-open`).
+  Setup installs Crossport to a folder of the user's choice, with Start menu and desktop shortcuts, a PATH entry,
+  the `.AppImage` association and an uninstall entry in Apps and features. The launcher reads the name and icon from
+  an image, runs `crossport convert` into `Program Files\Crossport\<app>` (or a per-user folder that needs no
+  elevation), registers the app with its own uninstaller, and shows a readable report when an app is unsupported.
+  A failed conversion leaves nothing behind, and an uninstall refuses to run while the app is open.
+- Not yet done: code signing, update checks, a release download, the runtime pack inside the installer.
+
 ## 0.7.4
 
 - A window thread: every X window now belongs to one shim thread that runs the message loop, so events arrive
