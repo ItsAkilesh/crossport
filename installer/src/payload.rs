@@ -15,6 +15,7 @@ const COMPRESSION_LEVEL: u8 = 6;
 /// No single file in a payload may expand beyond this.
 const MAX_FILE_BYTES: usize = 1 << 30;
 const MAX_ENTRIES: u32 = 100_000;
+const SIGNING_PADDING_MAX: usize = 8;
 
 /// One file to install: a relative path and its contents.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -63,8 +64,25 @@ pub fn attach(program: &[u8], payload: &[u8]) -> Vec<u8> {
     out
 }
 
-/// The payload bytes at the end of a setup file.
+/// The payload bytes at the end of a setup file, also when the file was signed after the payload was attached.
 pub fn find(file: &[u8]) -> Result<&[u8], PayloadError> {
+    let end = crate::signed::signed_end(file);
+    // Signing pads the file to an 8 byte boundary before the signature.
+    let mut missing = Err(PayloadError::Missing);
+    for padding in 0..SIGNING_PADDING_MAX {
+        let Some(limit) = end.checked_sub(padding) else { break };
+        match find_ending_at(&file[..limit]) {
+            Err(PayloadError::Missing) => {}
+            other => {
+                missing = other;
+                break;
+            }
+        }
+    }
+    missing
+}
+
+fn find_ending_at(file: &[u8]) -> Result<&[u8], PayloadError> {
     let trailer = file.len().checked_sub(TRAILER_BYTES).ok_or(PayloadError::Missing)?;
     if &file[trailer..trailer + 8] != MAGIC {
         return Err(PayloadError::Missing);
