@@ -191,6 +191,10 @@
           "done": true
         },
         {
+          "title": "A real Qt AppImage starts (command line)",
+          "done": true
+        },
+        {
           "title": "Real Qt AppImage runs",
           "done": false
         },

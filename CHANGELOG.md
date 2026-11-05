@@ -5,6 +5,13 @@ being worked on. A feature commit that adds user-visible capability (a new flag,
 that runs) bumps the patch number; a fix does not. The version lives in `translator/Cargo.toml` and is
 bumped in the same commit as the change. Releases are tagged by the maintainer, not by automation.
 
+## 0.7.6
+
+- A real Qt application runs: KeePassXC 2.8.0 (Qt 6, 153 modules with its plugins) starts translated on Windows,
+  brings up Qt's xcb platform on the in-process X11, and answers `--version` and `--help` as on Linux. It has no
+  keyboard yet (XKB is absent) and was not shown a window.
+- Downloads of pinned files are retried on network failures.
+
 ## 0.7.5
 
 - The xcb requests a toolkit makes: about 100 functions on top of the shim's windows, properties, pixel buffers and

@@ -7,9 +7,27 @@
     "sha256": "b52889fd627ae7a1c609b91b2526ccd5d847ec6707ac6eb634553186dee4f705"
   },
   "convert": true,
-  "translate_flags": ["--stub-missing", "--runtime", "build/runtime-pack"],
+  "translate_flags": [
+    "--stub-missing",
+    "--runtime",
+    "build/runtime-pack"
+  ],
   "tests": [
-    { "id": "version", "args": ["--version"], "timeout": 180 },
-    { "id": "help", "args": ["--help"], "timeout": 180 }
+    {
+      "id": "version",
+      "args": [
+        "--version"
+      ],
+      "timeout": 180,
+      "stderr_keep": "(?!)"
+    },
+    {
+      "id": "help",
+      "args": [
+        "--help"
+      ],
+      "timeout": 180,
+      "stderr_keep": "(?!)"
+    }
   ]
 }
