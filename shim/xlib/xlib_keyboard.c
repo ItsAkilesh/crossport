@@ -2,7 +2,7 @@
  * File: shim/xlib/xlib_keyboard.c
  * Purpose: libX11 keyboard functions: keysym lookup, XLookupString, the keyboard and modifier mappings
  * Author: Akilesh
- * Date: 2026-10-29
+ * Date: 2026-11-05
  *
  * The keymap is a fixed US layout (shim/xcb/xcb_keys.c). Input methods are not provided: XOpenIM answers
  * NULL, which toolkits treat as "no input method" and fall back to XLookupString.
@@ -144,6 +144,11 @@ LIBC_FN int sysv_XDisplayKeycodes(XlDisplay *display, int *minimum, int *maximum
 static const uint8_t MODIFIER_KEYS[MODIFIER_COUNT][KEYS_PER_MODIFIER] = {
     {50, 62}, {66, 0}, {37, 105}, {64, 108}, {77, 0}, {0, 0}, {133, 134}, {0, 0},
 };
+
+const uint8_t *xl_modifier_keys(void)
+{
+    return &MODIFIER_KEYS[0][0];
+}
 
 LIBC_FN XlModifierKeymap *sysv_XGetModifierMapping(XlDisplay *display)
 {

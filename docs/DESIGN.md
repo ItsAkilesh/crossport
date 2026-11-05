@@ -253,6 +253,14 @@ a `call` would also write the return address into the red zone of the leaf funct
 redirect must be a jump with the return address kept in a register or a per-thread cell. The corpus, the SDL
 harness and the libstdc++ runtimes contain none.
 
+**The xcb requests.** A toolkit speaks xcb, not Xlib. `xlib_xcb_core.c`, `xlib_xcb_window.c` and `xlib_xcb_draw.c`
+carry out each request when it is made and keep its reply, with the sequence number as the cookie, until the
+program collects it. They share the tables the Xlib layer keeps (properties, pixel buffers), so a window made either
+way is the same object. What is not there: XKB (so a toolkit that requires it has no keyboard), selection transfers
+(ownership is tracked, a conversion is answered as empty), and every other extension. The exported
+`xcb_create_window` and `xcb_change_property` register the pixel buffer and store the property; the Xlib layer
+reaches the plain forms (`xcb_window_create`, `xcb_property_effects`) because it does that itself.
+
 **The window thread.** Win32 delivers a window's messages only to the thread that created it, and a toolkit reads
 events on a different thread than the one that made its windows. `xcb_ui.c` therefore starts a thread of the shim's
 own, the first time a window is made, that creates every window and runs the message loop. Creating, destroying

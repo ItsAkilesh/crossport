@@ -2,7 +2,7 @@
  * File: shim/xcb/xcb_abi.h
  * Purpose: The xcb wire-level structures and constants translated programs read directly (setup, screen, events, replies)
  * Author: Akilesh
- * Date: 2026-10-29
+ * Date: 2026-11-05
  *
  * xcb hands programs pointers into its own memory and the programs read the fields, so these layouts are
  * part of the ABI and must match libxcb's headers exactly.
@@ -210,5 +210,211 @@ _Static_assert(sizeof(XcbExposeEvent) == 20, "expose events are 20 bytes");
 _Static_assert(sizeof(XcbConfigureEvent) == 28, "configure events are 28 bytes");
 _Static_assert(sizeof(XcbInternAtomReply) == 12, "intern atom replies are 12 bytes");
 _Static_assert(sizeof(XcbGeometryReply) == 24, "geometry replies are 24 bytes");
+
+/* xcb_depth_t, xcb_visualtype_t and xcb_format_t, with their iterators: Qt walks them to pick a visual. */
+typedef struct {
+    uint8_t depth;
+    uint8_t pad0;
+    uint16_t visuals_len;
+    uint8_t pad1[4];
+} XcbDepth;
+
+typedef struct {
+    XcbId visual_id;
+    uint8_t visual_class;
+    uint8_t bits_per_rgb_value;
+    uint16_t colormap_entries;
+    uint32_t red_mask;
+    uint32_t green_mask;
+    uint32_t blue_mask;
+    uint8_t pad[4];
+} XcbVisualType;
+
+typedef struct {
+    uint8_t depth;
+    uint8_t bits_per_pixel;
+    uint8_t scanline_pad;
+    uint8_t pad[5];
+} XcbFormat;
+
+typedef struct {
+    XcbDepth *data;
+    int rem;
+    int index;
+} XcbDepthIterator;
+
+typedef struct {
+    XcbVisualType *data;
+    int rem;
+    int index;
+} XcbVisualTypeIterator;
+
+typedef struct {
+    XcbFormat *data;
+    int rem;
+    int index;
+} XcbFormatIterator;
+
+/* The header every reply starts with (xcb_generic_reply_t). */
+typedef struct {
+    uint8_t response_type;
+    uint8_t detail;
+    uint16_t sequence;
+    uint32_t length;
+} XcbReplyHeader;
+
+typedef struct {
+    uint8_t response_type;
+    uint8_t backing_store;
+    uint16_t sequence;
+    uint32_t length;
+    XcbId visual;
+    uint16_t window_class;
+    uint8_t bit_gravity;
+    uint8_t win_gravity;
+    uint32_t backing_planes;
+    uint32_t backing_pixel;
+    uint8_t save_under;
+    uint8_t map_is_installed;
+    uint8_t map_state;
+    uint8_t override_redirect;
+    XcbId colormap;
+    uint32_t all_event_masks;
+    uint32_t your_event_mask;
+    uint16_t do_not_propagate_mask;
+    uint8_t pad[2];
+} XcbWindowAttributesReply;
+
+typedef struct {
+    uint8_t response_type;
+    uint8_t pad0;
+    uint16_t sequence;
+    uint32_t length;
+    XcbId root;
+    XcbId parent;
+    uint16_t children_len;
+    uint8_t pad1[14];
+} XcbQueryTreeReply;
+
+typedef struct {
+    uint8_t response_type;
+    uint8_t same_screen;
+    uint16_t sequence;
+    uint32_t length;
+    XcbId child;
+    int16_t dst_x;
+    int16_t dst_y;
+} XcbTranslateCoordinatesReply;
+
+typedef struct {
+    uint8_t response_type;
+    uint8_t same_screen;
+    uint16_t sequence;
+    uint32_t length;
+    XcbId root;
+    XcbId child;
+    int16_t root_x;
+    int16_t root_y;
+    int16_t win_x;
+    int16_t win_y;
+    uint16_t mask;
+    uint8_t pad[2];
+} XcbQueryPointerReply;
+
+typedef struct {
+    uint8_t response_type;
+    uint8_t pad0;
+    uint16_t sequence;
+    uint32_t length;
+    uint16_t name_len;
+    uint8_t pad1[22];
+} XcbAtomNameReply;
+
+typedef struct {
+    uint8_t response_type;
+    uint8_t pad0;
+    uint16_t sequence;
+    uint32_t length;
+    XcbId owner;
+} XcbSelectionOwnerReply;
+
+typedef struct {
+    uint8_t response_type;
+    uint8_t revert_to;
+    uint16_t sequence;
+    uint32_t length;
+    XcbId focus;
+} XcbInputFocusReply;
+
+typedef struct {
+    uint8_t response_type;
+    uint8_t status;
+    uint16_t sequence;
+    uint32_t length;
+} XcbGrabReply;
+
+typedef struct {
+    uint8_t response_type;
+    uint8_t format;
+    uint16_t sequence;
+    uint32_t length;
+    XcbId type;
+    uint32_t bytes_after;
+    uint32_t value_len;
+    uint8_t pad[12];
+} XcbPropertyReply;
+
+typedef struct {
+    uint8_t response_type;
+    uint8_t depth;
+    uint16_t sequence;
+    uint32_t length;
+    XcbId visual;
+    uint8_t pad[20];
+} XcbImageReply;
+
+typedef struct {
+    uint8_t response_type;
+    uint8_t keysyms_per_keycode;
+    uint16_t sequence;
+    uint32_t length;
+    uint8_t pad[24];
+} XcbKeyboardMappingReply;
+
+typedef struct {
+    uint8_t response_type;
+    uint8_t keycodes_per_modifier;
+    uint16_t sequence;
+    uint32_t length;
+    uint8_t pad[24];
+} XcbModifierMappingReply;
+
+/* xcb_query_extension_reply_t, which xcb_get_extension_data returns. */
+typedef struct {
+    uint8_t response_type;
+    uint8_t pad0;
+    uint16_t sequence;
+    uint32_t length;
+    uint8_t present;
+    uint8_t major_opcode;
+    uint8_t first_event;
+    uint8_t first_error;
+} XcbExtensionReply;
+
+_Static_assert(sizeof(XcbDepth) == 8 && sizeof(XcbVisualType) == 24 && sizeof(XcbFormat) == 8, "depth, visual, format");
+_Static_assert(sizeof(XcbReplyHeader) == 8, "replies start with 8 bytes");
+_Static_assert(sizeof(XcbWindowAttributesReply) == 44, "xcb_get_window_attributes_reply_t is 44 bytes");
+_Static_assert(sizeof(XcbQueryTreeReply) == 32, "xcb_query_tree_reply_t is 32 bytes");
+_Static_assert(sizeof(XcbTranslateCoordinatesReply) == 16, "xcb_translate_coordinates_reply_t is 16 bytes");
+_Static_assert(sizeof(XcbQueryPointerReply) == 28, "xcb_query_pointer_reply_t is 28 bytes");
+_Static_assert(sizeof(XcbAtomNameReply) == 32, "xcb_get_atom_name_reply_t is 32 bytes");
+_Static_assert(sizeof(XcbSelectionOwnerReply) == 12, "xcb_get_selection_owner_reply_t is 12 bytes");
+_Static_assert(sizeof(XcbInputFocusReply) == 12, "xcb_get_input_focus_reply_t is 12 bytes");
+_Static_assert(sizeof(XcbGrabReply) == 8, "grab replies are 8 bytes");
+_Static_assert(sizeof(XcbPropertyReply) == 32, "xcb_get_property_reply_t is 32 bytes");
+_Static_assert(sizeof(XcbImageReply) == 32, "xcb_get_image_reply_t is 32 bytes");
+_Static_assert(sizeof(XcbKeyboardMappingReply) == 32, "xcb_get_keyboard_mapping_reply_t is 32 bytes");
+_Static_assert(sizeof(XcbModifierMappingReply) == 32, "xcb_get_modifier_mapping_reply_t is 32 bytes");
+_Static_assert(sizeof(XcbExtensionReply) == 12, "xcb_query_extension_reply_t is 12 bytes");
 
 #endif

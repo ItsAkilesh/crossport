@@ -44,7 +44,7 @@ LIBC_FN XlId sysv_XCreateWindow(XlDisplay *display, XlId parent, int x, int y, u
     xl_next_request(display);
     uint32_t safe_width = width > 0 ? width : 1;
     uint32_t safe_height = height > 0 ? height : 1;
-    sysv_xcb_create_window(NULL, (uint8_t)(depth > 0 ? depth : XL_ROOT_DEPTH), (XcbId)id, (XcbId)parent, (int16_t)x,
+    xcb_window_create(NULL, (uint8_t)(depth > 0 ? depth : XL_ROOT_DEPTH), (XcbId)id, (XcbId)parent, (int16_t)x,
                            (int16_t)y, (uint16_t)safe_width, (uint16_t)safe_height, (uint16_t)border_width,
                            (uint16_t)window_class, visual != NULL ? (XcbId)visual->visual_id : 0, 0, NULL);
     if (xcb_window_handle((XcbId)id) == NULL) {

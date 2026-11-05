@@ -155,9 +155,9 @@ static void create_on_window_thread(void *argument)
     }
 }
 
-LIBC_FN XcbCookie sysv_xcb_create_window(void *connection, uint8_t depth, XcbId window, XcbId parent, int16_t x, int16_t y,
-                                         uint16_t width, uint16_t height, uint16_t border_width, uint16_t window_class,
-                                         XcbId visual, uint32_t value_mask, const void *value_list)
+XcbCookie xcb_window_create(void *connection, uint8_t depth, XcbId window, XcbId parent, int16_t x, int16_t y,
+                            uint16_t width, uint16_t height, uint16_t border_width, uint16_t window_class, XcbId visual,
+                            uint32_t value_mask, const void *value_list)
 {
     (void)connection;
     (void)depth;
@@ -216,11 +216,8 @@ static void set_title(HWND handle, const char *text, uint32_t length)
 }
 
 /* Only the properties with a visible effect are acted on: the title and the WM_DELETE_WINDOW protocol. */
-LIBC_FN XcbCookie sysv_xcb_change_property(void *connection, uint8_t mode, XcbId window, XcbId property, XcbId type,
-                                           uint8_t format, uint32_t length, const void *data)
+void xcb_property_effects(XcbId window, XcbId property, XcbId type, uint8_t format, uint32_t length, const void *data)
 {
-    (void)connection;
-    (void)mode;
     HWND handle = xcb_window_handle(window);
     if (handle != NULL && (property == XCB_ATOM_WM_NAME || property == xcb_atom_for("_NET_WM_NAME", 12)) && format == 8) {
         set_title(handle, (const char *)data, length);
@@ -228,7 +225,6 @@ LIBC_FN XcbCookie sysv_xcb_change_property(void *connection, uint8_t mode, XcbId
                property == xcb_atom_for("WM_PROTOCOLS", 12)) {
         xcb_window_set_delete_atom(window, ((const uint32_t *)data)[0]);
     }
-    return next_cookie();
 }
 
 /* Sizes are client-area sizes, as in X; the frame Windows adds around a top-level window is added here. */

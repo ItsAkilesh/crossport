@@ -5,6 +5,16 @@ being worked on. A feature commit that adds user-visible capability (a new flag,
 that runs) bumps the patch number; a fix does not. The version lives in `translator/Cargo.toml` and is
 bumped in the same commit as the change. Releases are tagged by the maintainer, not by automation.
 
+## 0.7.5
+
+- The xcb requests a toolkit makes: about 100 functions on top of the shim's windows, properties, pixel buffers and
+  keyboard tables. Replies are kept under their sequence number until collected. Properties round trip with the
+  wire protocol's offsets, types and deletion; windows, pixmaps and graphics contexts can be made and drawn to
+  (`xcb_put_image`, `xcb_get_image`, `xcb_copy_area`); atoms have names; `xcb_send_event` reaches the program's own
+  queue; every extension is reported absent. The setup now carries a depth, a visual and pixmap formats.
+  `xcb_requests` compares the answers with a real X server.
+- A window can be as small as X allows: Windows' minimum window size is lowered by the window procedure.
+
 ## 0.7.4
 
 - A window thread: every X window now belongs to one shim thread that runs the message loop, so events arrive

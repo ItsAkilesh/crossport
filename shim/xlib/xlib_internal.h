@@ -2,7 +2,7 @@
  * File: shim/xlib/xlib_internal.h
  * Purpose: State and helpers shared by the Xlib shim's source files: drawables, graphics contexts, the display and its event queue
  * Author: Akilesh
- * Date: 2026-11-04
+ * Date: 2026-11-05
  *
  * Every window and pixmap is a drawable: a record with a 32-bit pixel buffer. Drawing writes into the buffer
  * and marks the window's Win32 window dirty; the window's WM_PAINT copies the buffer to the screen. The
@@ -58,6 +58,29 @@ XlDrawable *xl_drawable_add(XlId id, int is_window, int32_t depth, int32_t width
 void xl_drawable_remove(XlId id);
 /* Gives a window a buffer of the new size, keeping the old pixels at the top left, and asks for an Expose. */
 void xl_drawable_resize(XlDrawable *drawable, int32_t width, int32_t height);
+
+/* Replies and cookies for the xcb requests (xlib_xcb_core.c). */
+XcbCookie xcb_reply_keep(void *reply);
+void *xcb_reply_take(XcbCookie cookie, void **error);
+/* A zeroed reply block of `fixed_size` plus `extra` bytes, with its length field set (4-byte units). */
+void *xcb_reply_allocate(size_t fixed_size, size_t extra);
+LIBC_FN void sysv_free(void *block);
+LIBC_FN XcbEvent *sysv_xcb_poll_for_event(void *connection);
+LIBC_FN XcbCookie sysv_xcb_no_operation(void *connection);
+
+/* The modifier key table (8 rows of 2 keycodes) the keyboard keeps. */
+const uint8_t *xl_modifier_keys(void);
+
+/* A property's value as the wire protocol has it; `data` is a heap block the caller frees with sysv_free. */
+typedef struct {
+    XlId type;
+    int format;
+    size_t size;
+    uint8_t *data;
+} XlPropertyCopy;
+int xl_property_snapshot(XlId window, XlId property, XlPropertyCopy *out);
+int xl_property_delete(XlId window, XlId property);
+int xl_property_store(XlId window, XlId property, XlId type, int format, int mode, const uint8_t *wire, size_t size);
 
 /* Properties the shim itself reads and writes (the clipboard bridge). Data is in wire form: format-32 items are 4 bytes. */
 int xl_property_put(XlId window, XlId property, XlId type, int format, const uint8_t *wire, size_t size);

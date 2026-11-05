@@ -2,7 +2,7 @@
  * File: shim/xcb/xcb_core.c
  * Purpose: xcb connection setup, screen and id helpers, and atoms: the parts of libxcb that need no window
  * Author: Akilesh
- * Date: 2026-10-29
+ * Date: 2026-11-05
  */
 
 #include <string.h>
@@ -15,6 +15,7 @@
 #define DEFAULT_COLORMAP_ID 0x00000020u
 #define ROOT_VISUAL_ID 0x00000021u
 #define ROOT_DEPTH 24
+#define TRUE_COLOR_CLASS 4
 #define MILLIMETERS_PER_INCH_X10 254u
 #define ASSUMED_DPI 96u
 #define MIN_KEYCODE 8
@@ -59,7 +60,8 @@ static BOOL CALLBACK build_roots(PINIT_ONCE once, PVOID parameter, PVOID *contex
     int height = GetSystemMetrics(SM_CYSCREEN);
     g_roots.setup = (XcbSetup){.status = 1, .protocol_major_version = 11, .release_number = 1,
                                .resource_id_base = RESOURCE_ID_BASE, .resource_id_mask = RESOURCE_ID_MASK,
-                               .maximum_request_length = UINT16_MAX, .roots_len = 1, .min_keycode = MIN_KEYCODE,
+                               .maximum_request_length = UINT16_MAX, .roots_len = 1, .pixmap_formats_len = 3,
+                               .min_keycode = MIN_KEYCODE,
                                .max_keycode = MAX_KEYCODE};
     g_roots.screens[0] = (XcbScreen){.root = ROOT_WINDOW_ID, .default_colormap = DEFAULT_COLORMAP_ID,
                                      .white_pixel = 0x00ffffffu, .width_in_pixels = (uint16_t)width,
@@ -67,7 +69,14 @@ static BOOL CALLBACK build_roots(PINIT_ONCE once, PVOID parameter, PVOID *contex
                                      .width_in_millimeters = millimeters(width),
                                      .height_in_millimeters = millimeters(height), .min_installed_maps = 1,
                                      .max_installed_maps = 1, .root_visual = ROOT_VISUAL_ID,
-                                     .root_depth = ROOT_DEPTH};
+                                     .root_depth = ROOT_DEPTH, .allowed_depths_len = 1};
+    g_roots.depth = (XcbDepth){.depth = ROOT_DEPTH, .visuals_len = 1};
+    g_roots.visual = (XcbVisualType){.visual_id = ROOT_VISUAL_ID, .visual_class = TRUE_COLOR_CLASS,
+                                     .bits_per_rgb_value = 8, .colormap_entries = 256, .red_mask = 0xff0000,
+                                     .green_mask = 0x00ff00, .blue_mask = 0x0000ff};
+    g_roots.formats[0] = (XcbFormat){.depth = 1, .bits_per_pixel = 1, .scanline_pad = 32};
+    g_roots.formats[1] = (XcbFormat){.depth = ROOT_DEPTH, .bits_per_pixel = 32, .scanline_pad = 32};
+    g_roots.formats[2] = (XcbFormat){.depth = 32, .bits_per_pixel = 32, .scanline_pad = 32};
     g_atom_count = XCB_FIRST_DYNAMIC_ATOM;
     return TRUE;
 }

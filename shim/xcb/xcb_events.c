@@ -278,6 +278,13 @@ static void request_close(HWND window)
 static LRESULT CALLBACK window_procedure(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
 {
     switch (message) {
+    case WM_GETMINMAXINFO: {
+        /* X windows can be any size; Windows would keep a titled window above about 120 by 40 pixels. */
+        MINMAXINFO *limits = (MINMAXINFO *)lparam;
+        limits->ptMinTrackSize.x = 1;
+        limits->ptMinTrackSize.y = 1;
+        return 0;
+    }
     case WM_CLOSE:
         request_close(window);
         return 0;

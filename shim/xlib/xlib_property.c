@@ -2,7 +2,7 @@
  * File: shim/xlib/xlib_property.c
  * Purpose: Window properties: XChangeProperty, XGetWindowProperty, XDeleteProperty and the PropertyNotify events they cause
  * Author: Akilesh
- * Date: 2026-11-04
+ * Date: 2026-11-05
  *
  * Properties are kept in one table keyed by window and atom, in the form the wire protocol uses (format-32
  * items are 4 bytes). Programs see Xlib's form: format-32 items are C longs of 8 bytes. A property written
@@ -158,7 +158,7 @@ LIBC_FN int sysv_XChangeProperty(XlDisplay *display, XlId window, XlId property,
     int is_stored = store(window, property, type, format, mode, wire, size);
     xl_unlock();
     if (is_stored) {
-        sysv_xcb_change_property(NULL, (uint8_t)mode, (XcbId)window, (XcbId)property, (XcbId)type, (uint8_t)format,
+        xcb_property_effects((XcbId)window, (XcbId)property, (XcbId)type, (uint8_t)format,
                                  (uint32_t)count, wire);
         notify(display, window, property, PROPERTY_NEW_VALUE);
     }
@@ -229,6 +229,47 @@ LIBC_FN int sysv_XGetWindowProperty(XlDisplay *display, XlId window, XlId proper
         notify(display, window, property, PROPERTY_DELETE);
     }
     return SUCCESS;
+}
+
+int xl_property_store(XlId window, XlId property, XlId type, int format, int mode, const uint8_t *wire, size_t size)
+{
+    xl_lock();
+    int is_stored = store(window, property, type, format, mode, (uint8_t *)(uintptr_t)wire, size);
+    xl_unlock();
+    return is_stored;
+}
+
+int xl_property_snapshot(XlId window, XlId property, XlPropertyCopy *out)
+{
+    *out = (XlPropertyCopy){0};
+    xl_lock();
+    Property *entry = find_property(window, property);
+    int is_found = entry != NULL;
+    if (is_found) {
+        out->type = entry->type;
+        out->format = entry->format;
+        out->size = entry->size;
+        out->data = (uint8_t *)sysv_malloc(entry->size + 1);
+        if (out->data != NULL) {
+            memcpy(out->data, entry->data, entry->size);
+        } else {
+            is_found = 0;
+        }
+    }
+    xl_unlock();
+    return is_found;
+}
+
+int xl_property_delete(XlId window, XlId property)
+{
+    xl_lock();
+    Property *entry = find_property(window, property);
+    int is_found = entry != NULL;
+    if (is_found) {
+        remove_property(entry);
+    }
+    xl_unlock();
+    return is_found;
 }
 
 int xl_property_put(XlId window, XlId property, XlId type, int format, const uint8_t *wire, size_t size)

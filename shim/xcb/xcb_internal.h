@@ -14,6 +14,10 @@
 LIBC_FN void *sysv_malloc(size_t size);
 
 /* The xcb requests the layer above (Xlib) forwards to. */
+/* Makes the Win32 window (on the window thread). The exported xcb_create_window also registers its pixel buffer. */
+XcbCookie xcb_window_create(void *connection, uint8_t depth, XcbId window, XcbId parent, int16_t x, int16_t y,
+                            uint16_t width, uint16_t height, uint16_t border_width, uint16_t window_class, XcbId visual,
+                            uint32_t value_mask, const void *value_list);
 LIBC_FN XcbCookie sysv_xcb_create_window(void *connection, uint8_t depth, XcbId window, XcbId parent, int16_t x, int16_t y,
                                          uint16_t width, uint16_t height, uint16_t border_width, uint16_t window_class,
                                          XcbId visual, uint32_t value_mask, const void *value_list);
@@ -23,6 +27,9 @@ LIBC_FN XcbCookie sysv_xcb_destroy_window(void *connection, XcbId window);
 LIBC_FN XcbCookie sysv_xcb_configure_window(void *connection, XcbId window, uint16_t mask, const uint32_t *values);
 LIBC_FN XcbCookie sysv_xcb_change_property(void *connection, uint8_t mode, XcbId window, XcbId property, XcbId type,
                                            uint8_t format, uint32_t length, const void *data);
+/* What a property written to a window does by itself: the title, and the WM_DELETE_WINDOW protocol. The Xlib layer
+   stores properties itself and calls this; the exported request above stores first and then calls it. */
+void xcb_property_effects(XcbId window, XcbId property, XcbId type, uint8_t format, uint32_t length, const void *data);
 
 #define XCB_WINDOW_CLASS L"CrossportX11"
 /* The root window's id: windows created under it are top-level. */
@@ -32,6 +39,10 @@ LIBC_FN XcbCookie sysv_xcb_change_property(void *connection, uint8_t mode, XcbId
 typedef struct {
     XcbSetup setup;
     XcbScreen screens[1];
+    /* Right after the screen, as xcb lays them out: its one depth and that depth's one visual. */
+    XcbDepth depth;
+    XcbVisualType visual;
+    XcbFormat formats[3];
 } XcbRoots;
 
 /* The one connection of this process (a translated program talks to a single, local X server). */
