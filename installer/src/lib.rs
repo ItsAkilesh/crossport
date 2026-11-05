@@ -7,4 +7,5 @@ pub mod command;
 pub mod manifest;
 pub mod names;
 pub mod paths;
+pub mod regplan;
 pub mod report;
