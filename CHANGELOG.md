@@ -5,6 +5,18 @@ being worked on. A feature commit that adds user-visible capability (a new flag,
 that runs) bumps the patch number; a fix does not. The version lives in `translator/Cargo.toml` and is
 bumped in the same commit as the change. Releases are tagged by the maintainer, not by automation.
 
+## 0.7.2
+
+First results from a real Qt application, KeePassXC 2.8.0 (Qt 6, 142 modules with its plugins):
+
+- A thread-local access shorter than a jump (for example `mov %fs:0x28(%rdx),%eax`, 4 bytes) used to stop the
+  translation. It now moves into a stub together with its neighbours: the shortest straight-line run of up to
+  three instructions on each side that is long enough, has no branch landing inside it, and may include
+  conditional jumps (re-encoded to reach their targets). Two adjacent short accesses share one stub.
+- "Nobody provides this symbol" now respects scopes: a symbol that only a plugin defines no longer looks provided
+  to a library loaded at startup, so `--stub-missing` binds it instead of the translation failing.
+- Rewrite errors name the module and show the instruction's bytes.
+
 ## 0.7.1
 
 - Red zone: audited and enforced. Nothing in the shim enters an alertable wait or queues an APC, and a check in

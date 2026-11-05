@@ -6,7 +6,7 @@
 mod scan;
 mod stub;
 
-use iced_x86::{Encoder, Register};
+use iced_x86::{Encoder, Instruction, Register};
 
 use crate::error::TranslateError;
 use crate::pe_model::{align_up, RVA_BIAS};
@@ -65,7 +65,11 @@ pub fn apply(
         slot_fixups: Vec::new(),
         stats: RewriteStats::default(),
     };
+    let mut covered_until = 0;
     for site in sites {
+        if site.rva < covered_until {
+            continue; // already moved into the stub of a neighbouring site
+        }
         if is_canary(site) {
             let cell = canary_cell_rva.ok_or_else(|| {
                 TranslateError::Elf("internal: canary site without a canary cell".into())
@@ -73,8 +77,10 @@ pub fn apply(
             patch_canary(image, site, cell)?;
             rewrite.stats.canary_sites += 1;
         } else {
-            patch_with_stub(image, site, stubs_rva, &mut rewrite)?;
-            rewrite.stats.stub_sites += 1;
+            let (fs_accesses, end) =
+                patch_with_stub(image, site, covered_until, stubs_rva, &mut rewrite)?;
+            rewrite.stats.stub_sites += fs_accesses;
+            covered_until = end;
         }
     }
     Ok(rewrite)
@@ -116,40 +122,71 @@ fn patch_canary(image: &mut [u8], site: &Site, cell_rva: u32) -> Result<(), Tran
     Ok(())
 }
 
+/// The instruction's bytes in hex, for error messages.
+fn describe(image: &[u8], instruction: &Instruction) -> String {
+    let start = instruction.ip() as usize;
+    image
+        .get(start..start + instruction.len())
+        .unwrap_or_default()
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// Redirects one FS access (and, when it is too short for a jump, the neighbours that join it) to a stub.
+/// Returns how many FS accesses the stub covers and the address after the patched run.
 fn patch_with_stub(
     image: &mut [u8],
     site: &Site,
+    covered_until: u64,
     stubs_rva: u32,
     rewrite: &mut Rewrite,
-) -> Result<(), TranslateError> {
-    let length = site.instruction.len();
-    if length < JMP_LEN {
+) -> Result<(usize, u64), TranslateError> {
+    let single = [site.instruction];
+    let group: &[Instruction] = if site.instruction.len() >= JMP_LEN {
+        &single
+    } else if site.group.is_empty() {
         return Err(TranslateError::Unsupported(format!(
-            "fs-relative instruction at rva {:#x} is {length} bytes, too short to redirect",
+            "fs-relative instruction [{}] at rva {:#x} is {} bytes, too short to redirect, and no neighbours can move with it",
+            describe(image, &site.instruction),
+            site.rva,
+            site.instruction.len()
+        )));
+    } else {
+        &site.group
+    };
+    let start = group[0].ip();
+    let end = group[group.len() - 1].next_ip();
+    if start < covered_until {
+        return Err(TranslateError::Unsupported(format!(
+            "fs-relative instruction at rva {:#x}: its group overlaps the previous one",
             site.rva
         )));
     }
+    let length = (end - start) as usize;
+    let fs_accesses = group
+        .iter()
+        .filter(|instruction| instruction.segment_prefix() == Register::FS)
+        .count();
     let stub_offset = align_up(rewrite.stubs.len() as u64, STUB_ALIGNMENT);
     let stub_rva = u64::from(stubs_rva) + stub_offset;
-    let built = stub::build(
-        &site.instruction,
-        site.rva,
-        stub_rva,
-        site.rva + length as u64,
-    )?;
+    let built = stub::build_group(group, site.rva, stub_rva, end)?;
     rewrite.stubs.resize(stub_offset as usize, INT3);
     rewrite
         .slot_fixups
         .push(stub_offset as u32 + built.fixup_offset);
     rewrite.stubs.extend_from_slice(&built.bytes);
 
-    let displacement = i32::try_from(stub_rva as i64 - (site.rva as i64 + JMP_LEN as i64))
+    let displacement = i32::try_from(stub_rva as i64 - (start as i64 + JMP_LEN as i64))
         .map_err(|_| TranslateError::LimitExceeded("stub is out of jump range".into()))?;
-    let bytes = site_bytes(image, site)?;
+    let bytes = image
+        .get_mut(start as usize..start as usize + length)
+        .ok_or_else(|| TranslateError::Elf("rewrite site lies outside the image".into()))?;
     bytes[0] = JMP_REL32;
     bytes[1..JMP_LEN].copy_from_slice(&displacement.to_le_bytes());
     bytes[JMP_LEN..].fill(INT3);
-    Ok(())
+    Ok((fs_accesses, end))
 }
 
 /// Convenience for callers that only have a vaddr: the image index of a module address.
@@ -192,6 +229,47 @@ mod tests {
         let sites = find_sites(&image, &info).expect("scans");
         let result = apply(&mut image, &sites, Some(CELL_RVA), STUBS_RVA).expect("rewrites");
         (image, result)
+    }
+
+    fn patched_snippet(code: &[u8]) -> (Vec<u8>, Rewrite, u64) {
+        let mut info = analyze(TLS_BASIC).expect("parses");
+        let mut image = image_of(TLS_BASIC, &info);
+        let start = 0x300_0000u64;
+        let at = (RVA_BIAS + start) as usize;
+        image.resize(at + code.len() + 16, 0);
+        image[at..at + code.len()].copy_from_slice(code);
+        info.code_ranges = vec![crate::elf_model::CodeRange {
+            start,
+            len: code.len() as u64,
+        }];
+        let sites = find_sites(&image, &info).expect("scans");
+        let result = apply(&mut image, &sites, Some(CELL_RVA), STUBS_RVA).expect("rewrites");
+        (image, result, RVA_BIAS + start)
+    }
+
+    #[test]
+    fn a_short_access_and_its_neighbour_become_one_jump_into_one_stub() {
+        // mov %rdx,%rcx ; mov %fs:(%rax),%rbx ; ret
+        let (image, result, start) =
+            patched_snippet(&[0x48, 0x89, 0xd1, 0x64, 0x48, 0x8b, 0x18, 0xc3]);
+        let at = start as usize;
+        assert_eq!(
+            image[at], JMP_REL32,
+            "the jump replaces the first instruction of the group"
+        );
+        assert!(image[at + 5..at + 7].iter().all(|&byte| byte == INT3));
+        assert_eq!(image[at + 7], 0xc3, "the ret after the group is untouched");
+        assert_eq!(result.stats.stub_sites, 1);
+        assert_eq!(result.slot_fixups.len(), 1);
+    }
+
+    #[test]
+    fn two_adjacent_short_accesses_share_a_stub() {
+        // mov %fs:(%rax),%rbx twice, then ret
+        let code = [0x64, 0x48, 0x8b, 0x18, 0x64, 0x48, 0x8b, 0x18, 0xc3];
+        let (_, result, _) = patched_snippet(&code);
+        assert_eq!(result.stats.stub_sites, 2, "both accesses are counted");
+        assert_eq!(result.slot_fixups.len(), 1, "but there is one stub");
     }
 
     #[test]

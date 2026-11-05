@@ -1,7 +1,7 @@
 // File: translator/src/coverage.rs
 // Purpose: Measure which libc symbols a set of programs needs, how often, and how many the shim already provides
 // Author: Akilesh
-// Date: 2026-10-28
+// Date: 2026-11-05
 
 use std::collections::BTreeMap;
 
@@ -117,16 +117,17 @@ pub fn missing_symbols(graph: &ModuleGraph, shim: &ShimExports) -> Vec<String> {
 fn external_symbols(graph: &ModuleGraph) -> BTreeMap<String, bool> {
     let mut needed: BTreeMap<String, bool> = BTreeMap::new();
     add_copy_sources(graph, &mut needed);
-    for module in &graph.modules {
+    for (index, module) in graph.modules.iter().enumerate() {
         for symbol in &module.info.symbols {
             let is_undefined = symbol.definition == Definition::Undefined && !symbol.is_tls;
             if !is_undefined || symbol.name.is_empty() {
                 continue;
             }
-            let is_defined_inside = graph
-                .modules
+            // Only what is in this module's own scope can satisfy it: a plugin's definition does not
+            // help a library that is loaded at startup.
+            let is_defined_inside = graph.scopes[index]
                 .iter()
-                .any(|m| m.exports.contains_key(&symbol.name));
+                .any(|&m| graph.modules[m].exports.contains_key(&symbol.name));
             if !is_defined_inside {
                 *needed.entry(symbol.name.clone()).or_insert(false) |= !symbol.is_weak();
             }

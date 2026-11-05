@@ -253,6 +253,14 @@ a `call` would also write the return address into the red zone of the leaf funct
 redirect must be a jump with the return address kept in a register or a per-thread cell. The corpus, the SDL
 harness and the libstdc++ runtimes contain none.
 
+**Short thread-local accesses.** An FS-relative instruction shorter than the 5-byte jump that redirects it
+(a 4-byte `mov %fs:0x28(%rdx),%eax`, for instance) is moved into a stub with its neighbours. The group is the
+smallest straight-line run of at most three instructions on each side that is at least 5 bytes, contiguous, has no
+direct branch landing inside it, and holds nothing but ordinary instructions and conditional jumps. The stub
+saves the scratch register, loads the thread pointer, runs the group (FS accesses retargeted, jumps re-encoded
+with their original targets), restores the register and jumps back. Two accesses that each use a base and an index
+cannot share a stub. When no group is safe the translator fails and shows the instruction.
+
 **Plugins.**
 
 Qt and GTK open their plugins with `dlopen`, so plugins are translated ahead of time like everything else.

@@ -1,7 +1,7 @@
 // File: translator/src/rewrite/stub.rs
 // Purpose: Build the out-of-line stub that executes one FS-relative instruction against the real thread pointer
 // Author: Akilesh
-// Date: 2026-10-28
+// Date: 2026-11-05
 
 use iced_x86::{Code, Encoder, Instruction, InstructionInfoFactory, MemoryOperand, Register};
 
@@ -50,15 +50,18 @@ fn gs_slot(displacement: i64) -> MemoryOperand {
     )
 }
 
-/// A scratch register the instruction does not read, write or address with.
-fn pick_scratch(instruction: &Instruction, rva: u64) -> Result<Register, TranslateError> {
+/// A scratch register none of the instructions reads, writes or addresses with.
+fn pick_scratch(group: &[Instruction], rva: u64) -> Result<Register, TranslateError> {
     let mut factory = InstructionInfoFactory::new();
-    let info = factory.info(instruction);
-    let used: Vec<Register> = info
-        .used_registers()
-        .iter()
-        .map(|u| u.register().full_register())
-        .collect();
+    let mut used: Vec<Register> = Vec::new();
+    for instruction in group {
+        let info = factory.info(instruction);
+        used.extend(
+            info.used_registers()
+                .iter()
+                .map(|u| u.register().full_register()),
+        );
+    }
     SCRATCH_CANDIDATES
         .into_iter()
         .find(|candidate| !used.contains(candidate))
@@ -115,7 +118,14 @@ fn retarget(instruction: &Instruction, scratch: Register, has_base_and_index: bo
     modified
 }
 
-/// Builds: save scratch, load the thread pointer, optional `lea`, the
+fn uses_fs(instruction: &Instruction) -> bool {
+    instruction.segment_prefix() == Register::FS
+        && (0..instruction.op_count())
+            .any(|operand| instruction.op_kind(operand) == iced_x86::OpKind::Memory)
+}
+
+#[cfg(test)]
+/// Builds the stub for one FS-relative instruction: save scratch, load the thread pointer, optional `lea`, the
 /// retargeted instruction, restore scratch, jump back. None of it changes the flags.
 /// `stub_rva` is where the stub will live; `return_rva` is the instruction after the site.
 pub(super) fn build(
@@ -124,24 +134,58 @@ pub(super) fn build(
     stub_rva: u64,
     return_rva: u64,
 ) -> Result<BuiltStub, TranslateError> {
-    check_addressing(instruction, rva)?;
-    let scratch = pick_scratch(instruction, rva)?;
-    let (base, index) = (instruction.memory_base(), instruction.memory_index());
-    let has_base_and_index = base != Register::None && index != Register::None;
+    build_group(&[*instruction], rva, stub_rva, return_rva)
+}
+
+/// Like `build`, for a run of instructions (too short to redirect one by one) that move into the stub together:
+/// each FS access is retargeted, the others run unchanged, and `return_rva` follows the last one.
+pub(super) fn build_group(
+    group: &[Instruction],
+    rva: u64,
+    stub_rva: u64,
+    return_rva: u64,
+) -> Result<BuiltStub, TranslateError> {
+    let fs_count = group
+        .iter()
+        .filter(|instruction| uses_fs(instruction))
+        .count();
+    for instruction in group.iter().filter(|instruction| uses_fs(instruction)) {
+        check_addressing(instruction, instruction.ip())?;
+    }
+    let scratch = pick_scratch(group, rva)?;
     let mut steps = vec![
         Instruction::with2(Code::Mov_rm64_r64, gs_slot(SAVE_SLOT), scratch)
             .map_err(|e| encode_error(rva, e))?,
         Instruction::with2(Code::Mov_r64_rm64, scratch, gs_slot(TP_SLOT_PLACEHOLDER))
             .map_err(|e| encode_error(rva, e))?,
     ];
-    if has_base_and_index {
-        let address = MemoryOperand::with_base_index(scratch, base);
-        steps.push(
-            Instruction::with2(Code::Lea_r64_m, scratch, address)
-                .map_err(|e| encode_error(rva, e))?,
-        );
+    for instruction in group {
+        if !uses_fs(instruction) {
+            // A conditional jump keeps its target but needs the long form: the stub is far from the code.
+            let mut moved = *instruction;
+            if moved.flow_control() == iced_x86::FlowControl::ConditionalBranch {
+                moved.as_near_branch();
+            }
+            steps.push(moved);
+            continue;
+        }
+        let (base, index) = (instruction.memory_base(), instruction.memory_index());
+        let has_base_and_index = base != Register::None && index != Register::None;
+        if has_base_and_index && fs_count > 1 {
+            return Err(unsupported(
+                instruction.ip(),
+                "an access with a base and an index cannot share a stub with another",
+            ));
+        }
+        if has_base_and_index {
+            let address = MemoryOperand::with_base_index(scratch, base);
+            steps.push(
+                Instruction::with2(Code::Lea_r64_m, scratch, address)
+                    .map_err(|e| encode_error(rva, e))?,
+            );
+        }
+        steps.push(retarget(instruction, scratch, has_base_and_index));
     }
-    steps.push(retarget(instruction, scratch, has_base_and_index));
     steps.push(
         Instruction::with2(Code::Mov_r64_rm64, scratch, gs_slot(SAVE_SLOT))
             .map_err(|e| encode_error(rva, e))?,
@@ -252,6 +296,43 @@ mod tests {
         let steps = all(&stub.bytes, 0x9000);
         let scratch = steps[0].op1_register();
         assert!(scratch != Register::R11 && scratch != Register::R10);
+    }
+
+    #[test]
+    fn a_group_keeps_its_other_instructions_between_one_save_and_one_restore() {
+        // mov %rdx,%rcx ; mov %fs:(%rax),%rbx
+        let bytes = [0x48, 0x89, 0xd1, 0x64, 0x48, 0x8b, 0x18];
+        let group = all(&bytes, 0x2000);
+        let stub = build_group(&group, 0x2003, 0x9000, 0x2007).expect("builds");
+        let steps = all(&stub.bytes, 0x9000);
+        assert_eq!(
+            steps.len(),
+            6,
+            "save, load, mov, retargeted mov, restore, jump"
+        );
+        assert_eq!(steps[2].code(), group[0].code());
+        assert_eq!(steps[2].op0_register(), Register::RCX);
+        assert_eq!(steps[3].segment_prefix(), Register::None);
+        assert_eq!(steps[3].memory_index(), Register::RAX);
+        assert_eq!(steps[5].near_branch_target(), 0x2007);
+    }
+
+    #[test]
+    fn the_scratch_register_avoids_every_register_in_the_group() {
+        // mov %r11,%r10 ; mov %fs:(%rax),%rbx
+        let bytes = [0x4d, 0x89, 0xda, 0x64, 0x48, 0x8b, 0x18];
+        let group = all(&bytes, 0x2000);
+        let stub = build_group(&group, 0x2003, 0x9000, 0x2007).expect("builds");
+        let scratch = all(&stub.bytes, 0x9000)[0].op1_register();
+        assert!(![Register::R10, Register::R11, Register::RAX, Register::RBX].contains(&scratch));
+    }
+
+    #[test]
+    fn two_accesses_with_a_base_and_an_index_cannot_share_a_stub() {
+        // mov %fs:(%rax,%rcx,1),%rbx twice
+        let bytes = [0x64, 0x48, 0x8b, 0x1c, 0x08, 0x64, 0x48, 0x8b, 0x1c, 0x08];
+        let group = all(&bytes, 0x2000);
+        assert!(build_group(&group, 0x2000, 0x9000, 0x200a).is_err());
     }
 
     #[test]

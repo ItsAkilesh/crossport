@@ -77,7 +77,13 @@ pub fn relink_module(
         next_rva: layout.end_rva,
         sections: Vec::new(),
     };
-    let rewritten = rewrite_fs_accesses(&mut image, module, &mut plan)?;
+    let rewritten =
+        rewrite_fs_accesses(&mut image, module, &mut plan).map_err(|error| match error {
+            TranslateError::Unsupported(message) => {
+                TranslateError::Unsupported(format!("{}: {message}", module.name.as_str()))
+            }
+            other => other,
+        })?;
     let mut sections = layout::elf_sections(&layout, &image);
 
     let is_executable = index == 0;
