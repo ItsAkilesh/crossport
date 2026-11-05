@@ -9,3 +9,6 @@ pub mod names;
 pub mod paths;
 pub mod regplan;
 pub mod report;
+
+#[cfg(windows)]
+pub mod win;
