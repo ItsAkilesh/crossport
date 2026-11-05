@@ -58,7 +58,10 @@
         "--filter",
         "Render"
       ],
-      "stderr_keep": "(Test '.*': (Passed|Failed|Skipped)|Run Summary|Exit code)"
+      "stderr_keep": "(Test '.*': (Passed|Failed|Skipped)|Run Summary|Exit code)",
+      "env": {
+        "SDL_RENDER_DRIVER": "software"
+      }
     },
     {
       "id": "video",

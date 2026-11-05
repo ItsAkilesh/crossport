@@ -60,6 +60,13 @@ class ParseTestCase(unittest.TestCase):
             run_app_tests.anonymize_program(path, program, "lua")
             self.assertEqual(json.loads(path.read_text(encoding="utf-8")), {"stdout": "ok", "stderr": "lua: boom"})
 
+    def test_environment_variables_are_passed_before_the_separator(self) -> None:
+        test = run_app_tests.parse_test({"id": "t", "env": {"SDL_RENDER_DRIVER": "software"}})
+        command = run_app_tests.difftest_command(Path("dt"), Path("app"), test, Path("apps/x"), Path("sb"), Path("out.json"))
+        self.assertLess(command.index("SDL_RENDER_DRIVER=software"), command.index("--"))
+        with self.assertRaises(ValueError):
+            run_app_tests.parse_test({"id": "t", "env": {"A=B": "1"}})
+
     def test_filtering_keeps_matching_lines_without_timestamps_and_any_crash_report(self) -> None:
         stderr = chr(10).join([
             "INFO:  11/05/26 00:33:20: >>> Test 'a': Passed",

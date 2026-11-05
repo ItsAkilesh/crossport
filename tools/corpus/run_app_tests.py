@@ -32,6 +32,7 @@ class AppTest:
     files: dict[str, str]
     timeout: int
     stderr_keep: re.Pattern[str] | None = None
+    env: tuple[tuple[str, str], ...] = ()
 
 
 def _relative(path: object, what: str) -> str:
@@ -66,6 +67,9 @@ def parse_test(raw: object) -> AppTest:
     timeout = raw.get("timeout", DEFAULT_TIMEOUT_SECONDS)
     if not isinstance(timeout, int) or not 1 <= timeout <= MAX_TIMEOUT_SECONDS:
         raise ValueError(f"{test_id}: timeout must be 1..{MAX_TIMEOUT_SECONDS}")
+    env = raw.get("env", {})
+    if not isinstance(env, dict) or not all(isinstance(k, str) and isinstance(v, str) and "=" not in k for k, v in env.items()):
+        raise ValueError(f"{test_id}: env must map names to string values")
     keep = raw.get("stderr_keep")
     if keep is not None and not isinstance(keep, str):
         raise ValueError(f"{test_id}: stderr_keep must be a regular expression string")
@@ -76,6 +80,7 @@ def parse_test(raw: object) -> AppTest:
         files={_sandbox_name(n): _relative(p, f"{test_id}: file") for n, p in files.items()},
         timeout=timeout,
         stderr_keep=re.compile(keep) if keep is not None else None,
+        env=tuple(env.items()),
     )
 
 
@@ -103,6 +108,8 @@ def difftest_command(difftest: Path, exe: Path, test: AppTest, app_dir: Path, sa
     ]
     if test.stdin is not None:
         command += ["--stdin", str(app_dir / test.stdin)]
+    for name, value in test.env:
+        command += ["--env", f"{name}={value}"]
     return command + ["--", str(exe), *test.args]
 
 
