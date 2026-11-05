@@ -2,18 +2,85 @@
   "name": "sdl2_tests",
   "version": "2.30.9",
   "binary": "testautomation",
+  "translate_flags": [
+    "--stub-missing"
+  ],
   "source": {
     "url": "https://github.com/libsdl-org/SDL/releases/download/release-2.30.9/SDL2-2.30.9.tar.gz",
     "sha256": "24b574f71c87a763f50704bbb630cbe38298d544a1f890f099a4696b1d6beba4"
   },
   "tests": [
-    { "id": "platform", "args": ["--seed", "crossport", "--filter", "Platform"] },
-    { "id": "rect", "args": ["--seed", "crossport", "--filter", "Rect"] },
-    { "id": "pixels", "args": ["--seed", "crossport", "--filter", "Pixels"] },
-    { "id": "surface", "args": ["--seed", "crossport", "--filter", "Surface"] },
-    { "id": "render", "args": ["--seed", "crossport", "--filter", "Render"] },
-    { "id": "video", "args": ["--seed", "crossport", "--filter", "Video"] },
-    { "id": "keyboard", "args": ["--seed", "crossport", "--filter", "Keyboard"] },
-    { "id": "events", "args": ["--seed", "crossport", "--filter", "Events"] }
+    {
+      "id": "platform",
+      "args": [
+        "--seed",
+        "crossport",
+        "--filter",
+        "Platform"
+      ]
+    },
+    {
+      "id": "rect",
+      "args": [
+        "--seed",
+        "crossport",
+        "--filter",
+        "Rect"
+      ]
+    },
+    {
+      "id": "pixels",
+      "args": [
+        "--seed",
+        "crossport",
+        "--filter",
+        "Pixels"
+      ]
+    },
+    {
+      "id": "surface",
+      "args": [
+        "--seed",
+        "crossport",
+        "--filter",
+        "Surface"
+      ]
+    },
+    {
+      "id": "render",
+      "args": [
+        "--seed",
+        "crossport",
+        "--filter",
+        "Render"
+      ]
+    },
+    {
+      "id": "video",
+      "args": [
+        "--seed",
+        "crossport",
+        "--filter",
+        "Video"
+      ]
+    },
+    {
+      "id": "keyboard",
+      "args": [
+        "--seed",
+        "crossport",
+        "--filter",
+        "Keyboard"
+      ]
+    },
+    {
+      "id": "events",
+      "args": [
+        "--seed",
+        "crossport",
+        "--filter",
+        "Events"
+      ]
+    }
   ]
 }

@@ -2,7 +2,7 @@
 # File: tools/corpus/translate_and_run.sh
 # Purpose: Unpack an AppImage, translate its program for Windows and run the app's tests; a failed translation is a recorded result
 # Author: Akilesh
-# Date: 2026-10-28
+# Date: 2026-11-05
 #
 # Usage: tools/corpus/translate_and_run.sh <app>
 # Needs: build/corpus/images/<app>.AppImage, build/shim/crossport_libc.dll and the release builds of crossport and difftest.
@@ -31,7 +31,10 @@ rm -rf "$unpacked" "$bundle" "$results/$app-translate-error.txt"
 
 "$crossport" unpack "$image" --out "$unpacked"
 
-if ! "$crossport" translate "$unpacked/usr/bin/$binary" --appdir "$unpacked" \
+# Flags the app needs, for example --stub-missing for host libraries such as ALSA that AppImages never bundle.
+mapfile -t flags < <(python -c 'import json,sys; print(*json.load(open(sys.argv[1])).get("translate_flags", []), sep="\n")' "$app_dir/app.json" | tr -d '\r' | grep -v '^$' || true)
+
+if ! "$crossport" translate "$unpacked/usr/bin/$binary" --appdir "$unpacked" "${flags[@]}" \
   --shim "$root/build/shim/crossport_libc.dll" --out "$bundle" 2> "$results/$app-translate-error.txt"; then
   # The libc is still growing: record why, so the summary shows the blocker instead of failing the job.
   echo "$app: translation failed: $(head -n 1 "$results/$app-translate-error.txt")"
