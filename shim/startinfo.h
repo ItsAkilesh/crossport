@@ -90,7 +90,6 @@ int shim_info_is_valid(const StartInfo *info);
 const LoadedModule *shim_find_module(const void *handle);
 /* Adds a loaded DLL to the module table, binds it, sets up its TLS and runs its constructors. */
 const LoadedModule *shim_activate_module(const StartInfo *info, void *handle);
-void shim_plugins_init(void);
 
 /* The address a shim data variable has for the program: its own copy in the executable, if it made one. */
 void *shim_data_home(void *shim_address);

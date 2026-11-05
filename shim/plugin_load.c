@@ -17,12 +17,18 @@
 #define MAX_PLUGIN_NAME 256
 #define DLL_SUFFIX ".dll"
 
-/* Recursive: a plugin's constructor may open another plugin. */
+/* Recursive: a plugin's constructor may open another plugin. Set up on first use, so the shim also works
+ * without a translated program (its unit tests call dlopen too). */
 static CRITICAL_SECTION g_lock;
+static INIT_ONCE g_lock_once = INIT_ONCE_STATIC_INIT;
 
-void shim_plugins_init(void)
+static BOOL CALLBACK create_lock(PINIT_ONCE once, PVOID parameter, PVOID *context)
 {
+    (void)once;
+    (void)parameter;
+    (void)context;
     InitializeCriticalSection(&g_lock);
+    return TRUE;
 }
 
 static int is_name_character(char c)
@@ -79,6 +85,7 @@ void *shim_load_plugin(const char *library_name)
     if (!dll_name_for(library_name, dll_name, sizeof(dll_name))) {
         return NULL;
     }
+    InitOnceExecuteOnce(&g_lock_once, create_lock, NULL, NULL);
     EnterCriticalSection(&g_lock);
     const LoadedModule *module = open_dll(dll_name, 0);
     LeaveCriticalSection(&g_lock);

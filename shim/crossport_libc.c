@@ -234,7 +234,6 @@ EXPORT void crossport_start(const StartInfo *info)
         bind_module(&g_modules[i]);
     }
     perform_copies(&g_modules[g_executable_index]);
-    shim_plugins_init();
 
     size_t slot_count = 0;
     uint64_t *template_block = args_build_stack(&slot_count);
