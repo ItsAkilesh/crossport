@@ -5,9 +5,11 @@
 
 use std::fs;
 use std::io::ErrorKind;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use super::Env;
+
+const ASIDE_SUFFIX: &str = ".crossport-removing";
 use crate::manifest::{Manifest, MANIFEST_FILE};
 use crate::regplan::{path_location, EXTENSION, PROG_ID, remove_from_path, Hive};
 
@@ -17,6 +19,7 @@ pub fn uninstall(dir: &Path, env: &Env) -> Result<Vec<String>, String> {
         .map_err(|e| format!("{} has no uninstall record: {e}", dir.display()))?;
     let manifest = Manifest::parse(&text).map_err(|e| format!("the uninstall record is damaged: {e:?}"))?;
     let mut notes = Vec::new();
+    let doomed = claim_folder(&manifest, dir)?;
     for shortcut in &manifest.shortcuts {
         ignore_missing(fs::remove_file(shortcut), &mut notes, &shortcut.display().to_string());
     }
@@ -29,8 +32,26 @@ pub fn uninstall(dir: &Path, env: &Env) -> Result<Vec<String>, String> {
     for entry in &manifest.path_entries {
         edit_path(env, &manifest, entry).unwrap_or_else(|e| notes.push(e));
     }
-    remove_files(&manifest, dir, &mut notes);
+    match doomed {
+        Some(folder) => ignore_missing(fs::remove_dir_all(&folder), &mut notes, &folder.display().to_string()),
+        None => remove_files(&manifest, dir, &mut notes),
+    }
     Ok(notes)
+}
+
+/// For an app (whose whole folder is ours), move the folder aside first. Windows refuses to rename a folder that
+/// holds a file in use, so a running app is noticed before anything has been removed.
+fn claim_folder(manifest: &Manifest, dir: &Path) -> Result<Option<PathBuf>, String> {
+    if !manifest.files.is_empty() {
+        return Ok(None);
+    }
+    let mut aside = dir.as_os_str().to_owned();
+    aside.push(ASIDE_SUFFIX);
+    let aside = PathBuf::from(aside);
+    fs::rename(dir, &aside).map_err(|_| {
+        format!("{} is in use. Close the app, then uninstall again. Nothing was removed.", manifest.name)
+    })?;
+    Ok(Some(aside))
 }
 
 /// Remove `.AppImage` itself only when it still names our ProgID, so another program's choice survives.

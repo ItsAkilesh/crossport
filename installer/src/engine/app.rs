@@ -82,16 +82,14 @@ pub fn install_app(req: &AppRequest, tools: &Tools, env: &Env) -> Result<AppOutc
     let (report, text) = convert(req, tools)?;
     let exe = parse_exe(&text).filter(|_| report.succeeded);
     let Some(exe) = exe else {
-        if !existed {
-            let _ = fs::remove_dir_all(req.dir);
-        } else {
-            let _ = fs::remove_dir_all(req.dir).and_then(|_| fs::create_dir(req.dir));
+        let _ = fs::remove_dir_all(req.dir);
+        if existed {
+            let _ = fs::create_dir(req.dir);
         }
         return Ok(AppOutcome { report, exe: None });
     };
-    register(req, &exe, env).map_err(|e| {
+    register(req, &exe, env).inspect_err(|_| {
         let _ = fs::remove_dir_all(req.dir);
-        e
     })?;
     Ok(AppOutcome { report, exe: Some(exe) })
 }

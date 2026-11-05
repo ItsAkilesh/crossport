@@ -147,3 +147,20 @@ fn a_folder_that_is_not_empty_is_refused() {
     assert!(result.unwrap_err().contains("not empty"));
     assert!(dir.join("keep.txt").is_file());
 }
+
+#[test]
+fn a_running_app_blocks_the_uninstall_before_anything_is_removed() {
+    let sb = Sandbox::new("locked");
+    let launcher = sb.base.join("crossport-open.exe");
+    fs::write(&launcher, b"launcher").unwrap();
+    let dir = sb.base.join("Apps").join("Lua");
+    install_app(&request(&dir, &launcher), &fake_tools(&sb, WORKING), &sb.env).unwrap();
+    let held = fs::File::open(dir.join("lua.exe")).unwrap();
+    let error = uninstall(&dir, &sb.env).unwrap_err();
+    assert!(error.contains("in use"), "{error}");
+    assert!(dir.join("lua.exe").is_file() && sb.env.start_menu.join("Lua.lnk").is_file());
+    assert!(sb.env.registry.read_text(Hive::CurrentUser, &uninstall_key("Crossport.App.Lua"), "DisplayName").is_some());
+    drop(held);
+    assert!(uninstall(&dir, &sb.env).unwrap().is_empty());
+    assert!(!dir.exists());
+}
