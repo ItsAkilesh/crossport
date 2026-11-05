@@ -63,6 +63,12 @@ fn classify(line: &str) -> Option<Finding> {
             "The app makes direct Linux system calls, which Crossport cannot translate yet. It may misbehave if it reaches them.",
         ));
     }
+    if line.contains("only position-independent executables") {
+        return Some(finding(
+            line.trim_start_matches("crossport: ").to_string(),
+            "This app's program was built as a fixed-address executable (not position independent). Crossport can only translate position-independent programs for now.",
+        ));
+    }
     if line.contains("unsupported:") || line.contains("malformed ELF") {
         return Some(finding(
             line.trim_start_matches("crossport: ").to_string(),
@@ -112,6 +118,16 @@ mod tests {
         assert_eq!(report.findings.len(), 2);
         assert!(report.findings[0].summary.starts_with("app has 3 raw syscall"));
         assert!(report.findings[1].summary.contains("2 symbols"));
+    }
+
+    #[test]
+    fn explains_a_non_pie_program_as_seen_with_vlc() {
+        let text = "program: usr/bin/vlc
+crossport: unsupported: only position-independent executables and shared objects (ET_DYN) are supported
+";
+        let report = analyze(text, false);
+        assert_eq!(report.findings.len(), 1);
+        assert!(report.findings[0].advice.contains("fixed-address"));
     }
 
     #[test]
