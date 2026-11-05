@@ -3,5 +3,8 @@
 // Author: Akilesh
 // Date: 2026-11-05
 
+pub mod command;
+pub mod manifest;
 pub mod names;
 pub mod paths;
+pub mod report;
