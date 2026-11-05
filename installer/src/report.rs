@@ -78,6 +78,9 @@ fn classify(line: &str) -> Option<Finding> {
             "This app expects a Linux library that it does not bundle. Reinstall Crossport with the runtime pack, or try again with missing libraries stubbed.",
         ));
     }
+    if let Some(found) = single_symbol(line) {
+        return Some(found);
+    }
     if line.contains(SYMBOLS_MARK) {
         return Some(finding(
             line.trim_start_matches("crossport: ").to_string(),
@@ -103,6 +106,17 @@ fn classify(line: &str) -> Option<Finding> {
         ));
     }
     None
+}
+
+/// `symbol X (needed by Y) is not defined by any bundled library or the shim`.
+fn single_symbol(line: &str) -> Option<Finding> {
+    let rest = line.trim_start_matches("crossport: ").strip_prefix("symbol ")?;
+    let (symbol, tail) = rest.split_once(" (needed by ")?;
+    let module = tail.split(')').next()?;
+    Some(finding(
+        format!("The function {symbol} (used by {module}) is not provided by Crossport or by the app."),
+        "The app expects it from a Linux library it does not bundle, such as libstdc++. The Crossport runtime pack supplies the common ones; otherwise Crossport does not implement it yet.",
+    ))
 }
 
 fn unknown_failure(output: &str) -> Finding {
@@ -136,6 +150,16 @@ mod tests {
         let report = analyze("not found, left out: libasound.so.2\nwrote x\n", true);
         assert!(report.succeeded);
         assert!(report.findings[0].summary.contains("libasound.so.2"));
+    }
+
+    #[test]
+    fn explains_one_missing_symbol_as_seen_with_keepassxc() {
+        let text = "program: usr/bin/keepassxc
+crossport: symbol _ZSt15__once_callable (needed by libbotan-2.so.19) is not defined by any bundled library or the shim
+";
+        let report = analyze(text, false);
+        assert_eq!(report.findings.len(), 1);
+        assert!(report.findings[0].summary.contains("libbotan-2.so.19"));
     }
 
     #[test]

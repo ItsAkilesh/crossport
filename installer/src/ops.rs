@@ -134,6 +134,7 @@ pub enum Uninstalled {
     Handed,
 }
 
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 const RELOCATED_PREFIX: &str = "crossport-uninstall-";
 
 fn is_relocated(exe: &Path) -> bool {
@@ -169,7 +170,9 @@ pub fn run_uninstall(dir: &Path, exe: &Path, quiet: bool) -> Result<Uninstalled,
 /// Delete this running program's file a moment after it exits, through a short-lived `cmd`.
 fn delete_self_later(exe: &Path) {
     let command = format!("ping 127.0.0.1 -n 3 >nul & del /f /q \"{}\"", exe.display());
-    let _ = std::process::Command::new("cmd").args(["/c", &command]).spawn();
+    use std::os::windows::process::CommandExt;
+    // `raw_arg` keeps the quotes as written: `cmd` does not read the backslash-escaped quotes `args` would add.
+    let _ = std::process::Command::new("cmd").raw_arg(format!("/c {command}")).creation_flags(CREATE_NO_WINDOW).spawn();
 }
 
 #[cfg(test)]
