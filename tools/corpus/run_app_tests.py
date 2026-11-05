@@ -31,6 +31,7 @@ class AppTest:
     stdin: str | None
     files: dict[str, str]
     timeout: int
+    stderr_keep: re.Pattern[str] | None = None
 
 
 def _relative(path: object, what: str) -> str:
@@ -65,12 +66,16 @@ def parse_test(raw: object) -> AppTest:
     timeout = raw.get("timeout", DEFAULT_TIMEOUT_SECONDS)
     if not isinstance(timeout, int) or not 1 <= timeout <= MAX_TIMEOUT_SECONDS:
         raise ValueError(f"{test_id}: timeout must be 1..{MAX_TIMEOUT_SECONDS}")
+    keep = raw.get("stderr_keep")
+    if keep is not None and not isinstance(keep, str):
+        raise ValueError(f"{test_id}: stderr_keep must be a regular expression string")
     return AppTest(
         id=test_id,
         args=tuple(args),
         stdin=_relative(stdin, f"{test_id}: stdin") if stdin is not None else None,
         files={_sandbox_name(n): _relative(p, f"{test_id}: file") for n, p in files.items()},
         timeout=timeout,
+        stderr_keep=re.compile(keep) if keep is not None else None,
     )
 
 
@@ -113,6 +118,21 @@ def anonymize_program(result_path: Path, exe: Path, name: str) -> None:
     result_path.write_text(json.dumps(result), encoding="utf-8")
 
 
+CRASH_LINE = re.compile(r"^(crossport: |  from )")
+TIMESTAMP_PREFIX = re.compile(r"^(\w+: +)\d\d/\d\d/\d\d \d\d:\d\d:\d\d: ")
+TIMESTAMP_REPLACEMENT = r"\1"
+LINE_BREAK = chr(10)
+
+
+def filter_stderr(result_path: Path, keep: re.Pattern[str]) -> None:
+    """Keeps only the stderr lines that say whether the program behaved (those matching `keep`, plus any crash
+    report), without the timestamp the program put in front of them. Timestamps and run times differ on every run."""
+    result = json.loads(result_path.read_text(encoding="utf-8"))
+    lines = [TIMESTAMP_PREFIX.sub(TIMESTAMP_REPLACEMENT, line) for line in result["stderr"].splitlines()]
+    result["stderr"] = LINE_BREAK.join(line for line in lines if keep.search(line) or CRASH_LINE.match(line))
+    result_path.write_text(json.dumps(result), encoding="utf-8")
+
+
 def run_all(app_dir: Path, exe: Path, label: str, work: Path, results: Path, difftest: Path) -> int:
     name, tests = load_app(app_dir)
     results.mkdir(parents=True, exist_ok=True)
@@ -127,6 +147,8 @@ def run_all(app_dir: Path, exe: Path, label: str, work: Path, results: Path, dif
             print(f"{name}/{test.id}: the runner failed: {completed.stderr.strip()}", file=sys.stderr)
         else:
             anonymize_program(out, exe, name)
+            if test.stderr_keep is not None:
+                filter_stderr(out, test.stderr_keep)
     print(f"{name}: ran {len(tests)} tests ({label}), {failures} runner failures")
     return 1 if failures else 0
 

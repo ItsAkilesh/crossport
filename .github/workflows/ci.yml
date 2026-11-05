@@ -255,6 +255,12 @@ jobs:
           for app in $APPS; do
             tools/corpus/translate_and_run.sh "$app"
           done
+      - name: Symbolize the crash reports of the corpus apps
+        if: always() && inputs.cases == ''
+        run: |
+          for result in results/apps/*-windows.json; do
+            python3 tools/ci/symbolize.py "$result" build/shim/crossport_libc.dll || true
+          done
       - name: Convert an AppImage in one step and check the environment file is applied
         if: inputs.cases == ''
         run: |

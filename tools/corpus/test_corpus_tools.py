@@ -7,6 +7,7 @@ Date: 2026-10-28
 from __future__ import annotations
 
 import json
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -58,6 +59,20 @@ class ParseTestCase(unittest.TestCase):
             path.write_text(json.dumps({"stdout": "ok", "stderr": f"{program}: boom"}), encoding="utf-8")
             run_app_tests.anonymize_program(path, program, "lua")
             self.assertEqual(json.loads(path.read_text(encoding="utf-8")), {"stdout": "ok", "stderr": "lua: boom"})
+
+    def test_filtering_keeps_matching_lines_without_timestamps_and_any_crash_report(self) -> None:
+        stderr = chr(10).join([
+            "INFO:  11/05/26 00:33:20: >>> Test 'a': Passed",
+            "INFO:  11/05/26 00:33:20: Total Test runtime: 0.0 sec",
+            "crossport: access violation at x.dll+0x1",
+            "  from x.dll+0x2",
+        ])
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "r.json"
+            path.write_text(json.dumps({"stdout": "", "stderr": stderr}), encoding="utf-8")
+            run_app_tests.filter_stderr(path, re.compile(r"Test '.*': (Passed|Failed)"))
+            kept = json.loads(path.read_text(encoding="utf-8"))["stderr"].splitlines()
+        self.assertEqual(kept, ["INFO:  >>> Test 'a': Passed", "crossport: access violation at x.dll+0x1", "  from x.dll+0x2"])
 
     def test_the_difftest_command_carries_every_option_before_the_separator(self) -> None:
         test = run_app_tests.AppTest("t", ("a", "--timeout", "9"), "inputs/in", {}, 7)

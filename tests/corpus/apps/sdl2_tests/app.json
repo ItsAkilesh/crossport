@@ -17,7 +17,8 @@
         "crossport",
         "--filter",
         "Platform"
-      ]
+      ],
+      "stderr_keep": "(Test '.*': (Passed|Failed|Skipped)|Run Summary|Exit code)"
     },
     {
       "id": "rect",
@@ -26,7 +27,8 @@
         "crossport",
         "--filter",
         "Rect"
-      ]
+      ],
+      "stderr_keep": "(Test '.*': (Passed|Failed|Skipped)|Run Summary|Exit code)"
     },
     {
       "id": "pixels",
@@ -35,7 +37,8 @@
         "crossport",
         "--filter",
         "Pixels"
-      ]
+      ],
+      "stderr_keep": "(Test '.*': (Passed|Failed|Skipped)|Run Summary|Exit code)"
     },
     {
       "id": "surface",
@@ -44,7 +47,8 @@
         "crossport",
         "--filter",
         "Surface"
-      ]
+      ],
+      "stderr_keep": "(Test '.*': (Passed|Failed|Skipped)|Run Summary|Exit code)"
     },
     {
       "id": "render",
@@ -53,7 +57,8 @@
         "crossport",
         "--filter",
         "Render"
-      ]
+      ],
+      "stderr_keep": "(Test '.*': (Passed|Failed|Skipped)|Run Summary|Exit code)"
     },
     {
       "id": "video",
@@ -62,7 +67,8 @@
         "crossport",
         "--filter",
         "Video"
-      ]
+      ],
+      "stderr_keep": "(Test '.*': (Passed|Failed|Skipped)|Run Summary|Exit code)"
     },
     {
       "id": "keyboard",
@@ -71,7 +77,8 @@
         "crossport",
         "--filter",
         "Keyboard"
-      ]
+      ],
+      "stderr_keep": "(Test '.*': (Passed|Failed|Skipped)|Run Summary|Exit code)"
     },
     {
       "id": "events",
@@ -80,7 +87,8 @@
         "crossport",
         "--filter",
         "Events"
-      ]
+      ],
+      "stderr_keep": "(Test '.*': (Passed|Failed|Skipped)|Run Summary|Exit code)"
     }
   ]
 }
