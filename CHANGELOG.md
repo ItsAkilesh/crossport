@@ -5,6 +5,27 @@ being worked on. A feature commit that adds user-visible capability (a new flag,
 that runs) bumps the patch number; a fix does not. The version lives in `translator/Cargo.toml` and is
 bumped in the same commit as the change. Releases are tagged by the maintainer, not by automation.
 
+## 0.7.8
+
+- XKB: the in-process X server now has the XKEYBOARD extension, so Qt's `xcb` platform finds it (`XKeyboard
+  extension not present` is gone) and builds its keymap with libxkbcommon-x11. libxcb-xkb sends its requests
+  through `xcb_send_request`, and the shim answers them at the wire level, in the protocol's layout:
+  - UseExtension, PerClientFlags, GetState, GetControls, GetDeviceInfo and SelectEvents, which is what
+    `xkb_x11_setup_xkb_extension` and `xkb_x11_get_core_keyboard_device_id` need.
+  - GetMap (the four canonical key types, one group of symbols and the modifier map), GetNames (component, type,
+    level, group and key names as atoms) and empty compat and indicator maps, which is what
+    `xkb_x11_keymap_new_from_device` reads. The keymap is the US layout the core protocol already reports.
+  - XkbStateNotify: a client that selects it gets an event whenever Shift, Lock, Control or Alt changes, so a
+    toolkit's own keymap state follows the keyboard and Shift or Caps Lock change the text a key makes.
+  - Xlib: `XkbQueryExtension` and `XQueryExtension("XKEYBOARD")` report the extension; `XkbUseExtension`,
+    `XkbLibraryVersion`, `XkbGetState`, `XkbGetIndicatorState`, `XkbLockGroup`, `XkbLatchGroup`,
+    `XkbLockModifiers`, `XkbLatchModifiers`, `XkbSelectEvents`, `XkbSelectEventDetails` and `XkbBell` answer;
+    `XkbGetMap` still answers NULL (the keymap is read through the xcb requests, not Xlib's descriptor
+    structures), so GTK's use of it is for Milestone 7's GTK step.
+  - `xkb_requests` joins the corpus: it sends the extension's requests and compares the answers with Xvfb.
+- Not yet: XkbStateNotify for Xlib clients, group switching (one layout), compose files beyond what
+  libxkbcommon finds in the runtime pack.
+
 ## 0.7.7
 
 - KeePassXC 2.8.0 shows its window: the Qt `xcb` platform runs on the in-process X11, paints the main window and the

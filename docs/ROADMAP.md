@@ -98,7 +98,8 @@ matching Linux. Text clipboard bridged with Windows, and a real SDL2 program (SD
 - **The red zone (done in 0.7.1, see DESIGN 2.12):** audited, enforced in CI, and tested with red-zone code.
 - **Status (2026-11-05):** KeePassXC 2.8.0 (Qt 6) runs translated and shows its main window and a dialog, drawn by
   Qt's `xcb` platform on the in-process X11, with mouse and keyboard events arriving (CHANGELOG 0.7.7). A startup
-  run is in the corpus. Still open for Qt: XKB (so keys that need a keymap and compose work), checking the window's
+  run is in the corpus. XKB is in (CHANGELOG 0.7.8): the extension, the keymap
+  libxkbcommon-x11 reads, and StateNotify for modifiers. Still open for Qt: checking the window's
   contents rather than only that it stays up, the auto-type plugin, `Unable to disable core dumps` (prctl and
   setrlimit), and PNG icons that fail with `IHDR: CRC error` (suspected zlib `crc32` in the translated library, not
   yet isolated). Not started: GTK, D-Bus over Unix sockets, GSettings.

@@ -2,16 +2,18 @@
  * File: shim/xlib/xlib_xcb_core.c
  * Purpose: xcb plumbing a toolkit needs beyond the requests: replies, request checks, extensions and the setup's depths, visuals and formats
  * Author: Akilesh
- * Date: 2026-11-05
+ * Date: 2026-11-06
  *
  * Every request here is carried out when it is made, so its reply already exists when the program asks for it.
  * The reply is kept in a small table under the request's sequence number until the program collects it with a
- * *_reply call, collects it with xcb_wait_for_reply, or throws it away with xcb_discard_reply. Extensions are all
- * reported absent: a toolkit asks first and does without, which is what a server with none installed makes it do.
+ * *_reply call, collects it with xcb_wait_for_reply, or throws it away with xcb_discard_reply. Extensions are
+ * reported absent (a toolkit asks first and does without) except XKEYBOARD, whose requests arrive through
+ * xcb_send_request from libxcb-xkb and are answered by xcb_xkb.c.
  */
 
 #include <string.h>
 
+#include "xcb_xkb.h"
 #include "xlib_internal.h"
 
 #define REPLY_SLOTS 64
@@ -100,14 +102,12 @@ LIBC_FN XcbEvent *sysv_xcb_poll_for_queued_event(void *connection)
     return sysv_xcb_poll_for_event(connection);
 }
 
-/* The generic request path is what extension libraries use; no extension is present, so none gets here. */
+/* The generic request path is what extension libraries use; XKEYBOARD is the one extension that answers. */
 LIBC_FN uint32_t sysv_xcb_send_request(void *connection, int flags, void *vector, const void *request)
 {
     (void)connection;
     (void)flags;
-    (void)vector;
-    (void)request;
-    return 0;
+    return xcb_xkb_request((const XcbProtocolRequest *)request, (const XcbVector *)vector);
 }
 
 LIBC_FN uint32_t sysv_xcb_send_request_with_fds(void *connection, int flags, void *vector, const void *request,
@@ -158,13 +158,12 @@ LIBC_FN int sysv_xcb_str_sizeof(const void *text)
     return STR_HEADER_BYTES + *(const uint8_t *)text;
 }
 
-/* Every extension is absent; the reply is shared and read-only, as libxcb's is. */
+/* Every extension but XKEYBOARD is absent; the reply is shared and read-only, as libxcb's is. */
 LIBC_FN const XcbExtensionReply *sysv_xcb_get_extension_data(void *connection, void *extension)
 {
     static const XcbExtensionReply absent = {.response_type = 1};
     (void)connection;
-    (void)extension;
-    return &absent;
+    return xcb_xkb_is_extension(extension) ? xcb_xkb_extension_data() : &absent;
 }
 
 LIBC_FN void sysv_xcb_prefetch_extension_data(void *connection, void *extension)
