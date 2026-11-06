@@ -2,7 +2,7 @@
  * File: shim/threads.c
  * Purpose: pthread thread lifecycle on Win32 threads: create, join, detach, self, exit and attributes
  * Author: Akilesh
- * Date: 2026-11-05
+ * Date: 2026-11-06
  *
  * A pthread_t is a pointer to a heap Thread that outlives the Windows thread
  * until it is joined or detached. The state word arbitrates the races between
@@ -115,7 +115,8 @@ EXPORT SYSV int pthread_create(uint64_t *out, const Attr *attr, StartRoutine sta
     thread->state = is_detached ? STATE_DETACHED : STATE_RUNNING;
     size_t stack_bytes = (attr != NULL && attr->stack_bytes != 0) ? attr->stack_bytes : DEFAULT_STACK_BYTES;
     *out = (uint64_t)(uintptr_t)thread; /* before the thread can run and possibly free itself */
-    HANDLE handle = CreateThread(NULL, stack_bytes, thread_main, thread, STACK_SIZE_PARAM_IS_A_RESERVATION, NULL);
+    /* Without STACK_SIZE_PARAM_IS_A_RESERVATION the size is committed at once, as a Linux stack effectively is. */
+    HANDLE handle = CreateThread(NULL, stack_bytes, thread_main, thread, 0, NULL);
     if (handle == NULL) {
         free_thread(thread);
         return EAGAIN_CODE;
