@@ -101,3 +101,9 @@ required-features = ["libfuzzer"]
 [profile.release]
 debug-assertions = true
 overflow-checks = true
+
+# backhand 0.25.5 wraps an offset sum in its v4 reader (src/v4/reader.rs:63) that a hostile image can overflow. The shipped
+# translator is a release build without overflow checks, and `unpack` already turns any backhand panic into an error
+# (appimage/extract.rs), so the checks stay on for Crossport's own code but not for this third-party crate.
+[profile.release.package.backhand]
+overflow-checks = false

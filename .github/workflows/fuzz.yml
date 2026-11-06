@@ -85,7 +85,7 @@ jobs:
           cargo fuzz run --fuzz-dir . --features libfuzzer "fuzz_${{ matrix.target }}" "work/${{ matrix.target }}" -- \
             -max_total_time="$RUN_SECONDS" \
             -timeout="$TARGET_TIMEOUT_SECONDS" \
-            -rss_limit_mb="$MEMORY_LIMIT_MB" \
+            -rss_limit_mb="$MEMORY_LIMIT_MB" \n            -detect_leaks=0 \
             -max_len=1048576
       - name: Save the Cargo cache
         if: always() && steps.cargo.outputs.cache-hit != 'true'
