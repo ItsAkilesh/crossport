@@ -67,6 +67,7 @@ LIBC_FN int sysv_XNextEvent(XlDisplay *display, XlEvent *event)
 {
     xl_present_all();
     take_matching(display, NULL, NULL, event, 1, 1);
+    xl_trace("event type %d window %x", (int)event->any.type, (unsigned)event->any.window);
     return 0;
 }
 
