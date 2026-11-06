@@ -59,7 +59,12 @@ export interface Screenshot {
   readonly alt: string;
 }
 
-export const GEDIT_SCREENSHOTS: readonly Screenshot[] = [
+export const TOOLKIT_SCREENSHOTS: readonly Screenshot[] = [
+  {
+    file: "keepassxc-window.png",
+    caption: "KeePassXC 2.8.0 (Qt 6) translated and running on Windows",
+    alt: "The KeePassXC welcome window with its toolbar, menus and icons",
+  },
   {
     file: "gedit-typing.png",
     caption: "gedit 51.0 (GTK 3) translated and running on Windows, after typing a line",

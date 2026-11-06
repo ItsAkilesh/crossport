@@ -5,7 +5,7 @@
  * Date: 2026-11-06
  */
 
-import { GEDIT_SCREENSHOTS, UPDATES } from "../content/updates";
+import { TOOLKIT_SCREENSHOTS, UPDATES } from "../content/updates";
 import { ScreenshotRow } from "./ScreenshotRow";
 import { Section } from "./Section";
 
@@ -26,7 +26,7 @@ export function UpdatesSection() {
           </li>
         ))}
       </ol>
-      <ScreenshotRow shots={GEDIT_SCREENSHOTS} />
+      <ScreenshotRow shots={TOOLKIT_SCREENSHOTS} />
     </Section>
   );
 }
