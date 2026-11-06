@@ -256,8 +256,13 @@ harness and the libstdc++ runtimes contain none.
 **The xcb requests.** A toolkit speaks xcb, not Xlib. `xlib_xcb_core.c`, `xlib_xcb_window.c` and `xlib_xcb_draw.c`
 carry out each request when it is made and keep its reply, with the sequence number as the cookie, until the
 program collects it. They share the tables the Xlib layer keeps (properties, pixel buffers), so a window made either
-way is the same object. What is not there: XKB (so a toolkit that requires it has no keyboard), selection transfers
-(ownership is tracked, a conversion is answered as empty), and every other extension. The exported
+way is the same object. XKEYBOARD is the one extension that answers (`xcb_xkb.c`,
+`xcb_xkb_map.c`, `xcb_xkb_names.c`): libxcb-xkb sends through `xcb_send_request`, so the requests are answered in the
+wire layout (UseExtension, PerClientFlags, GetState, GetControls, GetMap, GetNames and the empty compat and indicator
+maps) from one US keymap, which is what libxkbcommon-x11 needs to build Qt's keymap. Modifier changes become
+XkbStateNotify events for a client that selected them. What is not there: selection transfers
+(ownership is tracked, a conversion is answered as empty), XKB group switching, Xlib's XKB descriptor structures
+(`XkbGetMap` answers NULL), and every other extension. The exported
 `xcb_create_window` and `xcb_change_property` register the pixel buffer and store the property; the Xlib layer
 reaches the plain forms (`xcb_window_create`, `xcb_property_effects`) because it does that itself.
 
