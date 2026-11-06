@@ -73,10 +73,8 @@ fn read_words(
     let bytes = data
         .get(start..start + length as usize)
         .ok_or_else(|| TranslateError::Elf("RELR data is outside the file".into()))?;
-    Ok(bytes
-        .chunks_exact(WORD_BYTES as usize)
-        .map(|chunk| u64::from_le_bytes(chunk.try_into().expect("eight bytes")))
-        .collect())
+    let (words, _) = bytes.as_chunks::<{ WORD_BYTES as usize }>();
+    Ok(words.iter().map(|word| u64::from_le_bytes(*word)).collect())
 }
 
 #[cfg(test)]
