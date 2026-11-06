@@ -1,7 +1,7 @@
 // File: translator/src/lib.rs
 // Purpose: Crossport translator library: analyze ELF modules and relink them as PE images
 // Author: Akilesh
-// Date: 2026-10-28
+// Date: 2026-11-06
 
 pub mod analyze;
 pub mod appimage;
@@ -13,6 +13,7 @@ pub mod elf_model;
 pub mod error;
 pub mod exports;
 pub mod graph;
+pub mod ifunc;
 pub mod imports;
 pub mod naming;
 pub mod pe_model;

@@ -2,7 +2,7 @@
  * File: site/src/App.tsx
  * Purpose: The page: header, the hero, the explainer sections, the platforms, the install guide and the footer
  * Author: Akilesh
- * Date: 2026-11-04
+ * Date: 2026-11-06
  */
 
 import { useCallback, useState } from "react";
@@ -14,6 +14,7 @@ import { InstallSection } from "./components/InstallSection";
 import { PipelineSection } from "./components/PipelineSection";
 import { ProgramsSection } from "./components/ProgramsSection";
 import { StatusSection } from "./components/StatusSection";
+import { UpdatesSection } from "./components/UpdatesSection";
 import { applyTheme, initialTheme, saveTheme, type Theme } from "./lib/theme";
 
 export function App() {
@@ -34,6 +35,7 @@ export function App() {
         <PipelineSection />
         <ProgramsSection />
         <StatusSection />
+        <UpdatesSection />
         <DistributionsSection />
         <InstallSection />
       </main>

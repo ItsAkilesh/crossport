@@ -1,7 +1,7 @@
 // File: translator/src/analyze/relocs.rs
 // Purpose: Read RELA and JMPREL relocation tables into typed relocations, rejecting unsupported kinds
 // Author: Akilesh
-// Date: 2026-10-28
+// Date: 2026-11-06
 
 use object::elf;
 use object::read::elf::Rela;
@@ -72,6 +72,9 @@ fn convert(entry: &RelaEntry, symbol_count: usize) -> Result<Option<Relocation>,
             };
             RelocKind::Symbol { symbol, addend }
         }
+        elf::R_X86_64_IRELATIVE => RelocKind::Indirect {
+            resolver: addend as u64,
+        },
         elf::R_X86_64_COPY => {
             check_symbol(symbol, symbol_count)?;
             RelocKind::Copy { symbol }

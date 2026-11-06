@@ -2,7 +2,7 @@
   File: docs/ROADMAP.md
   Purpose: Milestones and exit criteria for Crossport
   Author: Akilesh
-  Date: 2026-11-05
+  Date: 2026-11-06
 -->
 
 # Crossport Roadmap
@@ -100,8 +100,8 @@ matching Linux. Text clipboard bridged with Windows, and a real SDL2 program (SD
   Qt's `xcb` platform on the in-process X11, with mouse and keyboard events arriving (CHANGELOG 0.7.7). A startup
   run is in the corpus. Still open for Qt: XKB (so keys that need a keymap and compose work), checking the window's
   contents rather than only that it stays up, the auto-type plugin, `Unable to disable core dumps` (prctl and
-  setrlimit), and PNG icons that fail with `IHDR: CRC error` (suspected zlib `crc32` in the translated library, not
-  yet isolated). Not started: GTK, D-Bus over Unix sockets, GSettings.
+  setrlimit). The `IHDR: CRC error` on PNG icons is fixed (0.7.8): Ubuntu's zlib picks `crc32` with a GNU indirect
+  function, which the translator bound to its resolver instead of the chosen function. Not started: GTK, D-Bus over Unix sockets, GSettings.
 - **Exit criterion:** a real Qt AppImage and a real GTK AppImage run with usable input and rendering, and
   a regression suite of their startup and basic interaction runs in CI.
 
