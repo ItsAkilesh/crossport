@@ -24,6 +24,8 @@ pub enum OpenCommand {
     Wizard { image: Option<PathBuf> },
     Silent(OpenSilent),
     Uninstall { dir: PathBuf, quiet: bool },
+    /// Ask GitHub whether a newer Crossport exists (only when this flag is given, never on its own).
+    CheckUpdate { quiet: bool },
 }
 
 /// Options for a setup run with no wizard.
@@ -43,7 +45,9 @@ pub enum SetupCommand {
     Wizard,
     Silent(SetupSilent),
     Uninstall { dir: PathBuf, quiet: bool },
-    MakeInstaller { out: PathBuf, from: PathBuf },
+    /// `uninstaller` is the program to install as uninstall.exe (a signed copy); default: this program.
+    MakeInstaller { out: PathBuf, from: PathBuf, uninstaller: Option<PathBuf> },
+    CheckUpdate { quiet: bool },
 }
 
 fn value(args: &mut std::slice::Iter<String>, flag: &str) -> Result<String, String> {
@@ -52,11 +56,12 @@ fn value(args: &mut std::slice::Iter<String>, flag: &str) -> Result<String, Stri
 
 pub fn parse_open(args: &[String]) -> Result<OpenCommand, String> {
     let mut silent = OpenSilent { start_menu: true, ..OpenSilent::default() };
-    let (mut is_silent, mut image, mut uninstall, mut quiet) = (false, None, None, false);
+    let (mut is_silent, mut image, mut uninstall, mut quiet, mut check_update) = (false, None, None, false, false);
     let mut iter = args.iter();
     while let Some(arg) = iter.next() {
         match arg.as_str() {
             "--silent" => is_silent = true,
+            "--check-update" => check_update = true,
             "--quiet" => quiet = true,
             "--uninstall" => uninstall = Some(PathBuf::from(value(&mut iter, arg)?)),
             "--name" => silent.name = Some(value(&mut iter, arg)?),
@@ -73,6 +78,9 @@ pub fn parse_open(args: &[String]) -> Result<OpenCommand, String> {
     }
     if let Some(dir) = uninstall {
         return Ok(OpenCommand::Uninstall { dir, quiet });
+    }
+    if check_update {
+        return Ok(OpenCommand::CheckUpdate { quiet });
     }
     match (is_silent, image) {
         (true, Some(image)) => Ok(OpenCommand::Silent(OpenSilent { image, ..silent })),
@@ -104,15 +112,18 @@ impl OpenSilent {
 
 pub fn parse_setup(args: &[String]) -> Result<SetupCommand, String> {
     let mut silent = SetupSilent { start_menu: true, associate: true, ..SetupSilent::default() };
-    let (mut is_silent, mut uninstall, mut quiet, mut out, mut from) = (false, None, false, None, None);
+    let (mut is_silent, mut uninstall, mut quiet, mut out, mut from, mut check_update) = (false, None, false, None, None, false);
+    let mut uninstaller = None;
     let mut iter = args.iter();
     while let Some(arg) = iter.next() {
         match arg.as_str() {
             "--silent" => is_silent = true,
+            "--check-update" => check_update = true,
             "--quiet" => quiet = true,
             "--uninstall" => uninstall = Some(PathBuf::from(value(&mut iter, arg)?)),
             "--make-installer" => out = Some(PathBuf::from(value(&mut iter, arg)?)),
             "--from" => from = Some(PathBuf::from(value(&mut iter, arg)?)),
+            "--uninstaller" => uninstaller = Some(PathBuf::from(value(&mut iter, arg)?)),
             "--dir" => silent.dir = Some(PathBuf::from(value(&mut iter, arg)?)),
             "--result-file" => silent.result_file = Some(PathBuf::from(value(&mut iter, arg)?)),
             "--user" => silent.per_user = true,
@@ -126,8 +137,11 @@ pub fn parse_setup(args: &[String]) -> Result<SetupCommand, String> {
     if let Some(dir) = uninstall {
         return Ok(SetupCommand::Uninstall { dir, quiet });
     }
+    if check_update {
+        return Ok(SetupCommand::CheckUpdate { quiet });
+    }
     match (out, from) {
-        (Some(out), Some(from)) => Ok(SetupCommand::MakeInstaller { out, from }),
+        (Some(out), Some(from)) => Ok(SetupCommand::MakeInstaller { out, from, uninstaller }),
         (None, None) if is_silent => Ok(SetupCommand::Silent(silent)),
         (None, None) => Ok(SetupCommand::Wizard),
         _ => Err("--make-installer needs --from <folder>".into()),
@@ -225,9 +239,21 @@ mod tests {
     }
 
     #[test]
+    fn checking_for_updates_is_always_asked_for() {
+        assert_eq!(parse_open(&args(&["--check-update"])), Ok(OpenCommand::CheckUpdate { quiet: false }));
+        assert_eq!(parse_setup(&args(&["--check-update", "--quiet"])), Ok(SetupCommand::CheckUpdate { quiet: true }));
+        assert_eq!(parse_open(&[]), Ok(OpenCommand::Wizard { image: None }));
+        assert!(matches!(parse_setup(&[]), Ok(SetupCommand::Wizard)));
+    }
+
+    #[test]
     fn make_installer_needs_both_paths() {
         assert!(matches!(parse_setup(&args(&["--make-installer", "o.exe", "--from", "d"])), Ok(SetupCommand::MakeInstaller { .. })));
         assert!(parse_setup(&args(&["--make-installer", "o.exe"])).is_err());
+        assert_eq!(
+            parse_setup(&args(&["--make-installer", "o.exe", "--from", "d", "--uninstaller", "u.exe"])),
+            Ok(SetupCommand::MakeInstaller { out: PathBuf::from("o.exe"), from: PathBuf::from("d"), uninstaller: Some(PathBuf::from("u.exe")) })
+        );
         assert_eq!(parse_setup(&[]), Ok(SetupCommand::Wizard));
     }
 }

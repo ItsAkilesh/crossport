@@ -6,3 +6,4 @@
 pub mod open;
 pub mod setup;
 pub mod uninstall;
+pub mod update;

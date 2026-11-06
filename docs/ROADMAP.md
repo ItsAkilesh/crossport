@@ -102,10 +102,11 @@ matching Linux. Text clipboard bridged with Windows, and a real SDL2 program (SD
   0.7.10). XKB is in (CHANGELOG 0.7.8): the extension, the keymap
   libxkbcommon-x11 reads, and StateNotify for modifiers. Still open for Qt: the auto-type plugin, `Unable to disable core dumps` (prctl and
   setrlimit). The `IHDR: CRC error` on PNG icons is fixed (0.7.9): Ubuntu's zlib picks `crc32` with a GNU indirect
-  function, which the translator bound to its resolver instead of the chosen function. Not started: D-Bus over Unix sockets (a pull request has them).
+  function, which the translator bound to its resolver instead of the chosen function. Unix-domain sockets for D-Bus are in (CHANGELOG 0.7.13: paths, `/run`, abstract names, `socketpair`, peer
+  credentials; no descriptor passing). Not started: a D-Bus session bus to connect to.
 - **GTK status (2026-11-06):** gedit 51.0 (GTK 3, a JuNest AppImage) starts, draws its window and takes typed text
-  (CHANGELOG 0.7.12), with GSettings schemas and icon themes found through the AppDir standing in for the system
-  root. It is in the corpus as `gedit`. Open for GTK: D-Bus (no session bus), dialogs such as the file chooser,
+  (CHANGELOG 0.7.15), with GSettings schemas and icon themes found through the AppDir standing in for the system
+  root. It is in the corpus as `gedit`. Open for GTK: a D-Bus session bus to connect to, dialogs such as the file chooser,
   the clipboard, spell-check providers, `XkbGetMap` for Xlib clients, and a window-contents check for it.
 - **Exit criterion:** a real Qt AppImage and a real GTK AppImage run with usable input and rendering, and
   a regression suite of their startup and basic interaction runs in CI.
@@ -120,8 +121,11 @@ matching Linux. Text clipboard bridged with Windows, and a real SDL2 program (SD
   unsupported (a report of what is missing rather than a crash).
 - **Status (2026-11-05):** the installer and launcher are built (`installer/`, decision in DESIGN section 6): a setup
   wizard for Crossport, an AppImage launcher with its own wizard, file association, per-app uninstall, elevation only
-  when needed, and a readable unsupported-app report. Still to do: code signing, update checks, a release download,
-  and the three-AppImage run on a clean machine (blocked on Qt, Milestone 7).
+  when needed, and a readable unsupported-app report. Also built (2026-11-05): a tag-triggered release workflow
+  that publishes `Crossport-Setup.exe` with a SHA-256 checksum, the runtime pack inside the installer, optional Authenticode
+  signing that runs only when signing secrets exist, and an on-request update check (`--check-update`, WinHTTP, allowlisted
+  GitHub URL; docs/RELEASING.md). Still to do: the first release and a signing certificate, reproducible translation, and
+  the three-AppImage run on a clean machine (blocked on Qt, Milestone 7).
 - **Exit criterion:** someone who has never seen Crossport installs and runs three different AppImages
   from a signed installer with no terminal.
 

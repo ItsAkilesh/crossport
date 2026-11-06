@@ -20,7 +20,7 @@ use crate::win::shortcut::{create, Link};
 
 pub const PRODUCT_ID: &str = "Crossport";
 pub const PRODUCT_NAME: &str = "Crossport";
-pub const PRODUCT_VERSION: &str = env!("CARGO_PKG_VERSION");
+pub const PRODUCT_VERSION: &str = crate::update::VERSION;
 const OPENER: &str = "crossport-open.exe";
 
 /// The choices on the setup wizard's options page.

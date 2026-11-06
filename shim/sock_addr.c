@@ -2,17 +2,13 @@
  * File: shim/sock_addr.c
  * Purpose: Socket addresses and names: sockaddr conversion, getaddrinfo, getnameinfo, inet_* and byte-order functions
  * Author: Akilesh
- * Date: 2026-10-29
+ * Date: 2026-11-06
  */
 
 #include <stddef.h>
 #include <string.h>
 
 #include "sock.h"
-
-#include <afunix.h>
-
-#define UNIX_PATH_MAX 108
 
 /* Linux struct addrinfo (48 bytes); Winsock orders and sizes its fields differently. */
 typedef struct LinuxAddrInfo {
@@ -46,26 +42,6 @@ int shim_family_to_linux(int windows_family)
     return windows_family == AF_INET6 ? LINUX_AF_INET6 : windows_family;
 }
 
-/* A Unix-domain address names a file, so its path goes through the same mapping as any other path. */
-static int unix_to_windows(const void *linux_address, int length, SOCKADDR_STORAGE *out)
-{
-    const char *path = (const char *)linux_address + sizeof(uint16_t);
-    int path_bytes = length - (int)sizeof(uint16_t);
-    if (path_bytes <= 0 || path[0] == '\0') {
-        return shim_fail(LINUX_EINVAL); /* abstract-namespace sockets have no file to map */
-    }
-    SOCKADDR_UN *target = (SOCKADDR_UN *)out;
-    char text[UNIX_PATH_MAX];
-    size_t copied = strnlen(path, (size_t)path_bytes < sizeof(text) - 1 ? (size_t)path_bytes : sizeof(text) - 1);
-    memcpy(text, path, copied);
-    text[copied] = '\0';
-    target->sun_family = AF_UNIX;
-    if (shim_path_to_windows(text, target->sun_path, sizeof(target->sun_path)) != 0) {
-        return -1;
-    }
-    return (int)(offsetof(SOCKADDR_UN, sun_path) + strlen(target->sun_path) + 1);
-}
-
 int shim_sockaddr_to_windows(const void *linux_address, int length, SOCKADDR_STORAGE *out)
 {
     if (linux_address == NULL || length < (int)sizeof(uint16_t) || length > (int)sizeof(*out)) {
@@ -73,7 +49,7 @@ int shim_sockaddr_to_windows(const void *linux_address, int length, SOCKADDR_STO
     }
     memset(out, 0, sizeof(*out));
     if (((const uint16_t *)linux_address)[0] == LINUX_AF_UNIX) {
-        return unix_to_windows(linux_address, length, out);
+        return shim_unix_to_windows(linux_address, length, out);
     }
     memcpy(out, linux_address, (size_t)length);
     out->ss_family = (ADDRESS_FAMILY)shim_family_to_windows(((const uint16_t *)linux_address)[0]);
@@ -84,6 +60,9 @@ int shim_sockaddr_to_linux(const SOCKADDR *windows_address, int length, void *ou
 {
     if (length < 0 || (size_t)length > capacity) {
         return shim_fail(LINUX_EINVAL);
+    }
+    if (windows_address->sa_family == AF_UNIX) {
+        return shim_unix_to_linux(windows_address, length, out, capacity);
     }
     memcpy(out, windows_address, (size_t)length);
     ((uint16_t *)out)[0] = (uint16_t)shim_family_to_linux(windows_address->sa_family);

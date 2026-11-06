@@ -5,7 +5,7 @@ being worked on. A feature commit that adds user-visible capability (a new flag,
 that runs) bumps the patch number; a fix does not. The version lives in `translator/Cargo.toml` and is
 bumped in the same commit as the change. Releases are tagged by the maintainer, not by automation.
 
-## 0.7.12
+## 0.7.15
 
 - gedit 51.0 (GTK 3, a JuNest AppImage built from Arch Linux packages) starts, draws its window with the GTK theme,
   and takes the keyboard: typing "hello from crossport" shows the text, marks the document modified and moves the
@@ -35,11 +35,30 @@ bumped in the same commit as the change. Releases are tagged by the maintainer, 
   - `crossport convert` scans the GTK, GIO and gdk-pixbuf plugin directories and the application's own plugins.
 - Not yet: D-Bus (gedit runs without a session bus), spell-check providers (enchant backends are left out), the
   file chooser and other dialogs, clipboard, window-manager hints beyond title and size.
-
-## 0.7.11
-
 - `prctl` answers: `PR_SET_DUMPABLE` is remembered and read back, `PR_SET_NAME` succeeds and any other option fails
   with `EINVAL`. KeePassXC no longer warns `Unable to disable core dumps`. Tested in `posix_io`.
+
+## 0.7.13
+
+- Unix-domain sockets work well enough for a D-Bus client (libdbus-1 in KeePassXC and GTK applications): a program can
+  connect to a session bus, or fail the way it does on Linux when there is none.
+  - Addresses: a path under `/run` or `/var/run` (`/run/user/1000/bus`) is a file under `%TEMP%\crossport-run`, made
+    on demand; an abstract name (a leading NUL byte, as D-Bus uses) is a file named after it under
+    `%TEMP%\crossport-abs` and deleted when its socket closes. `getsockname`, `getpeername`, `accept` and
+    `recvfrom` map the names back, so the program sees the address it bound.
+  - `connect` to a path that does not exist fails with `ENOENT` (Winsock says "refused"); a second `bind` to a name in
+    use fails with `EADDRINUSE`.
+  - `socketpair` is a real pair of `AF_UNIX` sockets on a private path, not a loopback TCP pair that any local
+    program could connect to. Only `SOCK_STREAM` is supported.
+  - `SO_PEERCRED` answers with the peer's process id (when Windows reports it), user id and group id; `SO_PASSCRED`
+    is accepted. `sendmsg` with `SCM_RIGHTS` fails with `EOPNOTSUPP`: descriptors cannot be passed between Windows
+    processes this way, so a D-Bus connection must not negotiate file-descriptor passing.
+  - poll, select and epoll treat these sockets like any other.
+- `unix_sockets` joins the corpus: a client and a server in one process over a path, a `/run/user` path and an abstract
+  name, a connect that finds no bus, and a `socketpair` with poll, select, epoll, peer credentials, a quarter megabyte
+  of data and hangup. It runs on Linux and translated on Windows with the same output.
+- Not yet: `SOCK_DGRAM` and `SOCK_SEQPACKET` Unix sockets, passing descriptors, autobind (binding with no name), and a
+  session bus to talk to (nothing on Windows provides one).
 
 ## 0.7.10
 
@@ -137,7 +156,15 @@ bumped in the same commit as the change. Releases are tagged by the maintainer, 
   an image, runs `crossport convert` into `Program Files\Crossport\<app>` (or a per-user folder that needs no
   elevation), registers the app with its own uninstaller, and shows a readable report when an app is unsupported.
   A failed conversion leaves nothing behind, and an uninstall refuses to run while the app is open.
-- Not yet done: code signing, update checks, a release download, the runtime pack inside the installer.
+- Releases: pushing a tag `vMAJOR.MINOR.PATCH` runs `.github/workflows/release.yml`, which builds the translator, the shim
+  and the installer and publishes `Crossport-Setup.exe` with `SHA256SUMS.txt`. The tag becomes the programs' version.
+- The runtime pack goes inside the installer (`installer/package.sh --runtime`), is installed in `<folder>\runtime` and
+  is passed to every conversion.
+- Optional Authenticode signing (`tools/ci/sign-windows.ps1`), run only when the secret `CROSSPORT_SIGN_PFX_BASE64`
+  exists; the setup program finds its payload in a file signed after packing. See `docs/RELEASING.md`.
+- `--check-update` (both programs): one WinHTTP request to the GitHub releases API on request, never in the background,
+  allowlisted host and path, 8 second timeouts, no redirects; offers to open the release page.
+- Not yet done: the first release, a real signing certificate, reproducible translation.
 
 ## 0.7.4
 

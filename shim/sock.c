@@ -1,8 +1,8 @@
 /*
  * File: shim/sock.c
- * Purpose: Sockets on Winsock: create, bind, listen, accept, connect, shutdown, names and socketpair
+ * Purpose: Sockets on Winsock: create, bind, listen, accept, connect, shutdown, and names
  * Author: Akilesh
- * Date: 2026-10-29
+ * Date: 2026-11-06
  */
 
 #include <string.h>
@@ -57,7 +57,7 @@ int shim_socket_should_retry(int fd, SocketState *state, int is_call_nonblocking
     return 1;
 }
 
-static int adopt(SOCKET socket, int family, int type, int flags)
+int shim_socket_adopt(SOCKET socket, int family, int type, int flags)
 {
     SocketState *state = (SocketState *)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(SocketState));
     HANDLE event = WSACreateEvent();
@@ -79,6 +79,7 @@ int shim_socket_close(SocketState *state)
 {
     int result = closesocket(state->socket) == 0 ? 0 : shim_fail_from_win();
     WSACloseEvent(state->event);
+    shim_unix_forget_abstract(state);
     HeapFree(GetProcessHeap(), 0, state);
     return result;
 }
@@ -91,7 +92,7 @@ LIBC_FN int sysv_socket(int domain, int type, int protocol)
     if (socket_handle == INVALID_SOCKET) {
         return shim_fail_from_win();
     }
-    return adopt(socket_handle, domain, kind, type);
+    return shim_socket_adopt(socket_handle, domain, kind, type);
 }
 
 LIBC_FN int sysv_bind(int fd, const void *address, uint32_t length)
@@ -99,7 +100,14 @@ LIBC_FN int sysv_bind(int fd, const void *address, uint32_t length)
     SocketState *state = shim_socket_state(fd);
     SOCKADDR_STORAGE converted;
     int size = state != NULL ? shim_sockaddr_to_windows(address, (int)length, &converted) : -1;
-    return size >= 0 && bind(state->socket, (const SOCKADDR *)&converted, size) == 0 ? 0 : (size < 0 ? -1 : shim_fail_from_win());
+    if (size < 0) {
+        return -1;
+    }
+    if (bind(state->socket, (const SOCKADDR *)&converted, size) != 0) {
+        return shim_fail_from_win();
+    }
+    shim_unix_remember_abstract(state, &converted);
+    return 0;
 }
 
 LIBC_FN int sysv_listen(int fd, int backlog)
@@ -123,7 +131,7 @@ static int accept_into(int fd, void *address, uint32_t *length, int flags)
                 int written = shim_sockaddr_to_linux((SOCKADDR *)&peer, peer_length, address, *length);
                 *length = written >= 0 ? (uint32_t)written : *length;
             }
-            return adopt(accepted, state->family, state->type, flags);
+            return shim_socket_adopt(accepted, state->family, state->type, flags);
         }
         if (!shim_socket_should_retry(fd, state, 0)) {
             return shim_fail_from_win();
@@ -171,6 +179,9 @@ LIBC_FN int sysv_connect(int fd, const void *address, uint32_t length)
     if (size < 0) {
         return -1;
     }
+    if (shim_unix_check_target(&converted) != 0) {
+        return -1;
+    }
     if (connect(state->socket, (const SOCKADDR *)&converted, size) == 0) {
         return 0;
     }
@@ -213,32 +224,4 @@ LIBC_FN int sysv_getsockname(int fd, void *address, uint32_t *length)
 LIBC_FN int sysv_getpeername(int fd, void *address, uint32_t *length)
 {
     return name_of(fd, address, length, 1);
-}
-
-/* A connected pair of stream sockets, built from a loopback listener; the pair reports AF_UNIX. */
-LIBC_FN int sysv_socketpair(int domain, int type, int protocol, int fds[2])
-{
-    (void)protocol;
-    shim_winsock_init();
-    SOCKET listener = socket(AF_INET, SOCK_STREAM, 0);
-    SOCKET client = socket(AF_INET, SOCK_STREAM, 0);
-    SOCKADDR_IN local = {.sin_family = AF_INET, .sin_addr.s_addr = htonl(INADDR_LOOPBACK)};
-    int size = sizeof(local);
-    int is_ready = listener != INVALID_SOCKET && client != INVALID_SOCKET && bind(listener, (SOCKADDR *)&local, size) == 0 &&
-                   listen(listener, 1) == 0 && getsockname(listener, (SOCKADDR *)&local, &size) == 0 &&
-                   connect(client, (SOCKADDR *)&local, size) == 0;
-    SOCKET server = is_ready ? accept(listener, NULL, NULL) : INVALID_SOCKET;
-    if (listener != INVALID_SOCKET) {
-        closesocket(listener);
-    }
-    if (server == INVALID_SOCKET) {
-        int error = shim_fail_from_win();
-        if (client != INVALID_SOCKET) {
-            closesocket(client);
-        }
-        return error;
-    }
-    fds[0] = adopt(server, domain, LINUX_SOCK_STREAM, type);
-    fds[1] = adopt(client, domain, LINUX_SOCK_STREAM, type);
-    return (fds[0] < 0 || fds[1] < 0) ? -1 : 0;
 }

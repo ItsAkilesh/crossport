@@ -1,6 +1,6 @@
 /*
  * File: shim/path.c
- * Purpose: Map Linux paths onto Windows paths: /tmp, /dev/null, /proc/self/exe, drive paths, separators and the AppDir as the system root
+ * Purpose: Map Linux paths onto Windows paths: /tmp, /run, /dev/null, /proc/self/exe, drive paths, separators and the AppDir as the system root
  * Author: Akilesh
  * Date: 2026-11-06
  */
@@ -23,6 +23,33 @@ static int has_prefix(const char *path, const char *prefix)
     return strncmp(path, prefix, length) == 0 && (path[length] == '\0' || path[length] == SEPARATOR_LINUX);
 }
 
+/* The directory standing in for /run: runtime sockets (D-Bus session bus, X, Wayland) live under it. */
+#define RUN_SUBDIRECTORY L"crossport-run\\"
+
+/* Places `tail` (what follows the virtual directory) under the Windows temp directory and `subdirectory`. */
+static int map_under_temp(const char *tail, const wchar_t *subdirectory, wchar_t *out, size_t out_count)
+{
+    wchar_t temp[MAX_PATH + 1];
+    DWORD length = GetTempPathW(MAX_PATH, temp);
+    if (length == 0 || length >= MAX_PATH) {
+        return shim_fail(LINUX_ENOENT);
+    }
+    wchar_t rest[MAX_PATH];
+    if (*tail == SEPARATOR_LINUX) {
+        tail++;
+    }
+    if (utf8_to_wide(tail, rest, MAX_PATH) != 0) {
+        return -1;
+    }
+    if ((size_t)length + (size_t)lstrlenW(subdirectory) + (size_t)lstrlenW(rest) >= out_count) {
+        return shim_fail(LINUX_ENAMETOOLONG);
+    }
+    lstrcpyW(out, temp);
+    lstrcatW(out, subdirectory);
+    lstrcatW(out, rest);
+    return 0;
+}
+
 /* Replaces the leading virtual directory with its real Windows location. */
 static int map_virtual(const char *path, wchar_t *out, size_t out_count)
 {
@@ -36,22 +63,13 @@ static int map_virtual(const char *path, wchar_t *out, size_t out_count)
         return GetModuleFileNameW(NULL, out, (DWORD)out_count) > 0 ? 0 : shim_fail(LINUX_ENOENT);
     }
     if (has_prefix(path, "/tmp")) {
-        wchar_t temp[MAX_PATH + 1];
-        DWORD length = GetTempPathW(MAX_PATH, temp);
-        if (length == 0 || length >= MAX_PATH) {
-            return shim_fail(LINUX_ENOENT);
-        }
-        wchar_t rest[MAX_PATH];
-        const char *tail = path + 4;
-        if (*tail == SEPARATOR_LINUX) {
-            tail++;
-        }
-        if (utf8_to_wide(tail, rest, MAX_PATH) != 0) {
-            return -1;
-        }
-        return (size_t)length + (size_t)lstrlenW(rest) < out_count
-                   ? (lstrcpyW(out, temp), lstrcatW(out, rest), 0)
-                   : shim_fail(LINUX_ENAMETOOLONG);
+        return map_under_temp(path + 4, L"", out, out_count);
+    }
+    if (has_prefix(path, "/run")) {
+        return map_under_temp(path + 4, RUN_SUBDIRECTORY, out, out_count);
+    }
+    if (has_prefix(path, "/var/run")) {
+        return map_under_temp(path + 8, RUN_SUBDIRECTORY, out, out_count);
     }
     return 1;
 }
