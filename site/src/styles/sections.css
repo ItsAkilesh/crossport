@@ -324,8 +324,7 @@
   margin: 0;
 }
 
-.shots figure,
-.shot-slot {
+.shots figure {
   display: grid;
   gap: 8px;
   margin: 0;
@@ -336,17 +335,6 @@
   height: auto;
   border: 1px solid var(--rule);
   border-radius: 12px;
-}
-
-.shot-empty {
-  display: grid;
-  place-items: center;
-  min-height: 200px;
-  padding: 20px;
-  border: 2px dashed var(--rule);
-  border-radius: 16px;
-  color: var(--muted);
-  text-align: center;
 }
 
 figcaption {

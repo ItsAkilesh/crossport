@@ -1,6 +1,6 @@
 /*
  * File: site/src/components/UpdatesSection.tsx
- * Purpose: The "Latest" section: recent changes from the changelog and a labelled slot for the KeePassXC window screenshot
+ * Purpose: The "Latest" section: recent changes from the changelog
  * Author: Akilesh
  * Date: 2026-11-06
  */
@@ -25,12 +25,6 @@ export function UpdatesSection() {
           </li>
         ))}
       </ol>
-      <figure className="shot-slot">
-        <div className="shot-empty" role="img" aria-label="Screenshot of the KeePassXC window: not added yet">
-          Screenshot slot: KeePassXC's main window running through Crossport. No such screenshot is in the repository yet.
-        </div>
-        <figcaption>KeePassXC 2.8.0 (Qt 6), translated</figcaption>
-      </figure>
     </Section>
   );
 }
