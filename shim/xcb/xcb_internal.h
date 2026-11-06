@@ -15,6 +15,9 @@ LIBC_FN void *sysv_malloc(size_t size);
 
 /* The xcb requests the layer above (Xlib) forwards to. */
 /* Makes the Win32 window (on the window thread). The exported xcb_create_window also registers its pixel buffer. */
+/* Show and hide a window without reporting MapNotify or UnmapNotify (Xlib reports its own). */
+XcbCookie xcb_window_map(XcbId window);
+XcbCookie xcb_window_unmap(XcbId window);
 XcbCookie xcb_window_create(void *connection, uint8_t depth, XcbId window, XcbId parent, int16_t x, int16_t y,
                             uint16_t width, uint16_t height, uint16_t border_width, uint16_t window_class, XcbId visual,
                             uint32_t value_mask, const void *value_list);

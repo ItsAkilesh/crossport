@@ -2,9 +2,9 @@
  * File: shim/xlib/xlib_misc.c
  * Purpose: libX11 functions toolkits call at start-up: extension queries, visuals, colormaps, hints, cursors, pointer and selections
  * Author: Akilesh
- * Date: 2026-11-05
+ * Date: 2026-11-06
  *
- * Extensions are reported as absent, which every Xlib client must handle; clients then use the core
+ * Extensions are reported as absent (except XKEYBOARD, in xlib_xkb.c), which every Xlib client must handle; clients then use the core
  * protocol. Window-manager hints and cursors are accepted and ignored where Windows has no equivalent.
  * Selections (the clipboard) are in xlib_selection.c.
  */
@@ -24,6 +24,7 @@
 #define WM_HINTS_BYTES 56
 #define CLASS_HINT_BYTES 16
 
+int xl_xkb_query_extension(const char *name, int *opcode, int *first_event, int *first_error);
 LIBC_FN void *sysv_malloc(size_t size);
 LIBC_FN void *sysv_calloc(size_t count, size_t size);
 LIBC_FN void sysv_free(void *block);
@@ -34,11 +35,10 @@ LIBC_FN XlId sysv_XCreatePixmap(XlDisplay *display, XlId parent, unsigned width,
 LIBC_FN int sysv_XQueryExtension(XlDisplay *display, const char *name, int *opcode, int *first_event, int *first_error)
 {
     (void)display;
-    (void)name;
     *opcode = 0;
     *first_event = 0;
     *first_error = 0;
-    return 0;
+    return xl_xkb_query_extension(name, opcode, first_event, first_error);
 }
 
 LIBC_FN char **sysv_XListExtensions(XlDisplay *display, int *count)
@@ -52,17 +52,6 @@ LIBC_FN int sysv_XFreeExtensionList(char **list)
 {
     sysv_free(list);
     return 1;
-}
-
-LIBC_FN int sysv_XkbQueryExtension(XlDisplay *display, int *opcode, int *event, int *error, int *major, int *minor)
-{
-    (void)display;
-    (void)opcode;
-    (void)event;
-    (void)error;
-    (void)major;
-    (void)minor;
-    return 0;
 }
 
 static void fill_visual_info(XlDisplayData *data, XlVisualInfo *info)

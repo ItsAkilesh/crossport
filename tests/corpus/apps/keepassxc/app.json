@@ -28,6 +28,15 @@
       ],
       "timeout": 180,
       "stderr_keep": "(?!)"
+    },
+    {
+      "id": "gui-start",
+      "args": [],
+      "timeout": 40,
+      "stderr_keep": "(?!)",
+      "env": {
+        "QT_QPA_PLATFORM": "xcb"
+      }
     }
   ]
 }

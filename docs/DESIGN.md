@@ -256,8 +256,13 @@ harness and the libstdc++ runtimes contain none.
 **The xcb requests.** A toolkit speaks xcb, not Xlib. `xlib_xcb_core.c`, `xlib_xcb_window.c` and `xlib_xcb_draw.c`
 carry out each request when it is made and keep its reply, with the sequence number as the cookie, until the
 program collects it. They share the tables the Xlib layer keeps (properties, pixel buffers), so a window made either
-way is the same object. What is not there: XKB (so a toolkit that requires it has no keyboard), selection transfers
-(ownership is tracked, a conversion is answered as empty), and every other extension. The exported
+way is the same object. XKEYBOARD is the one extension that answers (`xcb_xkb.c`,
+`xcb_xkb_map.c`, `xcb_xkb_names.c`): libxcb-xkb sends through `xcb_send_request`, so the requests are answered in the
+wire layout (UseExtension, PerClientFlags, GetState, GetControls, GetMap, GetNames and the empty compat and indicator
+maps) from one US keymap, which is what libxkbcommon-x11 needs to build Qt's keymap. Modifier changes become
+XkbStateNotify events for a client that selected them. What is not there: selection transfers
+(ownership is tracked, a conversion is answered as empty), XKB group switching, Xlib's XKB descriptor structures
+(`XkbGetMap` answers NULL), and every other extension. The exported
 `xcb_create_window` and `xcb_change_property` register the pixel buffer and store the property; the Xlib layer
 reaches the plain forms (`xcb_window_create`, `xcb_property_effects`) because it does that itself.
 
@@ -269,6 +274,16 @@ the caller's thread and carried out by the window thread. The window procedure t
 thread, and the event queue wakes waiters with a condition variable and the display's poll descriptor with an
 arrival hook. The rule from section 2.11 still holds: never call a Win32 function that waits for the window thread
 while holding the Xlib lock, because the window procedure takes it too.
+
+**What a toolkit expects of its process (found with KeePassXC).** `readlink("/proc/self/exe")` returns
+`CROSSPORT_PROGRAM`, which `convert` sets to the program's original place inside the AppDir, because toolkits find
+`../share`, `../lib` and `../plugins` from it. glibc keeps `pthread_self()` at `%fs:0x10` and Qt reads it inline, so the
+thread control block holds the same pthread object `pthread_self()` returns (a mismatch makes Qt queue every slot
+call). A window must report MapNotify (`xcb_map_window`) before a toolkit paints it. `/dev/urandom` is a descriptor
+kind that reads the system generator. fontconfig reads a `fonts.conf` that `convert` writes beside the program,
+listing the Windows fonts directory. For finding such gaps: run with `CROSSPORT_TRACE=1` (drawing requests and
+paints), and under `gdb` from MinGW, which resolves the exported names of translated libraries
+(`libQt6Core.so.6!_ZN7QObject6senderEv`) and so can count calls and read arguments.
 
 **Short thread-local accesses.** An FS-relative instruction shorter than the 5-byte jump that redirects it
 (a 4-byte `mov %fs:0x28(%rdx),%eax`, for instance) is moved into a stub with its neighbours. The group is the

@@ -2,7 +2,7 @@
  * File: shim/threads.c
  * Purpose: pthread thread lifecycle on Win32 threads: create, join, detach, self, exit and attributes
  * Author: Akilesh
- * Date: 2026-10-28
+ * Date: 2026-11-05
  *
  * A pthread_t is a pointer to a heap Thread that outlives the Windows thread
  * until it is joined or detached. The state word arbitrates the races between
@@ -47,6 +47,13 @@ static Thread *current_thread(void)
     return (Thread *)*tls_tcb_word(TCB_THREAD_OFFSET);
 }
 
+/* Records the calling thread's pthread object where pthread_self() and inlined reads of glibc's THREAD_SELF find it. */
+static void set_current_thread(Thread *thread)
+{
+    *tls_tcb_word(TCB_THREAD_OFFSET) = thread;
+    *tls_tcb_word(TCB_PTHREAD_SELF_OFFSET) = thread;
+}
+
 static Thread *new_thread(void)
 {
     Thread *thread = (Thread *)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(Thread));
@@ -68,7 +75,7 @@ void threads_init_main(void)
     if (main_thread == NULL) {
         shim_die("crossport: cannot allocate the main thread object\n");
     }
-    *tls_tcb_word(TCB_THREAD_OFFSET) = main_thread;
+    set_current_thread(main_thread);
 }
 
 /* Common tail of a thread: destructors, TLS teardown, and the finish/detach hand-off. */
@@ -90,7 +97,7 @@ static DWORD WINAPI thread_main(LPVOID parameter)
         InterlockedCompareExchange(&thread->state, STATE_FINISHED, STATE_RUNNING);
         return 1;
     }
-    *tls_tcb_word(TCB_THREAD_OFFSET) = thread;
+    set_current_thread(thread);
     thread->result = thread->start(thread->argument);
     thread_finish(thread);
     return 0;

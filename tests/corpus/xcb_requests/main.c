@@ -170,6 +170,33 @@ static void check_self_event(xcb_window_t window)
     free(received);
 }
 
+/* A window is exposed to a toolkit only after its MapNotify, so mapping must report it (and unmapping too). */
+static int wait_for_notify(uint8_t type, xcb_window_t window)
+{
+    for (;;) {
+        xcb_generic_event_t *received = xcb_wait_for_event(g_connection);
+        if (received == NULL) {
+            return 0;
+        }
+        int is_wanted = (received->response_type & 0x7f) == type && ((xcb_map_notify_event_t *)received)->window == window;
+        free(received);
+        if (is_wanted) {
+            return 1;
+        }
+    }
+}
+
+static void check_map_events(xcb_window_t window)
+{
+    xcb_map_window(g_connection, window);
+    xcb_flush(g_connection);
+    int has_map_notify = wait_for_notify(XCB_MAP_NOTIFY, window);
+    xcb_unmap_window(g_connection, window);
+    xcb_flush(g_connection);
+    int has_unmap_notify = wait_for_notify(XCB_UNMAP_NOTIFY, window);
+    printf("map: map_notify=%d unmap_notify=%d\n", has_map_notify, has_unmap_notify);
+}
+
 int main(void)
 {
     int screen_number = 0;
@@ -193,6 +220,7 @@ int main(void)
     check_properties(window);
     check_images(window);
     check_keyboard();
+    check_map_events(window);
     check_self_event(window);
     xcb_destroy_window(g_connection, window);
     xcb_disconnect(g_connection);

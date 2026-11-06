@@ -35,6 +35,7 @@ void tls_detach_thread(void);
 uint8_t *tls_thread_pointer(void);
 
 /* Private words in the thread control block, for the pthread layer. */
+#define TCB_PTHREAD_SELF_OFFSET 0x10u /* glibc's THREAD_SELF; programs read it inline instead of calling pthread_self */
 #define TCB_THREAD_OFFSET 0x88u /* the thread's pthread_t object */
 #define TCB_KEYS_OFFSET 0x90u   /* array of pthread_key values */
 #define TCB_ERRNO_OFFSET 0x98u  /* this thread's errno */
