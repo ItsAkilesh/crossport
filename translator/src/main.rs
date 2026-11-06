@@ -1,7 +1,7 @@
 // File: translator/src/main.rs
 // Purpose: crossport command-line entry point; exit code 0 = success, 2 = error
 // Author: Akilesh
-// Date: 2026-11-05
+// Date: 2026-11-06
 
 use std::fs::File;
 use std::path::{Path, PathBuf};
@@ -299,10 +299,7 @@ fn convert_image(
         .iter()
         .fold(appdir.clone(), |path, part| path.join(part));
     println!("program: {}", unpacked.apprun_target.join("/"));
-    let qt_plugins = appdir.join(QT_PLUGIN_DIR);
-    if qt_plugins.is_dir() {
-        plugin_dirs.push(qt_plugins);
-    }
+    plugin_dirs.extend(plugins::toolkit_dirs(&appdir));
     let directories = Directories {
         libraries: Vec::new(),
         runtime: runtime_dirs,

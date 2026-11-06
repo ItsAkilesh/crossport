@@ -11,8 +11,8 @@ use std::path::{Path, PathBuf};
 use backhand::{FilesystemReader, InnerNode};
 
 use super::desktop;
-use super::junest;
 use super::header::{squashfs_offset, PREFIX_BYTES};
+use super::junest;
 use super::paths::{case_key, resolve_link, safe_components};
 use crate::error::TranslateError;
 
