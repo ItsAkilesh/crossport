@@ -2,7 +2,7 @@
   File: docs/DESIGN.md
   Purpose: Technical design for the Crossport ELF-to-PE static translator
   Author: Akilesh
-  Date: 2026-11-05
+  Date: 2026-11-06
 -->
 
 # Crossport Design
@@ -277,7 +277,9 @@ thread control block holds the same pthread object `pthread_self()` returns (a m
 call). A window must report MapNotify (`xcb_map_window`) before a toolkit paints it. `/dev/urandom` is a descriptor
 kind that reads the system generator. fontconfig reads a `fonts.conf` that `convert` writes beside the program,
 listing the Windows fonts directory. For finding such gaps: run with `CROSSPORT_TRACE=1` (drawing requests and
-paints), and under `gdb` from MinGW, which resolves the exported names of translated libraries
+paints), `CROSSPORT_DUMP_WINDOWS=<directory>` (every window that painted is written to
+`window-<id>.ppm` about twice a second, so a run that a timeout kills still leaves its last picture; the corpus checks
+them with `tools/corpus/window_check.py`), and under `gdb` from MinGW, which resolves the exported names of translated libraries
 (`libQt6Core.so.6!_ZN7QObject6senderEv`) and so can count calls and read arguments.
 
 **Short thread-local accesses.** An FS-relative instruction shorter than the 5-byte jump that redirects it

@@ -6,8 +6,9 @@
  *
  * Set CROSSPORT_DUMP_WINDOWS to an existing directory. A program that is stopped by a timeout never runs an exit
  * handler, so the dump does not wait for one: the first paint starts a thread that, while windows keep painting,
- * rewrites <directory>/window-<id>.ppm about twice a second. A file is written under a temporary name and moved
- * into place, so a reader never sees half of one. Without the variable nothing here runs.
+ * rewrites <directory>/window-<id>.ppm about twice a second for every window that has painted. A file is written
+ * under a temporary name and moved into place, so a reader never sees half of one. Without the variable nothing
+ * here runs.
  */
 
 #include <string.h>
@@ -28,6 +29,9 @@ typedef struct {
 } DumpedWindow;
 
 static char g_directory[MAX_PATH_BYTES];
+static XlId g_painted[MAX_DUMPED_WINDOWS];
+static size_t g_painted_count;
+static SRWLOCK g_painted_lock = SRWLOCK_INIT;
 static LONG g_state = -1;
 static volatile LONG g_is_dirty;
 static volatile LONG g_is_running;
@@ -66,16 +70,25 @@ static int snapshot_window(const XlDrawable *drawable, DumpedWindow *out)
     return 1;
 }
 
+static size_t painted_windows(XlId *ids)
+{
+    AcquireSRWLockExclusive(&g_painted_lock);
+    size_t count = g_painted_count;
+    memcpy(ids, g_painted, count * sizeof(XlId));
+    ReleaseSRWLockExclusive(&g_painted_lock);
+    return count;
+}
+
 static size_t snapshot_all(DumpedWindow *windows)
 {
+    XlId ids[MAX_DUMPED_WINDOWS];
+    size_t wanted = painted_windows(ids);
     size_t count = 0;
     xl_lock();
-    for (size_t bucket = 0; bucket < XL_BUCKET_COUNT && count < MAX_DUMPED_WINDOWS; bucket++) {
-        const XlDrawable *drawable = xl_drawable_bucket(bucket);
-        for (; drawable != NULL && count < MAX_DUMPED_WINDOWS; drawable = drawable->next) {
-            if (drawable->is_window && drawable->is_mapped && snapshot_window(drawable, &windows[count])) {
-                count++;
-            }
+    for (size_t i = 0; i < wanted; i++) {
+        const XlDrawable *drawable = xl_drawable_find(ids[i]);
+        if (drawable != NULL && drawable->is_window && snapshot_window(drawable, &windows[count])) {
+            count++;
         }
     }
     xl_unlock();
@@ -122,11 +135,25 @@ static DWORD WINAPI dump_thread(LPVOID unused)
     return 0;
 }
 
-void xl_dump_notify_paint(void)
+static void remember_painted(XlId id)
+{
+    AcquireSRWLockExclusive(&g_painted_lock);
+    size_t at = 0;
+    while (at < g_painted_count && g_painted[at] != id) {
+        at++;
+    }
+    if (at == g_painted_count && g_painted_count < MAX_DUMPED_WINDOWS) {
+        g_painted[g_painted_count++] = id;
+    }
+    ReleaseSRWLockExclusive(&g_painted_lock);
+}
+
+void xl_dump_notify_paint(XlId window)
 {
     if (!dump_enabled()) {
         return;
     }
+    remember_painted(window);
     InterlockedExchange(&g_is_dirty, 1);
     if (InterlockedCompareExchange(&g_is_running, 1, 0) == 0) {
         HANDLE thread = CreateThread(NULL, 0, dump_thread, NULL, 0, NULL);

@@ -20,7 +20,6 @@
 #define XL_ROOT_DEPTH 24
 #define XL_PIXEL_MASK 0x00ffffffu
 #define XL_ALL_PLANES UINT64_MAX
-#define XL_BUCKET_COUNT 1024
 
 /* Raster operations (the GX constants). */
 enum {
@@ -57,8 +56,6 @@ void xl_unlock(void);
 XlDrawable *xl_drawable_find(XlId id);
 XlDrawable *xl_drawable_add(XlId id, int is_window, int32_t depth, int32_t width, int32_t height, uint32_t background);
 void xl_drawable_remove(XlId id);
-/* The drawables of one hash bucket (index below XL_BUCKET_COUNT), for walking the whole table with the lock held. */
-const XlDrawable *xl_drawable_bucket(size_t index);
 /* Gives a window a buffer of the new size, keeping the old pixels at the top left, and asks for an Expose. */
 void xl_drawable_resize(XlDrawable *drawable, int32_t width, int32_t height);
 
@@ -121,7 +118,7 @@ void xl_invalidate(XlId drawable, int32_t x, int32_t y, int32_t width, int32_t h
 /* Writes one line to stderr when CROSSPORT_TRACE is set in the environment (a printf subset: %d %u %x %s). */
 void xl_trace(const char *format, ...);
 /* Tells the window dump (xlib_dump.c, CROSSPORT_DUMP_WINDOWS) that a window was painted. Does nothing when the variable is unset. */
-void xl_dump_notify_paint(void);
+void xl_dump_notify_paint(XlId window);
 /* Copies the pixels of a window that changed since the last call to the screen now. */
 void xl_present_all(void);
 /* Combines a source pixel with the one already there, as the raster operation says. */
