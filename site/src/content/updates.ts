@@ -4,9 +4,8 @@
  * Author: Akilesh
  * Date: 2026-11-06
  *
- * Mirrors CHANGELOG.md (0.7.5 to 0.7.13 and the installer entry); when those change, change this. The screenshots
- * are the ones in docs/images, copied to public/screens. No screenshot of the KeePassXC window is in the
- * repository yet, so the page shows an empty, labelled slot for it instead of an invented picture.
+ * Mirrors CHANGELOG.md (0.7.5 to 0.7.15 and the installer entry); when those change, change this. The screenshots
+ * are the ones in docs/images, copied to public/screens, including the gedit window.
  */
 
 export interface Update {
@@ -16,6 +15,12 @@ export interface Update {
 }
 
 export const UPDATES: readonly Update[] = [
+  {
+    version: "0.7.15",
+    title: "gedit (GTK 3) runs and takes typing",
+    summary:
+      "A GTK application now starts: gedit 51.0 draws its window with the GTK theme and shows what you type. It needed JuNest AppImages and packed relocations in the translator, the AppDir standing in for the system root, stood-in X extension libraries, XInitImage, dlsym over every module, an 8 MiB committed stack and scan codes for injected keys. D-Bus, dialogs and the clipboard are not done.",
+  },
   {
     version: "0.7.13",
     title: "Unix-domain sockets for D-Bus",
@@ -71,6 +76,19 @@ export interface Screenshot {
   readonly caption: string;
   readonly alt: string;
 }
+
+export const TOOLKIT_SCREENSHOTS: readonly Screenshot[] = [
+  {
+    file: "keepassxc-window.png",
+    caption: "KeePassXC 2.8.0 (Qt 6) translated and running on Windows",
+    alt: "The KeePassXC welcome window with its toolbar, menus and icons",
+  },
+  {
+    file: "gedit-typing.png",
+    caption: "gedit 51.0 (GTK 3) translated and running on Windows, after typing a line",
+    alt: "The gedit window with the text hello from crossport typed in, and the document marked modified",
+  },
+];
 
 export const SETUP_SCREENSHOTS: readonly Screenshot[] = [
   { file: "setup-1-welcome.png", caption: "Setup: welcome", alt: "Crossport Setup, welcome page" },

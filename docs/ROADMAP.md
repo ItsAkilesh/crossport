@@ -103,7 +103,11 @@ matching Linux. Text clipboard bridged with Windows, and a real SDL2 program (SD
   libxkbcommon-x11 reads, and StateNotify for modifiers. Still open for Qt: the auto-type plugin, `Unable to disable core dumps` (prctl and
   setrlimit). The `IHDR: CRC error` on PNG icons is fixed (0.7.9): Ubuntu's zlib picks `crc32` with a GNU indirect
   function, which the translator bound to its resolver instead of the chosen function. Unix-domain sockets for D-Bus are in (CHANGELOG 0.7.13: paths, `/run`, abstract names, `socketpair`, peer
-  credentials; no descriptor passing). Not started: GTK, a D-Bus session bus to connect to, GSettings.
+  credentials; no descriptor passing). Not started: a D-Bus session bus to connect to.
+- **GTK status (2026-11-06):** gedit 51.0 (GTK 3, a JuNest AppImage) starts, draws its window and takes typed text
+  (CHANGELOG 0.7.15), with GSettings schemas and icon themes found through the AppDir standing in for the system
+  root. It is in the corpus as `gedit`. Open for GTK: a D-Bus session bus to connect to, dialogs such as the file chooser,
+  the clipboard, spell-check providers, `XkbGetMap` for Xlib clients, and a window-contents check for it.
 - **Exit criterion:** a real Qt AppImage and a real GTK AppImage run with usable input and rendering, and
   a regression suite of their startup and basic interaction runs in CI.
 

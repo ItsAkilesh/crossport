@@ -2,7 +2,7 @@
  * File: shim/dlfcn.c
  * Purpose: dlopen, dlsym, dlclose, dlerror and dladdr for the libraries the shim itself provides
  * Author: Akilesh
- * Date: 2026-11-05
+ * Date: 2026-11-06
  *
  * Programs look up functions at run time to probe for optional features (for example a C++ runtime asking
  * for a pthread function, or SDL looking for the X11 libraries). The shim answers for its own libraries
@@ -75,6 +75,21 @@ LIBC_FN void *sysv_dlopen(const char *name, int flags)
     return plugin;
 }
 
+/* A lookup on the program itself (handle NULL, as GModule and GtkBuilder do for "get_type" functions) covers every
+ * translated module, since on Linux they all share one global symbol scope. */
+static void *find_in_loaded_modules(const char *name)
+{
+    size_t count = 0;
+    const LoadedModule *modules = shim_loaded_modules(&count);
+    for (size_t i = 0; i < count; i++) {
+        void *address = (void *)GetProcAddress((HMODULE)(void *)modules[i].base, name);
+        if (address != NULL) {
+            return address;
+        }
+    }
+    return NULL;
+}
+
 LIBC_FN void *sysv_dlsym(void *handle, const char *name)
 {
     set_error(NULL);
@@ -84,6 +99,9 @@ LIBC_FN void *sysv_dlsym(void *handle, const char *name)
         return NULL;
     }
     void *address = (void *)GetProcAddress(is_plugin ? (HMODULE)handle : self_module(), name);
+    if (address == NULL && !is_plugin) {
+        address = find_in_loaded_modules(name);
+    }
     if (address == NULL) {
         set_error(ERROR_SYMBOL);
     }

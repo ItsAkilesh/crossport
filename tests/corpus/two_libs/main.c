@@ -2,9 +2,10 @@
  * File: tests/corpus/two_libs/main.c
  * Purpose: Milestone 2 corpus program; uses two bundled shared libraries and prints evidence of every cross-module path
  * Author: Akilesh
- * Date: 2026-10-28
+ * Date: 2026-11-06
  */
 
+#include <dlfcn.h>
 #include <stdio.h>
 
 #include "libgreet.h"
@@ -28,5 +29,7 @@ int main(void)
     print_number("total:", greet_total());
     math_bump();
     print_number("counter after bump:", math_counter);
+    printf("scope: math_format %s, no_such_symbol %s\n", dlsym(NULL, "math_format") != NULL ? "found" : "missing",
+           dlsym(NULL, "no_such_symbol") != NULL ? "found" : "missing");
     return greet_total() == EXPECTED_TOTAL ? 0 : 1;
 }

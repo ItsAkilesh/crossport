@@ -1,7 +1,7 @@
 // File: translator/src/plugins.rs
 // Purpose: Find the plugin libraries a program opens with dlopen, in directories named on the command line
 // Author: Akilesh
-// Date: 2026-11-05
+// Date: 2026-11-06
 
 use std::fs::{self, File};
 use std::io::Read;
@@ -17,6 +17,25 @@ pub const MAX_PLUGINS: usize = 128;
 const MAX_DEPTH: usize = 8;
 const ELF_MAGIC: [u8; 4] = [0x7f, b'E', b'L', b'F'];
 const SHARED_OBJECT_MARKER: &str = ".so";
+
+/// Where toolkits keep the plugins they open with `dlopen`, relative to the AppDir: Qt platforms and styles,
+/// GTK input methods and modules, GIO modules, gdk-pixbuf loaders and an application's own plugins.
+const TOOLKIT_PLUGIN_DIRS: &[&str] = &[
+    "usr/plugins",
+    "usr/lib/gtk-3.0",
+    "usr/lib/gio",
+    "usr/lib/gdk-pixbuf-2.0",
+    "usr/lib/gedit/plugins",
+];
+
+/// The toolkit plugin directories that exist in an unpacked AppDir.
+pub fn toolkit_dirs(appdir: &Path) -> Vec<PathBuf> {
+    TOOLKIT_PLUGIN_DIRS
+        .iter()
+        .map(|dir| appdir.join(dir))
+        .filter(|path| path.is_dir())
+        .collect()
+}
 
 /// Every ELF shared object (a file whose name contains `.so`) under the directories, in a stable order.
 /// Symbolic links are not followed, so a hostile AppDir cannot point the scan elsewhere.
@@ -128,6 +147,17 @@ mod tests {
         fs::write(root.join("notes.txt"), ELF).expect("writes");
         fs::write(root.join("libfake.so"), b"text, not ELF").expect("writes");
         assert!(discover(&[root]).expect("discovers").is_empty());
+    }
+
+    #[test]
+    fn only_the_toolkit_directories_that_exist_are_listed() {
+        let root = scratch("toolkit");
+        fs::create_dir_all(root.join("usr/lib/gio")).expect("creates");
+        fs::create_dir_all(root.join("usr/plugins")).expect("creates");
+        assert_eq!(
+            toolkit_dirs(&root),
+            [root.join("usr/plugins"), root.join("usr/lib/gio")]
+        );
     }
 
     #[test]

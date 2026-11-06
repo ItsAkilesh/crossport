@@ -1,7 +1,7 @@
 // File: translator/src/graph.rs
 // Purpose: Load the executable and every bundled library it needs into a module graph with a safe initialisation order
 // Author: Akilesh
-// Date: 2026-11-05
+// Date: 2026-11-06
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -33,6 +33,17 @@ pub const SHIM_PROVIDED_LIBRARIES: &[&str] = &[
     "libX11-xcb.so.1",
     // XTest, which drives the in-process display's keyboard and pointer, is provided with it.
     "libXtst.so.6",
+    // The X extension libraries sit on Xlib's private wire interface, which the in-process display does not have.
+    // It offers no extensions, so they are stood in for and their entry points answer "not present".
+    "libXext.so.6",
+    "libXrandr.so.2",
+    "libXi.so.6",
+    "libXfixes.so.3",
+    "libXcomposite.so.1",
+    "libXdamage.so.1",
+    "libXinerama.so.1",
+    "libXrender.so.1",
+    "libXcursor.so.1",
     // OpenGL and GLX are provided on top of opengl32.dll (WGL) and the same Win32 windows.
     "libGL.so.1",
     "libGLX.so.0",

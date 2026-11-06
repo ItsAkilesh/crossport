@@ -2,7 +2,7 @@
  * File: tests/corpus/posix_io/posix_io.c
  * Purpose: Exercise pipes, eventfd, dup, fcntl, ioctl, poll and select, the descriptor calls event loops are built on
  * Author: Akilesh
- * Date: 2026-11-05
+ * Date: 2026-11-06
  */
 
 #define _GNU_SOURCE
@@ -16,6 +16,7 @@
 #include <string.h>
 #include <sys/eventfd.h>
 #include <sys/ioctl.h>
+#include <sys/prctl.h>
 #include <sys/select.h>
 #include <unistd.h>
 
@@ -195,6 +196,46 @@ static void test_dev_urandom(void)
     expect(close(fd) == 0, "/dev/urandom closes");
 }
 
+#define BIG_FRAME_BYTES (128u * 1024u)
+#define BIG_FRAME_SUM 16711680L
+
+/* A frame far larger than a page, as image and text libraries have: the stack must already be there to use. */
+static long big_frame_sum(void)
+{
+    volatile unsigned char buffer[BIG_FRAME_BYTES];
+    long sum = 0;
+    for (size_t i = 0; i < BIG_FRAME_BYTES; i++) {
+        buffer[i] = (unsigned char)i;
+    }
+    for (size_t i = 0; i < BIG_FRAME_BYTES; i++) {
+        sum += buffer[i];
+    }
+    return sum;
+}
+
+static void *big_frame_thread(void *result)
+{
+    *(long *)result = big_frame_sum();
+    return NULL;
+}
+
+static void test_big_frame(void)
+{
+    expect(big_frame_sum() == BIG_FRAME_SUM, "a 128 KiB frame works on the main thread");
+    long from_thread = 0;
+    pthread_t thread;
+    expect(pthread_create(&thread, NULL, big_frame_thread, &from_thread) == 0, "big frame thread started");
+    pthread_join(thread, NULL);
+    expect(from_thread == BIG_FRAME_SUM, "a 128 KiB frame works on another thread");
+}
+
+static void test_prctl(void)
+{
+    expect(prctl(PR_SET_DUMPABLE, 0, 0, 0, 0) == 0, "PR_SET_DUMPABLE succeeds");
+    expect(prctl(PR_GET_DUMPABLE, 0, 0, 0, 0) == 0, "PR_GET_DUMPABLE reads back the flag");
+    expect(prctl(0x7fff, 0, 0, 0, 0) == -1 && errno == EINVAL, "an unknown option fails with EINVAL");
+}
+
 static void test_proc_self_exe(void)
 {
     char path[4096];
@@ -219,6 +260,8 @@ int main(void)
     test_bad_descriptors();
     test_proc_self_exe();
     test_dev_urandom();
+    test_prctl();
+    test_big_frame();
     test_thread_self();
     printf("failures: %d\n", g_failures);
     return g_failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;

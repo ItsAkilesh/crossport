@@ -1,5 +1,7 @@
 {
   "passing": [
+    "gedit/gui-start",
+    "gedit/version",
     "jq/arg-and-slurp",
     "jq/compact",
     "jq/csv",
@@ -15,6 +17,8 @@
     "jq/string-functions",
     "jq/transform",
     "jq/version",
+    "keepassxc/gui-start",
+    "keepassxc/version",
     "lua/arithmetic",
     "lua/conversions",
     "lua/coroutines",

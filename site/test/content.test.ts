@@ -2,7 +2,7 @@
  * File: site/test/content.test.ts
  * Purpose: Tests that the page's content is consistent: programs, milestones and the pipeline match the sources they mirror
  * Author: Akilesh
- * Date: 2026-11-04
+ * Date: 2026-11-06
  */
 
 import { readFileSync } from "node:fs";
@@ -50,13 +50,13 @@ describe("programs", () => {
     }
   });
 
-  it("describes SDL2 as the measured 19 libraries: 3 provided and 16 stubbed", () => {
+  it("describes SDL2 as the measured 19 libraries: 8 provided and 11 stubbed", () => {
     const sdl2 = PROGRAMS.find((program) => program.id === "sdl2_window");
     expect(sdl2).toBeDefined();
     if (sdl2 === undefined) {
       return;
     }
-    expect(countByKind(sdl2)).toEqual({ program: 1, translated: 1, shim: 3, stubbed: 16 });
+    expect(countByKind(sdl2)).toEqual({ program: 1, translated: 1, shim: 8, stubbed: 11 });
     expect(sdl2.needs.filter(([from]) => from === "libSDL2-2.0.so.0")).toHaveLength(19);
   });
 });

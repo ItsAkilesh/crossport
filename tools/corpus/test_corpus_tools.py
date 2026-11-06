@@ -1,7 +1,7 @@
 """File: tools/corpus/test_corpus_tools.py
 Purpose: Tests for run_app_tests.py and compare_results.py: input validation, command building and the ratchet
 Author: Akilesh
-Date: 2026-10-28
+Date: 2026-11-06
 """
 
 from __future__ import annotations
@@ -80,6 +80,19 @@ class ParseTestCase(unittest.TestCase):
             run_app_tests.filter_stderr(path, re.compile(r"Test '.*': (Passed|Failed)"))
             kept = json.loads(path.read_text(encoding="utf-8"))["stderr"].splitlines()
         self.assertEqual(kept, ["INFO:  >>> Test 'a': Passed", "crossport: access violation at x.dll+0x1", "  from x.dll+0x2"])
+
+    def test_stdout_drop_removes_launcher_lines_only(self) -> None:
+        stdout = "JuNest running in proot mode\ngedit - Version 51.0\n"
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "r.json"
+            path.write_text(json.dumps({"stdout": stdout, "stderr": ""}), encoding="utf-8")
+            run_app_tests.filter_stdout(path, re.compile(r"^JuNest running"))
+            kept = json.loads(path.read_text(encoding="utf-8"))["stdout"]
+        self.assertEqual(kept, "gedit - Version 51.0\n")
+
+    def test_stdout_drop_must_be_a_string(self) -> None:
+        with self.assertRaises(ValueError):
+            run_app_tests.parse_test({"id": "t", "stdout_drop": 3})
 
     def test_the_difftest_command_carries_every_option_before_the_separator(self) -> None:
         test = run_app_tests.AppTest("t", ("a", "--timeout", "9"), "inputs/in", {}, 7)

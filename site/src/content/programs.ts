@@ -2,7 +2,7 @@
  * File: site/src/content/programs.ts
  * Purpose: The library dependencies of real corpus programs, and which Crossport translates, replaces or stubs
  * Author: Akilesh
- * Date: 2026-11-04
+ * Date: 2026-11-06
  *
  * Measured with `crossport analyze` on the Linux ELF files that CI builds (the elf-corpus artifact), on
  * 2026-11-04. "shim" marks a library the shim provides (translator/src/graph.rs, SHIM_PROVIDED_LIBRARIES);
@@ -28,16 +28,20 @@ export interface Program {
 }
 
 const SDL2_LIBRARY = "libSDL2-2.0.so.0";
-const SDL2_SHIM_LIBRARIES = ["libc.so.6", "libm.so.6", "libX11.so.6"] as const;
-const SDL2_STUBBED_LIBRARIES = [
-  "libasound.so.2",
-  "libpulse.so.0",
-  "libsamplerate.so.0",
+const SDL2_SHIM_LIBRARIES = [
+  "libc.so.6",
+  "libm.so.6",
+  "libX11.so.6",
   "libXext.so.6",
   "libXcursor.so.1",
   "libXi.so.6",
   "libXfixes.so.3",
   "libXrandr.so.2",
+] as const;
+const SDL2_STUBBED_LIBRARIES = [
+  "libasound.so.2",
+  "libpulse.so.0",
+  "libsamplerate.so.0",
   "libXss.so.1",
   "libdrm.so.2",
   "libgbm.so.1",

@@ -1,7 +1,7 @@
 // File: translator/src/pe_writer.rs
 // Purpose: Serialize a PeImage into the bytes of a PE32+ console executable or DLL
 // Author: Akilesh
-// Date: 2026-10-28
+// Date: 2026-11-06
 
 use crate::error::TranslateError;
 use crate::pe_model::{
@@ -19,8 +19,11 @@ const PE32_PLUS_MAGIC: u16 = 0x20B;
 const SUBSYSTEM_CONSOLE: u16 = 3;
 const DLL_DYNAMIC_BASE: u16 = 0x0040;
 const DLL_NX_COMPAT: u16 = 0x0100;
-const STACK_RESERVE: u64 = 0x10_0000;
-const STACK_COMMIT: u64 = 0x1000;
+/// The main thread gets glibc's default of 8 MiB, committed up front: Windows commits a stack one guard page at a time,
+/// so a frame of more than a page (image and text libraries have them) would otherwise fault, where Linux grows it.
+const STACK_RESERVE: u64 = 0x80_0000;
+const HEAP_RESERVE: u64 = 0x10_0000;
+const HEAP_COMMIT: u64 = 0x1000;
 const DATA_DIRECTORY_COUNT: u32 = 16;
 const EXPORT_DIRECTORY_INDEX: usize = 0;
 const IMPORT_DIRECTORY_INDEX: usize = 1;
@@ -126,7 +129,7 @@ fn write_optional_header(out: &mut Bytes, image: &PeImage) {
     out.u32(0); // CheckSum
     out.u16(SUBSYSTEM_CONSOLE);
     out.u16(DLL_DYNAMIC_BASE | DLL_NX_COMPAT);
-    for size in [STACK_RESERVE, STACK_COMMIT, STACK_RESERVE, STACK_COMMIT] {
+    for size in [STACK_RESERVE, STACK_RESERVE, HEAP_RESERVE, HEAP_COMMIT] {
         out.u64(size);
     }
     out.u32(0);
@@ -166,4 +169,36 @@ fn write_section_header(out: &mut Bytes, section: &PeSection) {
     out.u16(0);
     out.u16(0);
     out.u32(section.characteristics);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const STACK_RESERVE_OFFSET: usize = 4 + 20 + 72;
+
+    fn empty_image() -> PeImage {
+        PeImage {
+            kind: ImageKind::Executable,
+            image_base: 0x1_4000_0000,
+            entry_rva: 0,
+            sections: Vec::new(),
+            import_directory: Default::default(),
+            export_directory: Default::default(),
+            base_reloc_directory: Default::default(),
+        }
+    }
+
+    #[test]
+    fn the_main_thread_stack_is_as_large_as_glibcs_default() {
+        let bytes = write(&empty_image()).expect("writes");
+        let header = u32::from_le_bytes(
+            bytes[E_LFANEW_OFFSET..E_LFANEW_OFFSET + 4]
+                .try_into()
+                .expect("four bytes"),
+        ) as usize;
+        let at = header + STACK_RESERVE_OFFSET;
+        let reserve = u64::from_le_bytes(bytes[at..at + 8].try_into().expect("eight bytes"));
+        assert_eq!(reserve, 8 * 1024 * 1024);
+    }
 }

@@ -8,6 +8,7 @@ mod code_ranges;
 mod dynamic;
 mod header;
 mod relocs;
+mod relr;
 mod symbols;
 
 use object::elf;

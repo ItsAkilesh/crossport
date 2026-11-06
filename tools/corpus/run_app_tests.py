@@ -39,6 +39,7 @@ class AppTest:
     files: dict[str, str]
     timeout: int
     stderr_keep: re.Pattern[str] | None = None
+    stdout_drop: re.Pattern[str] | None = None
     env: tuple[tuple[str, str], ...] = ()
     window_size: tuple[int, int] | None = None
 
@@ -92,7 +93,11 @@ def parse_test(raw: object) -> AppTest:
     keep = raw.get("stderr_keep")
     if keep is not None and not isinstance(keep, str):
         raise ValueError(f"{test_id}: stderr_keep must be a regular expression string")
+    drop = raw.get("stdout_drop")
+    if drop is not None and not isinstance(drop, str):
+        raise ValueError(f"{test_id}: stdout_drop must be a regular expression string")
     return AppTest(
+        stdout_drop=re.compile(drop) if drop is not None else None,
         window_size=parse_window_check(test_id, raw.get("window_check")),
         id=test_id,
         args=tuple(args),
@@ -183,6 +188,15 @@ def filter_stderr(result_path: Path, keep: re.Pattern[str]) -> None:
     result_path.write_text(json.dumps(result), encoding="utf-8")
 
 
+def filter_stdout(result_path: Path, drop: re.Pattern[str]) -> None:
+    """Removes the stdout lines matching `drop`: text a launcher prints that the translated program never does
+    (JuNest announces its sandbox mode, for one)."""
+    result = json.loads(result_path.read_text(encoding="utf-8"))
+    kept = [line for line in result["stdout"].splitlines(keepends=True) if not drop.search(line)]
+    result["stdout"] = "".join(kept)
+    result_path.write_text(json.dumps(result), encoding="utf-8")
+
+
 def run_all(app_dir: Path, exe: Path, label: str, work: Path, results: Path, difftest: Path) -> int:
     name, tests = load_app(app_dir)
     results.mkdir(parents=True, exist_ok=True)
@@ -202,6 +216,8 @@ def run_all(app_dir: Path, exe: Path, label: str, work: Path, results: Path, dif
             anonymize_program(out, exe, name)
             if test.stderr_keep is not None:
                 filter_stderr(out, test.stderr_keep)
+            if test.stdout_drop is not None:
+                filter_stdout(out, test.stdout_drop)
         if dumps is not None and test.window_size is not None:
             failures += report_window_check(f"{name}/{test.id}", dumps, test.window_size)
     print(f"{name}: ran {len(tests)} tests ({label}), {failures} runner failures")

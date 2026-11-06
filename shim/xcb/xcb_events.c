@@ -22,6 +22,7 @@
 #define SCANCODE_CONTROL 0x1D
 #define SCANCODE_ALT 0x38
 #define SCANCODE_SHIFT 16
+#define EXTENDED_PREFIX 0xE0u
 #define SCANCODE_MASK 0xff
 #define EXTENDED_SHIFT 24
 #define FOCUS_NONLINEAR 3
@@ -154,10 +155,21 @@ static uint16_t state_before(uint16_t state, uint16_t bit, int is_press, int is_
     return (uint16_t)(state | bit);
 }
 
-static void push_key(HWND window, LPARAM parameter, uint8_t type)
+/* Injected keys (SendInput with a virtual key, remote desktops) arrive without a scan code: ask Windows for it. */
+static void fill_missing_scancode(WPARAM virtual_key, uint8_t *scancode, int *is_extended)
+{
+    UINT mapped = MapVirtualKeyW((UINT)virtual_key, MAPVK_VK_TO_VSC_EX);
+    *scancode = (uint8_t)(mapped & SCANCODE_MASK);
+    *is_extended = (mapped >> 8) == EXTENDED_PREFIX;
+}
+
+static void push_key(HWND window, WPARAM virtual_key, LPARAM parameter, uint8_t type)
 {
     uint8_t scancode = (uint8_t)((parameter >> SCANCODE_SHIFT) & SCANCODE_MASK);
     int is_extended = ((parameter >> EXTENDED_SHIFT) & 1) != 0;
+    if (scancode == 0) {
+        fill_missing_scancode(virtual_key, &scancode, &is_extended);
+    }
     uint16_t state = input_state();
     switch (scancode) {
     case SCANCODE_SHIFT_LEFT:
@@ -307,11 +319,11 @@ static LRESULT CALLBACK window_procedure(HWND window, UINT message, WPARAM wpara
         break;
     case WM_KEYDOWN:
     case WM_SYSKEYDOWN:
-        push_key(window, lparam, XCB_EVENT_KEY_PRESS);
+        push_key(window, wparam, lparam, XCB_EVENT_KEY_PRESS);
         break;
     case WM_KEYUP:
     case WM_SYSKEYUP:
-        push_key(window, lparam, XCB_EVENT_KEY_RELEASE);
+        push_key(window, wparam, lparam, XCB_EVENT_KEY_RELEASE);
         break;
     case WM_MOUSEMOVE:
         push_motion(window, lparam);
