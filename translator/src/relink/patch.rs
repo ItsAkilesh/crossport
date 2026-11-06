@@ -1,7 +1,7 @@
 // File: translator/src/relink/patch.rs
 // Purpose: Apply a module's relocations to its virtual image, deferring what only the shim can finish at startup
 // Author: Akilesh
-// Date: 2026-10-28
+// Date: 2026-11-06
 
 use crate::elf_model::{RelocKind, Relocation};
 use crate::error::TranslateError;
@@ -84,6 +84,9 @@ impl Patcher<'_, '_> {
             RelocKind::Relative { addend } => self.absolute(slot, 0, addend),
             RelocKind::Symbol { symbol, addend } => self.symbol(slot, symbol, addend),
             RelocKind::Copy { symbol } => self.copy(slot, symbol),
+            RelocKind::Indirect { .. } => Err(TranslateError::Elf(
+                "internal: an indirect-function slot was not redirected".into(),
+            )),
             RelocKind::TlsModule { symbol } => {
                 // The module id is opaque to compiled code, which only hands the
                 // (module, offset) pair to __tls_get_addr. We use the module's block

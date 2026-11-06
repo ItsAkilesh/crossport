@@ -23,6 +23,12 @@ export const UPDATES: readonly Update[] = [
       "A debug switch makes the in-process X11 save each window's pixels as pictures, and the KeePassXC start test now fails if no window of a useful size has drawn contents. CI keeps the pictures, so a person can look at what the test saw.",
   },
   {
+    version: "0.7.8",
+    title: "Indirect functions, and PNG icons without CRC errors",
+    summary:
+      "Functions that a library picks at load time (GNU indirect functions, which Ubuntu's zlib uses for crc32) now resolve to the chosen implementation. Before, every checksum was wrong and KeePassXC's PNG icons failed with IHDR: CRC error.",
+  },
+  {
     version: "0.7.7",
     title: "KeePassXC shows its window",
     summary:

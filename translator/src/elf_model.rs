@@ -1,7 +1,9 @@
 // File: translator/src/elf_model.rs
 // Purpose: Plain data describing an analyzed ELF module, independent of the parser
 // Author: Akilesh
-// Date: 2026-10-29
+// Date: 2026-11-06
+
+use crate::ifunc::IfuncTable;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SegmentFlags {
@@ -44,6 +46,8 @@ pub struct DynSymbol {
     pub size: u64,
     /// `STT_TLS`: the value is an offset inside the module's TLS segment, not an address.
     pub is_tls: bool,
+    /// `STT_GNU_IFUNC`: the value is a resolver, not the function itself.
+    pub is_ifunc: bool,
 }
 
 impl DynSymbol {
@@ -79,6 +83,8 @@ pub enum RelocKind {
     Relative { addend: i64 },
     /// `R_X86_64_64`, `GLOB_DAT` and `JUMP_SLOT`: the slot holds `symbol address + addend`.
     Symbol { symbol: usize, addend: i64 },
+    /// `R_X86_64_IRELATIVE`: the slot holds what the resolver at this address returns.
+    Indirect { resolver: u64 },
     /// `R_X86_64_COPY`: copy the symbol's initial data from the defining library into the slot.
     Copy { symbol: usize },
     /// `R_X86_64_DTPMOD64`: the id of the module defining the TLS symbol (`None`: this module).
@@ -136,4 +142,6 @@ pub struct ElfInfo {
     pub code_ranges: Vec<CodeRange>,
     /// Virtual address of `PT_GNU_EH_FRAME`: how the C++ and C unwinders find a module's frame tables.
     pub eh_frame_header: Option<u64>,
+    /// The trampolines that stand in for the module's indirect-function resolvers.
+    pub ifuncs: IfuncTable,
 }
