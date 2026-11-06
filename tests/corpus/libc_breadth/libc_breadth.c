@@ -2,11 +2,12 @@
  * File: tests/corpus/libc_breadth/libc_breadth.c
  * Purpose: Exercise everyday libc functions command-line tools use: getopt, string splitting, drand48, qsort_r, tsearch, hsearch, getline
  * Author: Akilesh
- * Date: 2026-10-29
+ * Date: 2026-11-06
  */
 
 #define _GNU_SOURCE
 #include <dirent.h>
+#include <errno.h>
 #include <fnmatch.h>
 #include <getopt.h>
 #include <glob.h>
@@ -14,6 +15,7 @@
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/auxv.h>
 #include <string.h>
 #include <strings.h>
 #include <sys/stat.h>
@@ -207,6 +209,16 @@ static void test_getline_and_asprintf(void)
     expect(result.quot == 3 && result.rem == 2, "div");
 }
 
+static void test_auxv(void)
+{
+    errno = 0;
+    unsigned long secure = getauxval(AT_SECURE);
+    expect(secure == 0 && errno == 0, "AT_SECURE is found and zero");
+    expect(getauxval(AT_PAGESZ) == 4096, "AT_PAGESZ is the page size");
+    errno = 0;
+    expect(getauxval(0x7777) == 0 && errno == ENOENT, "an unknown entry is not found");
+}
+
 int main(void)
 {
     test_getopt();
@@ -215,6 +227,7 @@ int main(void)
     test_search();
     test_getline_and_asprintf();
     test_files_and_globs();
+    test_auxv();
     printf("failures: %d\n", g_failures);
     return g_failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }

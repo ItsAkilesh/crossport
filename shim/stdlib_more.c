@@ -2,7 +2,7 @@
  * File: shim/stdlib_more.c
  * Purpose: div, strtoimax, reallocarray, heap introspection, getpagesize, getauxval and clearenv
  * Author: Akilesh
- * Date: 2026-10-29
+ * Date: 2026-11-06
  */
 
 #include <string.h>
@@ -97,10 +97,16 @@ LIBC_FN int sysv_gettid(void)
     return (int)GetCurrentThreadId();
 }
 
-/* No auxiliary vector is exposed; every lookup reports "not found". */
+/* Only the entries programs ask for are answered (GLib aborts when AT_SECURE is missing); the rest read "not
+ * found". errno is cleared on success because callers tell zero from "missing" by it. */
 LIBC_FN uint64_t sysv_getauxval(uint64_t type)
 {
-    (void)type;
+    enum { AT_PAGESZ = 6, AT_HWCAP = 16, AT_CLKTCK = 17, AT_SECURE = 23, AT_HWCAP2 = 26 };
+    enum { PAGE_BYTES = 4096, CLOCK_TICKS = 100 };
+    if (type == AT_PAGESZ || type == AT_HWCAP || type == AT_CLKTCK || type == AT_SECURE || type == AT_HWCAP2) {
+        shim_set_errno(0);
+        return type == AT_PAGESZ ? PAGE_BYTES : (type == AT_CLKTCK ? CLOCK_TICKS : 0);
+    }
     shim_set_errno(LINUX_ENOENT);
     return 0;
 }
