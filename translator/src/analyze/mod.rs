@@ -1,13 +1,14 @@
 // File: translator/src/analyze/mod.rs
 // Purpose: Parse a 64-bit x86-64 ET_DYN ELF (PIE or shared library) into an ElfInfo
 // Author: Akilesh
-// Date: 2026-10-29
+// Date: 2026-11-06
 
 mod address_map;
 mod code_ranges;
 mod dynamic;
 mod header;
 mod relocs;
+mod relr;
 mod symbols;
 
 use object::elf;
