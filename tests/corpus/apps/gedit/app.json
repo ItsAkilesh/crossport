@@ -27,6 +27,10 @@
       "stderr_keep": "(?!)",
       "env": {
         "GDK_BACKEND": "x11"
+      },
+      "window_check": {
+        "min_width": 200,
+        "min_height": 150
       }
     }
   ]

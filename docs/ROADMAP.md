@@ -2,7 +2,7 @@
   File: docs/ROADMAP.md
   Purpose: Milestones and exit criteria for Crossport
   Author: Akilesh
-  Date: 2026-11-05
+  Date: 2026-11-06
 -->
 
 # Crossport Roadmap
@@ -98,15 +98,15 @@ matching Linux. Text clipboard bridged with Windows, and a real SDL2 program (SD
 - **The red zone (done in 0.7.1, see DESIGN 2.12):** audited, enforced in CI, and tested with red-zone code.
 - **Status (2026-11-05):** KeePassXC 2.8.0 (Qt 6) runs translated and shows its main window and a dialog, drawn by
   Qt's `xcb` platform on the in-process X11, with mouse and keyboard events arriving (CHANGELOG 0.7.7). A startup
-  run is in the corpus. XKB is in (CHANGELOG 0.7.8): the extension, the keymap
-  libxkbcommon-x11 reads, and StateNotify for modifiers. Still open for Qt: checking the window's
-  contents rather than only that it stays up, the auto-type plugin, `Unable to disable core dumps` (prctl and
-  setrlimit), and PNG icons that fail with `IHDR: CRC error` (suspected zlib `crc32` in the translated library, not
-  yet isolated). Not started: D-Bus over Unix sockets.
+  run is in the corpus, and it fails when the window has no drawn contents (`CROSSPORT_DUMP_WINDOWS`, CHANGELOG
+  0.7.10). XKB is in (CHANGELOG 0.7.8): the extension, the keymap
+  libxkbcommon-x11 reads, and StateNotify for modifiers. Still open for Qt: the auto-type plugin, `Unable to disable core dumps` (prctl and
+  setrlimit). The `IHDR: CRC error` on PNG icons is fixed (0.7.9): Ubuntu's zlib picks `crc32` with a GNU indirect
+  function, which the translator bound to its resolver instead of the chosen function. Not started: D-Bus over Unix sockets (a pull request has them).
 - **GTK status (2026-11-06):** gedit 51.0 (GTK 3, a JuNest AppImage) starts, draws its window and takes typed text
-  (CHANGELOG 0.7.10), with GSettings schemas and icon themes found through the AppDir standing in for the system
+  (CHANGELOG 0.7.12), with GSettings schemas and icon themes found through the AppDir standing in for the system
   root. It is in the corpus as `gedit`. Open for GTK: D-Bus (no session bus), dialogs such as the file chooser,
-  the clipboard, spell-check providers, `XkbGetMap` for Xlib clients, and an automated check of the window contents.
+  the clipboard, spell-check providers, `XkbGetMap` for Xlib clients, and a window-contents check for it.
 - **Exit criterion:** a real Qt AppImage and a real GTK AppImage run with usable input and rendering, and
   a regression suite of their startup and basic interaction runs in CI.
 

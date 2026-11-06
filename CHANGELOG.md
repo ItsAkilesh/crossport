@@ -5,7 +5,7 @@ being worked on. A feature commit that adds user-visible capability (a new flag,
 that runs) bumps the patch number; a fix does not. The version lives in `translator/Cargo.toml` and is
 bumped in the same commit as the change. Releases are tagged by the maintainer, not by automation.
 
-## 0.7.10
+## 0.7.12
 
 - gedit 51.0 (GTK 3, a JuNest AppImage built from Arch Linux packages) starts, draws its window with the GTK theme,
   and takes the keyboard: typing "hello from crossport" shows the text, marks the document modified and moves the
@@ -36,10 +36,37 @@ bumped in the same commit as the change. Releases are tagged by the maintainer, 
 - Not yet: D-Bus (gedit runs without a session bus), spell-check providers (enchant backends are left out), the
   file chooser and other dialogs, clipboard, window-manager hints beyond title and size.
 
-## 0.7.9
+## 0.7.11
 
 - `prctl` answers: `PR_SET_DUMPABLE` is remembered and read back, `PR_SET_NAME` succeeds and any other option fails
   with `EINVAL`. KeePassXC no longer warns `Unable to disable core dumps`. Tested in `posix_io`.
+
+## 0.7.10
+
+- The corpus checks that a toolkit window really has contents. `CROSSPORT_DUMP_WINDOWS=<directory>` makes the shim
+  write the pixels of every window that has painted to `window-<id>.ppm`, about twice a second while it paints (a run
+  stopped by a timeout never reaches an exit handler, so the dump does not wait for one). A corpus test with a
+  `window_check` entry (`keepassxc/gui-start`) runs with it, and `tools/corpus/window_check.py` decides: some window of
+  at least 200x150 must use eight or more colours, with 1% of its pixels different from its most common colour; a
+  window that never painted is one flat colour and fails. It also writes a PNG beside each dump, which CI uploads as
+  the `app-windows-pictures` artifact, so a person can see what the test saw (the KeePassXC window shows the welcome
+  page, logo and buttons).
+- Found while building it: the check needed the window's pixels from the xcb path, so the dump follows painted
+  windows instead of the Xlib "mapped" flag, which only Xlib's `XMapWindow` sets.
+
+## 0.7.9
+
+- GNU indirect functions work. A symbol of type `STT_GNU_IFUNC` holds a resolver that returns the real function, and
+  an `R_X86_64_IRELATIVE` slot holds what a resolver returns. The translator used to bind a call to the resolver
+  itself, so the translated Ubuntu zlib 1.2.11 (which selects `crc32_z` this way) returned the resolver's code
+  address as every checksum, and libpng in KeePassXC reported `IHDR: CRC error` for its PNG icons. Each resolver now
+  gets a small trampoline in the module (sections `.cifunc` and `.cifdt`) that saves the argument registers, runs the
+  resolver on the first call, caches the answer and jumps to it; later calls cost one indirect jump. Symbols that
+  share a resolver share a trampoline, a variadic target still sees its vector-register count, and a module may
+  have at most 4096 resolvers.
+- Two corpus cases: `zlib_crc` (crc32 and adler32 of every length up to 600 at 16 alignments, against a bitwise
+  reference, through the system `libz.so.1`) and `ifunc` (an exported, a local and a variadic indirect function
+  called through the PLT, through a pointer and from inside their library).
 
 ## 0.7.8
 

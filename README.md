@@ -2,7 +2,7 @@
   File: README.md
   Purpose: The single guide to Crossport: why it exists, how it works, what is built, how to install and use it, and how to run the harness.
   Author: Akilesh
-  Date: 2026-11-04
+  Date: 2026-11-06
 -->
 
 <h1 align="center">
@@ -169,7 +169,7 @@ invocations. Vulkan programs render and present through the Windows Vulkan loade
 (X11 driver) opens a window, draws and receives keyboard, text, pointer and wheel events, and OpenGL
 (through GLX) and EGL programs, including an OpenGL ES 2 context, render the same pixels as on Linux. All of
 that runs on an in-process X11 (Xlib and xcb on Win32 windows) with no X server. `crossport convert` turns an
-AppImage into a runnable bundle in one step. The clipboard works for text. Milestone 6 is complete: a real SDL2 program (SDL's own test harness) runs, and so do GL samples. What is not done:
+AppImage into a runnable bundle in one step. The clipboard works for text. KeePassXC (Qt 6) shows its window, and CI checks that the window has drawn contents, not only that the program stays up. Milestone 6 is complete: a real SDL2 program (SDL's own test harness) runs, and so do GL samples. What is not done:
 text drawing through fonts, and real Qt and GTK applications (Milestone 7), then an installer and hardening; see docs/ROADMAP.md and
 [CHANGELOG.md](CHANGELOG.md).
 
@@ -193,7 +193,7 @@ installed system-wide, no registry keys are written and no administrator rights 
 | Vulkan programs (offscreen and in a window) | Works. Needs a Windows Vulkan driver. |
 | SDL2 programs using the X11 driver (windows, software drawing, keyboard, mouse) | Works for the test programs. |
 | OpenGL (GLX) and EGL programs, including OpenGL ES 2 | Works for the test programs. Needs an OpenGL driver. |
-| Qt and GTK applications | **Partly.** KeePassXC (Qt 6) shows its window and takes the keyboard and mouse, with the XKB extension and keymap Qt asks for; gedit (GTK 3) shows its window and takes typed text; D-Bus, dialogs and the clipboard are not done (Milestone 7). Try `coverage` first. |
+| Qt and GTK applications | **Partly.** KeePassXC (Qt 6) shows its window and takes the keyboard and mouse, with PNG icons and the XKB extension and keymap Qt asks for; gedit (GTK 3) shows its window and takes typed text; D-Bus, dialogs and the clipboard are not done (Milestone 7). Try `coverage` first. |
 | Anything that draws text through X fonts or fontconfig, or uses sound | Not yet. Sound libraries are not provided, so audio is silent when they are stubbed. |
 | Electron, the JVM and other apps that generate machine code at run time | Out of scope. |
 

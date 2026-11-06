@@ -1,7 +1,7 @@
 // File: translator/src/relink/mod.rs
 // Purpose: Relink one ELF module of a graph into a PE image (executable or DLL) bound to its dependencies and the shim
 // Author: Akilesh
-// Date: 2026-11-05
+// Date: 2026-11-06
 
 mod layout;
 mod patch;
@@ -10,6 +10,7 @@ use crate::base_reloc;
 use crate::error::TranslateError;
 use crate::exports::{self, ExportEntry};
 use crate::graph::{Module, ModuleGraph};
+use crate::ifunc;
 use crate::imports::{self, ImportSet, ImportTables};
 use crate::pe_model::{
     align_up, preferred_base, DataDirectory, ImageKind, PeImage, PeSection, PAGE_SIZE, RVA_BIAS,
@@ -23,6 +24,7 @@ use crate::tls_layout::TlsLayout;
 use patch::{PatchContext, Patched};
 
 const CANARY_CELL_BYTES: usize = 8;
+const IFUNC_CELL_BYTES: usize = 8;
 
 /// A relinked module together with what the rewrite pass did to it.
 pub struct Relinked {
@@ -77,6 +79,7 @@ pub fn relink_module(
         next_rva: layout.end_rva,
         sections: Vec::new(),
     };
+    push_ifunc_trampolines(&mut plan, module, layout.end_rva)?;
     let rewritten =
         rewrite_fs_accesses(&mut image, module, &mut plan).map_err(|error| match error {
             TranslateError::Unsupported(message) => {
@@ -127,6 +130,31 @@ pub fn relink_module(
         },
         stats: rewritten.stats,
     })
+}
+
+/// Adds the trampoline code and its cells where `ifunc::redirect` promised them: the first pages after the segments.
+fn push_ifunc_trampolines(
+    plan: &mut SectionPlan,
+    module: &Module,
+    end_rva: u64,
+) -> Result<(), TranslateError> {
+    let ifuncs = &module.info.ifuncs;
+    if ifuncs.resolvers.is_empty() {
+        return Ok(());
+    }
+    if RVA_BIAS + ifuncs.base_vaddr != end_rva {
+        return Err(TranslateError::Elf(
+            "internal: the indirect-function trampolines moved".into(),
+        ));
+    }
+    plan.push(
+        ".cifunc",
+        ifunc::build_trampolines(ifuncs),
+        SCN_READ | SCN_EXECUTE | SCN_CODE,
+    );
+    let cells = vec![0; ifuncs.resolvers.len() * IFUNC_CELL_BYTES];
+    plan.push(".cifdt", cells, SCN_READ | SCN_WRITE);
+    Ok(())
 }
 
 /// What the FS-rewrite pass left behind for the rest of the pipeline.
