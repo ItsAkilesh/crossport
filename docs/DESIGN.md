@@ -109,6 +109,19 @@ What it showed, and what has been done about it:
   poll engine and delivers level-triggered events (EPOLLONESHOT is honoured). Sockets are Winsock sockets
   kept non-blocking, with blocking emulated by waiting on the socket's event; Unix-domain paths go
   through the path mapper. `posix_io`, `sockets` and `event_loop` test them.
+
+**Unix-domain sockets (0.7.9).** D-Bus needs `AF_UNIX` stream sockets, which Winsock has since Windows 10. The
+shim keeps the socket descriptor kind and changes only the addresses (`sock_unix.c`). A pathname goes through the
+path mapper; `/run` and `/var/run` map to `%TEMP%\crossport-run`, whose parent directories are created when a
+program binds there (on Linux systemd makes `/run/user/<uid>`). Winsock has no abstract namespace, so a name that
+starts with a NUL byte becomes a file in `%TEMP%\crossport-abs`, unsafe bytes written as `%xx` to stay under the 108
+bytes of `sun_path`; the file is deleted when the binding socket closes, which is when a Linux name disappears. The
+reverse mapping runs in `getsockname`, `getpeername`, `accept` and `recvfrom`. `connect` looks for the file first,
+because Winsock reports a missing path as a refused connection and Linux as `ENOENT`. `socketpair` binds a listener
+to a fresh private path, connects, accepts and deletes the file (`sock_pair.c`); it used a loopback TCP pair before,
+which another local program could have joined. Refused on purpose: `SCM_RIGHTS` (`EOPNOTSUPP`), datagram and
+seqpacket Unix sockets, and binding without a name. `SO_PEERCRED` reports the fixed user and group the shim shows
+everywhere (1000) and the peer's pid when `SIO_AF_UNIX_GETPEERPID` exists. `unix_sockets` tests all of this.
 - **Child processes.** `fork` has no efficient Windows counterpart, so it fails with ENOSYS. The spawn
   family maps onto `CreateProcess`: `posix_spawn` and `posix_spawnp` with file actions for descriptors 0
   to 2, `waitpid`, `kill` (signals other than 0 terminate the process and are reported to `waitpid`),
