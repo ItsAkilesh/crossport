@@ -18,7 +18,8 @@
         "--version"
       ],
       "timeout": 180,
-      "stderr_keep": "(?!)"
+      "stderr_keep": "(?!)",
+      "stdout_drop": "^JuNest running"
     },
     {
       "id": "gui-start",
@@ -31,7 +32,8 @@
       "window_check": {
         "min_width": 200,
         "min_height": 150
-      }
+      },
+      "stdout_drop": "^JuNest running"
     }
   ]
 }
