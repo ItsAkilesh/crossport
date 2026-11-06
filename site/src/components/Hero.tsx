@@ -2,7 +2,7 @@
  * File: site/src/components/Hero.tsx
  * Purpose: The opening: the claim, what Crossport does in one paragraph, the two actions and the live hero figure
  * Author: Akilesh
- * Date: 2026-11-05
+ * Date: 2026-11-06
  */
 
 import { AUTHOR_NAME, REPOSITORY_URL } from "../content/distributions";
@@ -32,7 +32,7 @@ export function Hero() {
           </a>
         </div>
         <p className="fineprint">
-          Command-line tools, Vulkan, OpenGL and SDL2 programs work today, including SDL's own test harness. Plugin loading is in. Qt and GTK are next.
+          Command-line tools, Vulkan, OpenGL and SDL2 programs work today, including SDL's own test harness. KeePassXC, a Qt 6 application, shows its window. GTK is next.
         </p>
       </div>
       <SceneCanvas

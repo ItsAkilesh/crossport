@@ -2,11 +2,13 @@
  * File: site/src/components/InstallSection.tsx
  * Purpose: How to build Crossport and convert an AppImage today (an installer can be built from source; there is no signed download yet), and what does not work yet
  * Author: Akilesh
- * Date: 2026-11-05
+ * Date: 2026-11-06
  */
 
 import { INSTALL_STEPS, LIMITS, REPOSITORY_URL, REQUIREMENTS } from "../content/distributions";
+import { INSTALLER_FACTS, LAUNCHER_SCREENSHOTS, SETUP_SCREENSHOTS } from "../content/updates";
 import { CommandBlock } from "./CommandBlock";
+import { ScreenshotRow } from "./ScreenshotRow";
 import { Section } from "./Section";
 
 export function InstallSection() {
@@ -40,6 +42,19 @@ export function InstallSection() {
         and graphics driver notes, is in the{" "}
         <a href={`${REPOSITORY_URL}#use-crossport-on-windows`}>README</a>.
       </p>
+      <div className="detail">
+        <h3>The installer</h3>
+        <p>
+          Build it with <code>bash installer/package.sh build/installer</code>.
+        </p>
+        <ScreenshotRow shots={SETUP_SCREENSHOTS} />
+        <ScreenshotRow shots={LAUNCHER_SCREENSHOTS} />
+        <ul className="plain">
+          {INSTALLER_FACTS.map((fact) => (
+            <li key={fact}>{fact}</li>
+          ))}
+        </ul>
+      </div>
       <div className="detail">
         <h3>Honest limits</h3>
         <ul className="plain">

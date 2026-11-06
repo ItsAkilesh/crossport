@@ -2,7 +2,7 @@
  * File: site/src/styles/sections.css
  * Purpose: Styles for the page's sections: the figures and their controls, legends, the milestone list, cards, install steps and the footer
  * Author: Akilesh
- * Date: 2026-11-05
+ * Date: 2026-11-06
  */
 
 .section {
@@ -307,6 +307,51 @@
   content: counter(step) ". ";
   color: var(--muted);
   font-family: var(--mono);
+}
+
+.updates {
+  display: grid;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.shots {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 14px;
+  margin: 0;
+}
+
+.shots figure,
+.shot-slot {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.shots img {
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+}
+
+.shot-empty {
+  display: grid;
+  place-items: center;
+  min-height: 200px;
+  padding: 20px;
+  border: 2px dashed var(--rule);
+  border-radius: 16px;
+  color: var(--muted);
+  text-align: center;
+}
+
+figcaption {
+  color: var(--muted);
+  font-size: 0.9rem;
 }
 
 @media (min-width: 900px) {
