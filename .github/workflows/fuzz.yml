@@ -81,6 +81,7 @@ jobs:
       - name: Fuzz ${{ matrix.target }}
         working-directory: fuzz
         env:
+          ASAN_OPTIONS: detect_leaks=0
           RUN_SECONDS: ${{ github.event_name == 'schedule' && env.SCHEDULED_SECONDS || github.event_name == 'workflow_dispatch' && inputs.seconds || env.SMOKE_SECONDS }}
         run: |
           mkdir -p "work/${{ matrix.target }}"
@@ -89,7 +90,6 @@ jobs:
             -max_total_time="$RUN_SECONDS" \
             -timeout="$TARGET_TIMEOUT_SECONDS" \
             -rss_limit_mb="$MEMORY_LIMIT_MB" \
-            -detect_leaks=0 \
             -max_len=1048576
       - name: Save the Cargo cache
         if: always() && steps.cargo.outputs.cache-hit != 'true'
