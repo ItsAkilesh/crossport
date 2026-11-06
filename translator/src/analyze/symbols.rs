@@ -1,7 +1,7 @@
 // File: translator/src/analyze/symbols.rs
 // Purpose: Count and read .dynsym using only PT_DYNAMIC data (no section headers needed)
 // Author: Akilesh
-// Date: 2026-10-28
+// Date: 2026-11-06
 
 use object::elf;
 use object::read::elf::Sym;
@@ -133,5 +133,6 @@ fn to_symbol(entry: &SymEntry, strings: &Strings<'_>) -> Result<DynSymbol, Trans
         definition,
         size: entry.st_size(endian),
         is_tls: entry.st_type() == elf::STT_TLS,
+        is_ifunc: entry.st_type() == elf::STT_GNU_IFUNC,
     })
 }
