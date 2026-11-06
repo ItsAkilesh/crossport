@@ -1,5 +1,7 @@
 {
   "passing": [
+    "gedit/gui-start",
+    "gedit/version",
     "jq/arg-and-slurp",
     "jq/compact",
     "jq/csv",

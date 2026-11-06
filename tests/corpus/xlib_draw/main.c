@@ -156,8 +156,8 @@ static void put_described_image(Display *display, Window window)
     int is_ready = XInitImage(&image);
     printf("init image: ready=%d bytes_per_line=%d pixel=%lx\n", is_ready, image.bytes_per_line,
            (unsigned long)XGetPixel(&image, 1, 1) & PIXEL_MASK);
-    XPutImage(display, window, gc, &image, 0, 0, 200, 100, PATTERN_WIDTH, PATTERN_HEIGHT);
-    XImage *back = XGetImage(display, window, 200, 100, PATTERN_WIDTH, PATTERN_HEIGHT, AllPlanes, ZPixmap);
+    XPutImage(display, window, gc, &image, 0, 0, 120, 120, PATTERN_WIDTH, PATTERN_HEIGHT);
+    XImage *back = XGetImage(display, window, 120, 120, PATTERN_WIDTH, PATTERN_HEIGHT, AllPlanes, ZPixmap);
     printf("init image: round_trip=%d\n", (XGetPixel(back, 2, 3) & PIXEL_MASK) == pixels[3 * PATTERN_WIDTH + 2]);
     XDestroyImage(back);
     XFreeGC(display, gc);
