@@ -1,7 +1,7 @@
 # File: .github/workflows/ci.yml
 # Purpose: Build and run corpus cases on Linux and Windows in parallel jobs, then diff the results
 # Author: Akilesh
-# Date: 2026-11-05
+# Date: 2026-11-06
 #
 # Job graph (the Windows work that needs no Linux output starts at once):
 #   lint-test ----------------------------------------------\
@@ -38,7 +38,7 @@ permissions:
 
 env:
   NATIVE_CASES: hello
-  TRANSLATED_CASES: ${{ inputs.cases || 'hello_dyn two_libs tls_basic threads vulkan_triangle vulkan_window cxx_exceptions cxx_dynamic posix_io sockets process mmap_files event_loop libc_breadth xlib_draw sdl2_window gl_window egl_window xlib_input sdl2_input xlib_selection xlib_shapes xlib_tree xlib_text dl_plugin red_zone xcb_requests xkb_requests' }}
+  TRANSLATED_CASES: ${{ inputs.cases || 'hello_dyn two_libs tls_basic threads vulkan_triangle vulkan_window cxx_exceptions cxx_dynamic posix_io sockets process mmap_files event_loop libc_breadth xlib_draw sdl2_window gl_window egl_window xlib_input sdl2_input xlib_selection xlib_shapes xlib_tree xlib_text dl_plugin red_zone xcb_requests xkb_requests ifunc zlib_crc' }}
   ABORT_CASES: canary_smash
   CRASH_CASES: crash_null
   CLIPBOARD_CASES: xlib_clipboard
@@ -307,6 +307,12 @@ jobs:
           path: |
             results/apps/*-windows.json
             results/apps/*-translate-error.txt
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: app-windows-pictures
+          path: build/corpus/work-windows/*/*-windows/*.png
           if-no-files-found: ignore
 
   differential:

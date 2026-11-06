@@ -4,7 +4,7 @@
  * Author: Akilesh
  * Date: 2026-11-06
  *
- * Mirrors CHANGELOG.md (0.7.5 to 0.7.8 and the installer entry); when those change, change this. The screenshots
+ * Mirrors CHANGELOG.md (0.7.5 to 0.7.10 and the installer entry); when those change, change this. The screenshots
  * are the ones in docs/images, copied to public/screens. No screenshot of the KeePassXC window is in the
  * repository yet, so the page shows an empty, labelled slot for it instead of an invented picture.
  */
@@ -16,6 +16,18 @@ export interface Update {
 }
 
 export const UPDATES: readonly Update[] = [
+  {
+    version: "0.7.10",
+    title: "A check that the window has contents",
+    summary:
+      "A debug switch makes the in-process X11 save each window's pixels as pictures, and the KeePassXC start test now fails if no window of a useful size has drawn contents. CI keeps the pictures, so a person can look at what the test saw.",
+  },
+  {
+    version: "0.7.9",
+    title: "Indirect functions, and PNG icons without CRC errors",
+    summary:
+      "Functions that a library picks at load time (GNU indirect functions, which Ubuntu's zlib uses for crc32) now resolve to the chosen implementation. Before, every checksum was wrong and KeePassXC's PNG icons failed with IHDR: CRC error.",
+  },
   {
     version: "0.7.8",
     title: "XKB: Qt finds its keyboard",

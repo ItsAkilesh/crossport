@@ -1,7 +1,7 @@
 // File: translator/src/analyze/mod.rs
 // Purpose: Parse a 64-bit x86-64 ET_DYN ELF (PIE or shared library) into an ElfInfo
 // Author: Akilesh
-// Date: 2026-10-29
+// Date: 2026-11-06
 
 mod address_map;
 mod code_ranges;
@@ -17,6 +17,7 @@ use object::Endianness;
 
 use crate::elf_model::{ArrayRange, ElfInfo};
 use crate::error::TranslateError;
+use crate::ifunc;
 use address_map::AddressMap;
 use dynamic::DynamicTable;
 
@@ -40,8 +41,9 @@ pub fn analyze(data: &[u8]) -> Result<ElfInfo, TranslateError> {
     let map = AddressMap::new(&segments);
     let table = dynamic::read(phdrs, endian, data)?;
     let strings = table.strings(data, &map)?;
-    let symbols = symbols::read(data, &map, &table, &strings)?;
-    let relocations = relocs::read(data, &map, &table, symbols.len())?;
+    let mut symbols = symbols::read(data, &map, &table, &strings)?;
+    let mut relocations = relocs::read(data, &map, &table, symbols.len())?;
+    let ifuncs = ifunc::redirect(&segments, &mut symbols, &mut relocations)?;
     let code_ranges = code_ranges::read(data, &map, phdrs, endian)?;
     let eh_frame_header = header::eh_frame_header(phdrs, endian);
     Ok(ElfInfo {
@@ -60,6 +62,7 @@ pub fn analyze(data: &[u8]) -> Result<ElfInfo, TranslateError> {
         code_ranges,
         eh_frame_header,
         segments,
+        ifuncs,
     })
 }
 
