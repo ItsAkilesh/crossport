@@ -1,13 +1,16 @@
 # File: fuzz/Cargo.toml
 # Purpose: Fuzz harness for the Crossport translator: shared targets, cargo-fuzz entry points and a stable mutation driver
 # Author: Akilesh
-# Date: 2026-11-05
+# Date: 2026-11-06
 
 [package]
 name = "crossport-fuzz"
 version = "0.0.0"
 edition = "2021"
 publish = false
+
+[package.metadata]
+cargo-fuzz = true
 
 # Not part of any other workspace: the fuzz crate builds on its own (nightly for libFuzzer, stable for the driver).
 [workspace]
