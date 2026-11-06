@@ -17,6 +17,12 @@ export interface Update {
 
 export const UPDATES: readonly Update[] = [
   {
+    version: "0.7.9",
+    title: "Indirect functions, and PNG icons without CRC errors",
+    summary:
+      "Functions that a library picks at load time (GNU indirect functions, which Ubuntu's zlib uses for crc32) now resolve to the chosen implementation. Before, every checksum was wrong and KeePassXC's PNG icons failed with IHDR: CRC error.",
+  },
+  {
     version: "0.7.8",
     title: "XKB: Qt finds its keyboard",
     summary:

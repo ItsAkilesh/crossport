@@ -5,6 +5,20 @@ being worked on. A feature commit that adds user-visible capability (a new flag,
 that runs) bumps the patch number; a fix does not. The version lives in `translator/Cargo.toml` and is
 bumped in the same commit as the change. Releases are tagged by the maintainer, not by automation.
 
+## 0.7.9
+
+- GNU indirect functions work. A symbol of type `STT_GNU_IFUNC` holds a resolver that returns the real function, and
+  an `R_X86_64_IRELATIVE` slot holds what a resolver returns. The translator used to bind a call to the resolver
+  itself, so the translated Ubuntu zlib 1.2.11 (which selects `crc32_z` this way) returned the resolver's code
+  address as every checksum, and libpng in KeePassXC reported `IHDR: CRC error` for its PNG icons. Each resolver now
+  gets a small trampoline in the module (sections `.cifunc` and `.cifdt`) that saves the argument registers, runs the
+  resolver on the first call, caches the answer and jumps to it; later calls cost one indirect jump. Symbols that
+  share a resolver share a trampoline, a variadic target still sees its vector-register count, and a module may
+  have at most 4096 resolvers.
+- Two corpus cases: `zlib_crc` (crc32 and adler32 of every length up to 600 at 16 alignments, against a bitwise
+  reference, through the system `libz.so.1`) and `ifunc` (an exported, a local and a variadic indirect function
+  called through the PLT, through a pointer and from inside their library).
+
 ## 0.7.8
 
 - XKB: the in-process X server now has the XKEYBOARD extension, so Qt's `xcb` platform finds it (`XKeyboard
