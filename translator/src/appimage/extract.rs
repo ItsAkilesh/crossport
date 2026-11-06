@@ -6,6 +6,7 @@
 use std::collections::{HashMap, HashSet};
 use std::fs::{self, File, OpenOptions};
 use std::io::{BufReader, Read, Seek, SeekFrom};
+use std::panic::AssertUnwindSafe;
 use std::path::{Path, PathBuf};
 
 use backhand::{FilesystemReader, InnerNode};
@@ -82,6 +83,19 @@ fn unreadable(error: impl std::fmt::Display) -> TranslateError {
 
 pub fn unpack(image: &Path, out_dir: &Path, limits: &Limits) -> Result<AppDir, TranslateError> {
     let offset = payload_offset(image)?;
+    // The SquashFS reader unwraps while it decodes names on a Windows host, so hostile bytes can panic it.
+    std::panic::catch_unwind(AssertUnwindSafe(|| {
+        unpack_payload(image, offset, out_dir, limits)
+    }))
+    .unwrap_or_else(|_| Err(unreadable("the archive is malformed")))
+}
+
+fn unpack_payload(
+    image: &Path,
+    offset: u64,
+    out_dir: &Path,
+    limits: &Limits,
+) -> Result<AppDir, TranslateError> {
     prepare_destination(out_dir)?;
     let file =
         File::open(image).map_err(|e| io_error(format!("opening {}", image.display()), e))?;

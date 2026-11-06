@@ -1,0 +1,109 @@
+# File: fuzz/Cargo.toml
+# Purpose: Fuzz harness for the Crossport translator: shared targets, cargo-fuzz entry points and a stable mutation driver
+# Author: Akilesh
+# Date: 2026-11-06
+
+[package]
+name = "crossport-fuzz"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+# Not part of any other workspace: the fuzz crate builds on its own (nightly for libFuzzer, stable for the driver).
+[workspace]
+
+[features]
+# Build the coverage-guided libFuzzer entry points (needs nightly and cargo-fuzz; used by CI).
+libfuzzer = ["dep:libfuzzer-sys"]
+# Build the seed corpus generator (writes small AppImages with the same SquashFS writer the tests use).
+seedgen = ["dep:backhand"]
+
+[dependencies]
+crossport-translator = { path = "../translator" }
+object = { version = "=0.40.0", default-features = false, features = ["read_core", "elf", "pe", "std"] }
+libfuzzer-sys = { version = "=0.4.13", optional = true }
+backhand = { version = "=0.25.5", default-features = false, features = ["gzip", "zstd", "xz"], optional = true }
+
+
+[lib]
+name = "crossport_fuzz"
+path = "src/lib.rs"
+
+[[bin]]
+name = "driver"
+path = "src/driver.rs"
+
+[[bin]]
+name = "seedgen"
+path = "src/seedgen.rs"
+required-features = ["seedgen"]
+
+[[bin]]
+name = "fuzz_analyze_elf"
+path = "fuzz_targets/fuzz_analyze_elf.rs"
+test = false
+doc = false
+required-features = ["libfuzzer"]
+
+[[bin]]
+name = "fuzz_translate_exe"
+path = "fuzz_targets/fuzz_translate_exe.rs"
+test = false
+doc = false
+required-features = ["libfuzzer"]
+
+[[bin]]
+name = "fuzz_translate_lib"
+path = "fuzz_targets/fuzz_translate_lib.rs"
+test = false
+doc = false
+required-features = ["libfuzzer"]
+
+[[bin]]
+name = "fuzz_shim_pe"
+path = "fuzz_targets/fuzz_shim_pe.rs"
+test = false
+doc = false
+required-features = ["libfuzzer"]
+
+[[bin]]
+name = "fuzz_unpack_image"
+path = "fuzz_targets/fuzz_unpack_image.rs"
+test = false
+doc = false
+required-features = ["libfuzzer"]
+
+[[bin]]
+name = "fuzz_unpack_squashfs"
+path = "fuzz_targets/fuzz_unpack_squashfs.rs"
+test = false
+doc = false
+required-features = ["libfuzzer"]
+
+[[bin]]
+name = "fuzz_convert"
+path = "fuzz_targets/fuzz_convert.rs"
+test = false
+doc = false
+required-features = ["libfuzzer"]
+
+[[bin]]
+name = "fuzz_cli_parse"
+path = "fuzz_targets/fuzz_cli_parse.rs"
+test = false
+doc = false
+required-features = ["libfuzzer"]
+
+# Release speed with the checks libFuzzer builds also turn on: an arithmetic overflow must be found, not wrapped.
+[profile.release]
+debug-assertions = true
+overflow-checks = true
+
+# backhand 0.25.5 adds two offsets without a check in its v4 reader (src/v4/reader.rs:63) that a hostile image can overflow. The shipped
+# translator is a release build without overflow checks, and `unpack` already turns any backhand panic into an error
+# (appimage/extract.rs), so the checks stay on for Crossport's own code but not for this third-party crate.
+[profile.release.package.backhand]
+overflow-checks = false

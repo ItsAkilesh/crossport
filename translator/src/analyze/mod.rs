@@ -46,7 +46,7 @@ pub fn analyze(data: &[u8]) -> Result<ElfInfo, TranslateError> {
     let ifuncs = ifunc::redirect(&segments, &mut symbols, &mut relocations)?;
     let code_ranges = code_ranges::read(data, &map, phdrs, endian)?;
     let eh_frame_header = header::eh_frame_header(phdrs, endian);
-    Ok(ElfInfo {
+    let info = ElfInfo {
         entry: header.e_entry(endian),
         soname: optional_string(&strings, table.soname)?,
         needed: needed_names(&strings, &table)?,
@@ -63,7 +63,42 @@ pub fn analyze(data: &[u8]) -> Result<ElfInfo, TranslateError> {
         eh_frame_header,
         segments,
         ifuncs,
-    })
+    };
+    check_addresses(&info)?;
+    Ok(info)
+}
+
+/// Every address later code adds the image bias to must lie inside the largest image the translator accepts,
+/// so a hostile symbol, relocation, entry point or range cannot overflow that arithmetic.
+fn check_addresses(info: &ElfInfo) -> Result<(), TranslateError> {
+    let limit = header::MAX_IMAGE_BYTES;
+    let ends = |vaddr: u64, len: u64| vaddr.checked_add(len).is_some_and(|end| end <= limit);
+    let array_ends = |range: Option<ArrayRange>| {
+        range.is_none_or(|a| {
+            a.count
+                .checked_mul(POINTER_SIZE)
+                .is_some_and(|len| ends(a.vaddr, len))
+        })
+    };
+    let is_inside = info.entry <= limit
+        && info.init.is_none_or(|a| a <= limit)
+        && info.fini.is_none_or(|a| a <= limit)
+        && array_ends(info.init_array)
+        && array_ends(info.fini_array)
+        && info.relocations.iter().all(|r| r.offset <= limit)
+        && info
+            .symbols
+            .iter()
+            .filter(|s| !s.is_tls)
+            .all(|s| s.address().is_none_or(|a| a <= limit))
+        && info.code_ranges.iter().all(|r| ends(r.start, r.len));
+    if is_inside {
+        Ok(())
+    } else {
+        Err(TranslateError::LimitExceeded(format!(
+            "an address in the ELF file lies beyond the {limit} byte module image limit"
+        )))
+    }
 }
 
 fn malformed(what: &str, error: impl std::fmt::Display) -> TranslateError {
