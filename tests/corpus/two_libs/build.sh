@@ -2,7 +2,7 @@
 # File: tests/corpus/two_libs/build.sh
 # Purpose: Build the two_libs case: libmath.so.1, libgreet.so.1 (needs libmath) and the two_libs executable
 # Author: Akilesh
-# Date: 2026-10-28
+# Date: 2026-11-06
 #
 # Usage: build.sh <output-dir>
 
@@ -25,4 +25,4 @@ gcc "${common[@]}" -fPIC -shared "${link[@]}" -Wl,-soname,libmath.so.1 \
 gcc "${common[@]}" -fPIC -shared "${link[@]}" -Wl,-soname,libgreet.so.1 \
   -o "$out/libgreet.so.1" "$src/libgreet.c" "$out/libmath.so.1"
 gcc "${common[@]}" -fPIE -pie "${link[@]}" \
-  -o "$out/two_libs" "$src/main.c" "$out/libgreet.so.1" "$out/libmath.so.1"
+  -o "$out/two_libs" "$src/main.c" "$out/libgreet.so.1" "$out/libmath.so.1" -ldl
