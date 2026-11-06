@@ -1,8 +1,8 @@
 /*
  * File: shim/sock_opt.c
- * Purpose: setsockopt, getsockopt, sendmsg and recvmsg: the socket calls that need Linux constants translated
+ * Purpose: setsockopt (and SO_PASSCRED), getsockopt (and SO_PEERCRED), sendmsg and recvmsg: the socket calls that need Linux constants translated
  * Author: Akilesh
- * Date: 2026-10-29
+ * Date: 2026-11-06
  */
 
 #include <string.h>
@@ -12,7 +12,7 @@
 enum {
     LINUX_SO_REUSEADDR = 2, LINUX_SO_TYPE = 3, LINUX_SO_ERROR = 4, LINUX_SO_BROADCAST = 6, LINUX_SO_SNDBUF = 7,
     LINUX_SO_RCVBUF = 8, LINUX_SO_KEEPALIVE = 9, LINUX_SO_LINGER = 13, LINUX_SO_REUSEPORT = 15,
-    LINUX_SO_RCVTIMEO = 20, LINUX_SO_SNDTIMEO = 21
+    LINUX_SO_PASSCRED = 16, LINUX_SO_PEERCRED = 17, LINUX_SO_RCVTIMEO = 20, LINUX_SO_SNDTIMEO = 21
 };
 enum { LINUX_TCP_NODELAY = 1 };
 enum { MAX_IOVECS = 64, MILLISECONDS_PER_SECOND = 1000, MICROSECONDS_PER_MILLISECOND = 1000 };
@@ -93,6 +93,9 @@ LIBC_FN int sysv_setsockopt(int fd, int level, int option, const void *value, ui
     if (state == NULL) {
         return -1;
     }
+    if (level == LINUX_SOL_SOCKET && option == LINUX_SO_PASSCRED) {
+        return 0; /* credentials are never sent with messages, so there is nothing to switch on */
+    }
     if (level == LINUX_SOL_SOCKET && option == LINUX_SO_REUSEPORT) {
         return 0; /* Windows has no SO_REUSEPORT; SO_REUSEADDR is the closest, and ignoring it is safe */
     }
@@ -121,6 +124,9 @@ LIBC_FN int sysv_getsockopt(int fd, int level, int option, void *value, uint32_t
         *(int32_t *)value = state->type;
         *length = sizeof(int32_t);
         return 0;
+    }
+    if (level == LINUX_SOL_SOCKET && option == LINUX_SO_PEERCRED) {
+        return shim_unix_peercred(state, value, length);
     }
     int windows_option = level == LINUX_SOL_SOCKET ? socket_option_to_windows(option) : option;
     if (windows_option < 0) {
@@ -162,6 +168,9 @@ LIBC_FN int64_t sysv_sendmsg(int fd, const LinuxMsgHdr *message, int flags)
     char *joined = NULL;
     if (message->vector_count > MAX_IOVECS) {
         return shim_fail(LINUX_EINVAL);
+    }
+    if (shim_unix_check_control(message->control, message->control_length) != 0) {
+        return -1;
     }
     int64_t total = join(message->vectors, message->vector_count, &joined);
     if (total < 0) {
