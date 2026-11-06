@@ -1,7 +1,7 @@
 <!-- File: fuzz/README.md -->
 <!-- Purpose: How to run the translator fuzz targets locally and in CI, and how to turn a finding into a regression test -->
 <!-- Author: Akilesh -->
-<!-- Date: 2026-11-05 -->
+<!-- Date: 2026-11-06 -->
 
 # Fuzzing the translator
 
@@ -14,7 +14,7 @@ by `seedgen`. The threat model is in `docs/THREAT_REVIEW.md`.
 ```bash
 cargo install cargo-fuzz --version =0.13.2 --locked
 cd fuzz
-cargo fuzz run --features libfuzzer fuzz_translate_exe corpus/translate_exe -- -max_total_time=60 -timeout=20 -rss_limit_mb=2048
+cargo fuzz run --fuzz-dir . --features libfuzzer fuzz_translate_exe corpus/translate_exe -- -max_total_time=60 -timeout=20 -rss_limit_mb=2048
 ```
 
 ## Stable driver (any platform, no coverage guidance)

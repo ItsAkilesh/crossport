@@ -193,6 +193,7 @@ LIBC_FN XcbCookie sysv_xcb_copy_area(void *connection, XcbId source, XcbId targe
 {
     (void)connection;
     XlGc context = copy_of_gc(gc);
+    xl_trace("copy_area %x -> %x %dx%d from %d,%d to %d,%d", source, target, width, height, sx, sy, dx, dy);
     xl_copy_area(source, target, &context, sx, sy, width, height, dx, dy);
     return done();
 }
@@ -260,6 +261,8 @@ LIBC_FN XcbCookie sysv_xcb_put_image(void *connection, uint8_t format, XcbId tar
     XlGc context = copy_of_gc(gc);
     xl_lock();
     XlDrawable *drawable = xl_drawable_find(target);
+    xl_trace("put_image target=%x known=%d format=%d depth=%d %dx%d at %d,%d", target, drawable != NULL, format, depth, width,
+             height, dx, dy);
     if (drawable != NULL && format == FORMAT_Z_PIXMAP && depth != 1) {
         put_pixels(drawable, data, width, height, dx, dy);
     } else if (drawable != NULL && (format == FORMAT_XY_BITMAP || depth == 1)) {

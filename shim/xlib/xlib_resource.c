@@ -2,7 +2,7 @@
  * File: shim/xlib/xlib_resource.c
  * Purpose: The drawable table (windows and pixmaps with their pixel buffers) and the Win32 side of painting them
  * Author: Akilesh
- * Date: 2026-10-29
+ * Date: 2026-11-06
  *
  * Windows keep a buffer the size of their client area. WM_PAINT copies it to the window; a window whose
  * buffer was just created or resized also asks the program for an Expose, because its contents are blank.
@@ -167,6 +167,8 @@ int xl_paint_window(HWND window)
     XlDrawable *drawable = xl_drawable_find(id);
     int needs_expose = drawable != NULL && drawable->needs_expose;
     if (drawable != NULL) {
+        xl_trace("paint %x size %dx%d first pixel %x center pixel %x", (unsigned)id, drawable->width, drawable->height,
+                 drawable->pixels[0], drawable->pixels[(size_t)(drawable->height / 2) * (size_t)drawable->width + (size_t)(drawable->width / 2)]);
         if (!drawable->is_gl_owned) {
             blit(context, drawable);
         }
@@ -174,6 +176,7 @@ int xl_paint_window(HWND window)
     }
     xl_unlock();
     EndPaint(window, &paint);
+    xl_dump_notify_paint(id);
     if (needs_expose) {
         RECT client;
         GetClientRect(window, &client);
@@ -184,6 +187,27 @@ int xl_paint_window(HWND window)
         xcb_events_push(&event);
     }
     return 1;
+}
+
+void xl_trace(const char *format, ...)
+{
+    static LONG is_enabled = -1;
+    if (is_enabled < 0) {
+        InterlockedExchange(&is_enabled, GetEnvironmentVariableA("CROSSPORT_TRACE", NULL, 0) > 0 ? 1 : 0);
+    }
+    if (!is_enabled) {
+        return;
+    }
+    char line[256];
+    va_list arguments;
+    va_start(arguments, format);
+    int length = wvsprintfA(line, format, arguments);
+    va_end(arguments);
+    if (length > 0 && length < (int)sizeof(line) - 1) {
+        line[length++] = '\n';
+        DWORD written;
+        WriteFile(GetStdHandle(STD_ERROR_HANDLE), line, (DWORD)length, &written, NULL);
+    }
 }
 
 void xl_invalidate(XlId drawable, int32_t x, int32_t y, int32_t width, int32_t height)

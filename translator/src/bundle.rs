@@ -1,7 +1,7 @@
 // File: translator/src/bundle.rs
 // Purpose: Write the translated files and the shim DLL into a loose bundle directory
 // Author: Akilesh
-// Date: 2026-10-29
+// Date: 2026-11-05
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -59,6 +59,58 @@ pub fn write_env_file(
     Ok(path)
 }
 
+/// Name of the fontconfig file `convert` writes, and the variable that tells fontconfig to read it.
+pub const FONTS_CONF_FILE: &str = "fonts.conf";
+
+/// Writes a fontconfig file beside the executable that lists `font_dirs` (Linux path form) and keeps the cache under
+/// `/tmp`. A bundle has no `/etc/fonts`, and without a file fontconfig finds no fonts at all.
+pub fn write_fonts_conf(out_dir: &Path, font_dirs: &[String]) -> Result<PathBuf, TranslateError> {
+    if font_dirs
+        .iter()
+        .any(|dir| dir.contains(['<', '>', '&', '\n', '\r']))
+    {
+        return Err(TranslateError::Unsupported(
+            "cannot write fonts.conf with markup or a line break in a directory".into(),
+        ));
+    }
+    let mut text = String::from("<?xml version=\"1.0\"?>\n<fontconfig>\n");
+    for dir in font_dirs {
+        text.push_str(&format!("  <dir>{dir}</dir>\n"));
+    }
+    text.push_str("  <cachedir>/tmp/crossport-fontconfig</cachedir>\n</fontconfig>\n");
+    let path = out_dir.join(FONTS_CONF_FILE);
+    fs::write(&path, text).map_err(io_error(format!("writing {}", path.display())))?;
+    Ok(path)
+}
+
+/// The directory of the system's fonts in Linux path form (`/C:/Windows/Fonts`), from the Windows directory.
+pub fn windows_fonts_dir(windows_dir: &str) -> String {
+    let slashed = windows_dir.replace('\\', "/");
+    format!("/{}/Fonts", slashed.trim_end_matches('/'))
+}
+
+/// Name of the file Qt reads from the program's directory to find its plugins.
+pub const QT_CONF_FILE: &str = "qt.conf";
+
+/// Writes `qt.conf` beside the executable, pointing Qt at `plugins` (relative to the bundle). `QT_PLUGIN_PATH`
+/// cannot do this: Qt splits it at every colon, and a Windows path has one after the drive letter.
+pub fn write_qt_conf(
+    out_dir: &Path,
+    prefix: &str,
+    plugins: &str,
+) -> Result<PathBuf, TranslateError> {
+    let is_valid = |text: &str| !text.contains(['\n', '\r']);
+    if !is_valid(prefix) || !is_valid(plugins) {
+        return Err(TranslateError::Unsupported(
+            "cannot write qt.conf with a line break in a path".into(),
+        ));
+    }
+    let text = format!("[Paths]\nPrefix = {prefix}\nPlugins = {plugins}\n");
+    let path = out_dir.join(QT_CONF_FILE);
+    fs::write(&path, text).map_err(io_error(format!("writing {}", path.display())))?;
+    Ok(path)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -74,6 +126,32 @@ mod tests {
         assert!(text.contains("APPDIR=${BUNDLE}/appdir\nA=b\n"));
         assert!(write_env_file(&dir, &[("BAD=NAME", "x")]).is_err());
         assert!(write_env_file(&dir, &[("OK", "two\nlines")]).is_err());
+    }
+
+    #[test]
+    fn qt_conf_names_the_prefix_and_the_plugins() {
+        let dir = std::env::temp_dir().join("crossport-qtconf-test");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).expect("temp dir");
+        let path = write_qt_conf(&dir, "appdir/usr", "plugins").expect("writes");
+        assert_eq!(
+            fs::read_to_string(path).expect("exists"),
+            "[Paths]\nPrefix = appdir/usr\nPlugins = plugins\n"
+        );
+        assert!(write_qt_conf(&dir, "a\nb", "plugins").is_err());
+    }
+
+    #[test]
+    fn fonts_conf_lists_the_directories() {
+        let dir = std::env::temp_dir().join("crossport-fonts-test");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).expect("temp dir");
+        let path = write_fonts_conf(&dir, &["/C:/Windows/Fonts".to_string()]).expect("writes");
+        let text = fs::read_to_string(path).expect("exists");
+        assert!(text.contains("<dir>/C:/Windows/Fonts</dir>"));
+        assert!(text.contains("<cachedir>/tmp/crossport-fontconfig</cachedir>"));
+        assert!(write_fonts_conf(&dir, &["/a<b".to_string()]).is_err());
+        assert_eq!(windows_fonts_dir(r"C:\Windows"), "/C:/Windows/Fonts");
     }
 
     #[test]

@@ -11,18 +11,21 @@ One Rust crate, two programs, one library (decision: docs/DESIGN.md section 6).
 
 | Program | What it does |
 |---|---|
-| `crossport-setup.exe` | Wizard that installs Crossport from a payload appended to itself. `--silent`, `--uninstall <dir>`, `--make-installer <out> --from <dir>`. |
-| `crossport-open.exe` | Launcher for `.AppImage` files: wizard, then `crossport convert`, registration, shortcuts. `--silent`, `--uninstall <dir>`. |
+| `crossport-setup.exe` | Wizard that installs Crossport from a payload appended to itself. `--silent`, `--uninstall <dir>`, `--check-update [--quiet]`, `--make-installer <out> --from <dir> [--uninstaller <exe>]`. |
+| `crossport-open.exe` | Launcher for `.AppImage` files: wizard, then `crossport convert`, registration, shortcuts. `--silent`, `--uninstall <dir>`, `--check-update [--quiet]`. |
 
-Build and pack: `bash installer/package.sh <out-dir> [--runtime <pack-dir>]`.
+Build and pack: `bash installer/package.sh <out-dir> [--runtime <pack-dir>]` (writes `Crossport-Setup.exe` and
+`SHA256SUMS.txt`; with `CROSSPORT_SIGN` set it signs too). Releases, signing secrets and the update check are described in
+`docs/RELEASING.md`.
 Test: `cargo test --locked --manifest-path installer/Cargo.toml` (set `CROSSPORT_TEST_APPIMAGE` to also read a real image).
 
 ## Layout
 
 - Pure logic (tests run anywhere): `names`, `paths` (scope and elevation rule), `regplan` (registry entries, PATH edits),
   `manifest` (uninstall record), `command` (quoting, convert arguments), `report` (readable conversion report), `cli`,
-  `payload`, `ico`, `appimage_meta` (name and icon read from the SquashFS).
-- Windows only: `win` (registry, shortcuts, elevation), `engine` (install and uninstall), `ops` (operations shared by the
+  `payload`, `signed` (where a signed file's own bytes end), `update` (version compare, release JSON, URL allowlist), `ico`,
+  `appimage_meta` (name and icon read from the SquashFS).
+- Windows only: `win` (registry, shortcuts, elevation, WinHTTP in `win::http`), `engine` (install and uninstall), `ops` (operations shared by the
   wizards and the silent modes), `ui` and `flows` (the wizard framework and the two wizards).
 
 ## Rules the code follows
@@ -39,5 +42,5 @@ Test: `cargo test --locked --manifest-path installer/Cargo.toml` (set `CROSSPORT
 
 ## Known limits
 
-Not code signed; the wizard is not DPI aware (Windows scales it); the window layout was driven and checked through the
+Signed only by a release build that was given a certificate; the wizard is not DPI aware (Windows scales it); the window layout was driven and checked through the
 Win32 control tree, not by eye; some functions in `ui` are longer than the 40 line guideline.

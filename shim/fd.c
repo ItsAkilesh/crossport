@@ -2,10 +2,14 @@
  * File: shim/fd.c
  * Purpose: Linux file descriptors over Win32 handles: open, read, write, seek and close
  * Author: Akilesh
- * Date: 2026-10-29
+ * Date: 2026-11-05
  */
 
 #include "fd.h"
+
+#include <bcrypt.h>
+
+#define RANDOM_CHUNK_BYTES 0x10000000u
 
 typedef struct {
     HANDLE handle;
@@ -150,6 +154,36 @@ static DWORD disposition_for(int flags)
     return truncate ? TRUNCATE_EXISTING : OPEN_EXISTING;
 }
 
+/* /dev/urandom: a NUL handle (so close, write and poll behave) whose reads come from the system generator. */
+static int open_random(int flags)
+{
+    HANDLE handle = CreateFileW(L"NUL", GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING,
+                                FILE_ATTRIBUTE_NORMAL, NULL);
+    if (handle == INVALID_HANDLE_VALUE) {
+        return shim_fail_from_win();
+    }
+    int fd = shim_fd_adopt_kind(FD_KIND_RANDOM, handle, NULL, flags);
+    if (fd < 0) {
+        CloseHandle(handle);
+    }
+    return fd;
+}
+
+static int64_t read_random(void *buffer, size_t count)
+{
+    uint8_t *bytes = (uint8_t *)buffer;
+    size_t done = 0;
+    while (done < count) {
+        size_t left = count - done;
+        ULONG chunk = left > RANDOM_CHUNK_BYTES ? RANDOM_CHUNK_BYTES : (ULONG)left;
+        if (BCryptGenRandom(NULL, bytes + done, chunk, BCRYPT_USE_SYSTEM_PREFERRED_RNG) != 0) {
+            return done > 0 ? (int64_t)done : shim_fail(LINUX_EIO);
+        }
+        done += chunk;
+    }
+    return (int64_t)done;
+}
+
 int shim_fd_open(const char *path, int flags, int mode)
 {
     (void)mode;
@@ -160,6 +194,9 @@ int shim_fd_open(const char *path, int flags, int mode)
                                DUPLICATE_SAME_ACCESS)
                    ? shim_fd_adopt(copy, flags)
                    : shim_fail_from_win();
+    }
+    if (strcmp(path, "/dev/urandom") == 0 || strcmp(path, "/dev/random") == 0) {
+        return open_random(flags);
     }
     wchar_t wide[SHIM_PATH_MAX];
     if (shim_path_to_wide(path, wide, SHIM_PATH_MAX) != 0) {
@@ -221,6 +258,9 @@ int64_t shim_fd_read(int fd, void *buffer, size_t count)
     }
     if (entry.kind == FD_KIND_TIMER) {
         return shim_timer_read(fd, buffer, count);
+    }
+    if (entry.kind == FD_KIND_RANDOM) {
+        return read_random(buffer, count);
     }
     if (entry.kind == FD_KIND_PIPE && entry.is_nonblocking && (shim_fd_ready(fd, 1) & 1) == 0) {
         return shim_fail(LINUX_EAGAIN);

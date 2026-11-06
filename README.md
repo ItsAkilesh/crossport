@@ -2,7 +2,7 @@
   File: README.md
   Purpose: The single guide to Crossport: why it exists, how it works, what is built, how to install and use it, and how to run the harness.
   Author: Akilesh
-  Date: 2026-11-04
+  Date: 2026-11-06
 -->
 
 <h1 align="center">
@@ -23,7 +23,7 @@
 >
 > <sub>Crossport is a working name and the project is at an early stage. It translates real command-line
 > AppImages and runs SDL2, Vulkan, OpenGL and EGL programs; Qt and GTK applications are the next step.
-> A Windows installer and an AppImage launcher exist but have no signed download yet: see [Install Crossport with the installer](#install-crossport-with-the-installer) to build one, or [Use Crossport on Windows](#use-crossport-on-windows) for the command line.</sub>
+> A Windows installer and an AppImage launcher exist and a tagged release publishes them, but no release has been cut yet: see [Install Crossport with the installer](#install-crossport-with-the-installer) to build one, or [Use Crossport on Windows](#use-crossport-on-windows) for the command line.</sub>
 
 [![CI](https://github.com/ItsAkilesh/crossport/actions/workflows/ci.yml/badge.svg)](https://github.com/ItsAkilesh/crossport/actions/workflows/ci.yml)
 [![Rust](https://img.shields.io/badge/tooling-rust-000000?logo=rust&logoColor=white)](https://www.rust-lang.org)
@@ -112,7 +112,7 @@ lives in [docs/ROADMAP.md](docs/ROADMAP.md).
 - [x] **Milestone 5:** Vulkan rendering in a window
 - [ ] **Milestone 6:** graphics core (X11 in process, OpenGL and EGL, SDL2 apps)
 - [ ] **Milestone 7:** real Qt and GTK applications
-- [ ] **Milestone 8:** everyday use (installer and launcher built; signing and updates to come)
+- [ ] **Milestone 8:** everyday use (installer, launcher, release workflow, optional signing and update check built; three apps on a clean machine to come)
 - [ ] **Milestone 9:** hardening and breadth (performance, security, a 50-app corpus)
 - [ ] **Milestone 10:** the macOS distribution for Apple silicon, translating aarch64 AppImages (planned)
 
@@ -169,8 +169,8 @@ invocations. Vulkan programs render and present through the Windows Vulkan loade
 (X11 driver) opens a window, draws and receives keyboard, text, pointer and wheel events, and OpenGL
 (through GLX) and EGL programs, including an OpenGL ES 2 context, render the same pixels as on Linux. All of
 that runs on an in-process X11 (Xlib and xcb on Win32 windows) with no X server. `crossport convert` turns an
-AppImage into a runnable bundle in one step. The clipboard works for text. Milestone 6 is complete: a real SDL2 program (SDL's own test harness) runs, and so do GL samples. What is not done:
-text drawing through fonts, XKB, and real Qt and GTK applications (Milestone 7), then an installer and hardening; see docs/ROADMAP.md and
+AppImage into a runnable bundle in one step. The clipboard works for text. KeePassXC (Qt 6) shows its window, and CI checks that the window has drawn contents, not only that the program stays up. Milestone 6 is complete: a real SDL2 program (SDL's own test harness) runs, and so do GL samples. What is not done:
+text drawing through fonts, and real Qt and GTK applications (Milestone 7), then an installer and hardening; see docs/ROADMAP.md and
 [CHANGELOG.md](CHANGELOG.md).
 
 The verification harness came first so every step has fast, objective feedback: a `difftest` runner
@@ -193,7 +193,7 @@ installed system-wide, no registry keys are written and no administrator rights 
 | Vulkan programs (offscreen and in a window) | Works. Needs a Windows Vulkan driver. |
 | SDL2 programs using the X11 driver (windows, software drawing, keyboard, mouse) | Works for the test programs. |
 | OpenGL (GLX) and EGL programs, including OpenGL ES 2 | Works for the test programs. Needs an OpenGL driver. |
-| Qt and GTK applications | **Not yet.** They need fonts, XKB, D-Bus and more (Milestone 7). Try `coverage` first. |
+| Qt and GTK applications | **Partly.** KeePassXC (Qt 6) shows its window and takes the keyboard and mouse, with PNG icons since 0.7.9 and the XKB extension and keymap Qt asks for; GTK and D-Bus are not done (Milestone 7). Try `coverage` first. |
 | Anything that draws text through X fonts or fontconfig, or uses sound | Not yet. Sound libraries are not provided, so audio is silent when they are stubbed. |
 | Electron, the JVM and other apps that generate machine code at run time | Out of scope. |
 
@@ -297,9 +297,20 @@ crossport-open.exe --uninstall "C:/Tools/Crossport/MyApp" --quiet
 ```
 
 The runtime pack (Linux libraries such as libstdc++ that AppImages expect from their host) is optional at build time:
-`installer/package.sh build/installer --runtime <folder>` takes the output of `tools/runtime/fetch_pack.py`.
-Windows draws the wizard bitmap-scaled on high-DPI screens for now, and the installer is not code signed yet, so
-SmartScreen may warn about it.
+`installer/package.sh build/installer --runtime <folder>` takes the output of `tools/runtime/fetch_pack.py`. When it
+is given, the pack goes inside `Crossport-Setup.exe`, is installed in `<install folder>\runtime` and is passed to every
+conversion by the launcher. The script also writes `SHA256SUMS.txt` beside the installer.
+
+**Releases.** Pushing a tag `vMAJOR.MINOR.PATCH` runs `.github/workflows/release.yml`, which builds everything, packs
+the installer with the runtime pack and publishes `Crossport-Setup.exe` and its SHA-256 checksum to a GitHub release.
+The programs are Authenticode signed only when the maintainer has provided a certificate as a repository secret;
+otherwise the release says it is unsigned and SmartScreen may warn about it. Windows also draws the wizard
+bitmap-scaled on high-DPI screens for now. See [docs/RELEASING.md](docs/RELEASING.md) for how to cut a release and
+provide the signing secrets.
+
+**Updates.** Crossport never checks for updates by itself. `Crossport-Setup.exe --check-update` (or
+`crossport-open.exe --check-update`) asks GitHub once for the latest release and, if it is newer, offers to open its
+download page in your browser; `--quiet` only prints and exits with 10 when an update exists.
 
 ### Convert an AppImage and run it
 

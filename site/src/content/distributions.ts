@@ -2,7 +2,7 @@
  * File: site/src/content/distributions.ts
  * Purpose: The per-platform distributions, install steps and honest limits shown on the page
  * Author: Akilesh
- * Date: 2026-11-05
+ * Date: 2026-11-06
  *
  * Mirrors README.md ("One project, one distribution per platform", "Use Crossport on Windows") and
  * docs/DESIGN.md section 6; when those change, change this.
@@ -58,11 +58,11 @@ export const REQUIREMENTS: readonly string[] = [
 ];
 
 export const LIMITS: readonly string[] = [
-  "Qt and GTK applications do not run yet. Plugin loading is in; a real Qt application is the next step of Milestone 7.",
-  "Text drawn through X fonts or fontconfig, and sound, are not done. The clipboard works for text.",
+  "KeePassXC (Qt 6) shows its window and has the XKB extension it asks for, but Qt support is not finished: its contents are not checked. GTK applications do not run yet.",
+  "Sound is not done. The clipboard works for text.",
   "Programs that make raw Linux system calls (rare outside the C library) are not translated; the translator warns about them.",
   "Electron, the JVM and other programs that generate machine code at run time are out of scope.",
-  "A setup wizard and an AppImage launcher exist (installer/package.sh builds them) but there is no signed download yet. You build Crossport once, then double-click AppImages or convert them by command.",
+  "A setup wizard and an AppImage launcher exist and a tagged release publishes them with a SHA-256 checksum, signed when a certificate is configured; no release has been cut yet, so for now you build Crossport once (installer/package.sh), then double-click AppImages or convert them by command. Updates are checked only when you ask (--check-update).",
 ];
 
 export const AUTHOR_NAME = "Akilesh Srinivasa Kumar";

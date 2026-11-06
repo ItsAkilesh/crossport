@@ -2,7 +2,7 @@
  * File: tests/corpus/posix_io/posix_io.c
  * Purpose: Exercise pipes, eventfd, dup, fcntl, ioctl, poll and select, the descriptor calls event loops are built on
  * Author: Akilesh
- * Date: 2026-10-29
+ * Date: 2026-11-05
  */
 
 #define _GNU_SOURCE
@@ -157,6 +157,57 @@ static void test_bad_descriptors(void)
     expect(read(999, &byte, 1) == -1 && errno == EBADF, "read on an unknown descriptor fails with EBADF");
 }
 
+/* glibc keeps pthread_self() at fs:0x10, and toolkits read it inline instead of calling the function. */
+static uintptr_t inline_thread_self(void)
+{
+    uintptr_t value;
+    __asm__ volatile("mov %%fs:0x10, %0" : "=r"(value));
+    return value;
+}
+
+static void *report_thread_self(void *argument)
+{
+    uintptr_t *same = argument;
+    *same = inline_thread_self() == (uintptr_t)pthread_self();
+    return NULL;
+}
+
+static void test_thread_self(void)
+{
+    expect(inline_thread_self() == (uintptr_t)pthread_self(), "the inline thread pointer is pthread_self on the main thread");
+    uintptr_t same = 0;
+    pthread_t thread;
+    expect(pthread_create(&thread, NULL, report_thread_self, &same) == 0, "a thread starts");
+    pthread_join(thread, NULL);
+    expect(same == 1, "the inline thread pointer is pthread_self on another thread");
+}
+
+/* Libraries such as Botan seed themselves from /dev/urandom. */
+static void test_dev_urandom(void)
+{
+    int fd = open("/dev/urandom", O_RDONLY);
+    expect(fd >= 0, "/dev/urandom opens");
+    unsigned char first[32] = {0};
+    unsigned char second[32] = {0};
+    expect(read(fd, first, sizeof(first)) == (ssize_t)sizeof(first), "a full read of random bytes");
+    expect(read(fd, second, sizeof(second)) == (ssize_t)sizeof(second), "a second read");
+    expect(memcmp(first, second, sizeof(first)) != 0, "two reads differ");
+    expect(close(fd) == 0, "/dev/urandom closes");
+}
+
+static void test_proc_self_exe(void)
+{
+    char path[4096];
+    ssize_t length = readlink("/proc/self/exe", path, sizeof(path) - 1);
+    expect(length > 0, "readlink of /proc/self/exe returns a path");
+    path[length > 0 ? length : 0] = 0;
+    expect(path[0] == '/' && strstr(path, "posix_io") != NULL, "the path is absolute and names this program");
+    char short_buffer[4];
+    expect(readlink("/proc/self/exe", short_buffer, sizeof(short_buffer)) == (ssize_t)sizeof(short_buffer),
+           "a short buffer is filled and not terminated");
+    expect(readlink("/", path, sizeof(path)) == -1 && errno == EINVAL, "readlink of a plain directory fails with EINVAL");
+}
+
 int main(void)
 {
     test_pipe();
@@ -166,6 +217,9 @@ int main(void)
     test_select();
     test_wake_a_blocked_poll();
     test_bad_descriptors();
+    test_proc_self_exe();
+    test_dev_urandom();
+    test_thread_self();
     printf("failures: %d\n", g_failures);
     return g_failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }

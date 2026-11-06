@@ -2,7 +2,7 @@
  * File: shim/xlib/xlib_internal.h
  * Purpose: State and helpers shared by the Xlib shim's source files: drawables, graphics contexts, the display and its event queue
  * Author: Akilesh
- * Date: 2026-11-05
+ * Date: 2026-11-06
  *
  * Every window and pixmap is a drawable: a record with a 32-bit pixel buffer. Drawing writes into the buffer
  * and marks the window's Win32 window dirty; the window's WM_PAINT copies the buffer to the screen. The
@@ -115,6 +115,10 @@ void xl_copy_area(XlId source, XlId target, const XlGc *gc, int32_t sx, int32_t 
                   int32_t dx, int32_t dy);
 /* Marks a region of a window as needing to reach the screen. */
 void xl_invalidate(XlId drawable, int32_t x, int32_t y, int32_t width, int32_t height);
+/* Writes one line to stderr when CROSSPORT_TRACE is set in the environment (a printf subset: %d %u %x %s). */
+void xl_trace(const char *format, ...);
+/* Tells the window dump (xlib_dump.c, CROSSPORT_DUMP_WINDOWS) that a window was painted. Does nothing when the variable is unset. */
+void xl_dump_notify_paint(XlId window);
 /* Copies the pixels of a window that changed since the last call to the screen now. */
 void xl_present_all(void);
 /* Combines a source pixel with the one already there, as the raster operation says. */

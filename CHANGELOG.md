@@ -18,6 +18,77 @@ bumped in the same commit as the change. Releases are tagged by the maintainer, 
 - Fixed: an archive entry whose name is not UTF-8 made the SquashFS reader panic on Windows; `unpack` and `convert`
   now report a malformed archive instead.
 
+## 0.7.10
+
+- The corpus checks that a toolkit window really has contents. `CROSSPORT_DUMP_WINDOWS=<directory>` makes the shim
+  write the pixels of every window that has painted to `window-<id>.ppm`, about twice a second while it paints (a run
+  stopped by a timeout never reaches an exit handler, so the dump does not wait for one). A corpus test with a
+  `window_check` entry (`keepassxc/gui-start`) runs with it, and `tools/corpus/window_check.py` decides: some window of
+  at least 200x150 must use eight or more colours, with 1% of its pixels different from its most common colour; a
+  window that never painted is one flat colour and fails. It also writes a PNG beside each dump, which CI uploads as
+  the `app-windows-pictures` artifact, so a person can see what the test saw (the KeePassXC window shows the welcome
+  page, logo and buttons).
+- Found while building it: the check needed the window's pixels from the xcb path, so the dump follows painted
+  windows instead of the Xlib "mapped" flag, which only Xlib's `XMapWindow` sets.
+
+## 0.7.9
+
+- GNU indirect functions work. A symbol of type `STT_GNU_IFUNC` holds a resolver that returns the real function, and
+  an `R_X86_64_IRELATIVE` slot holds what a resolver returns. The translator used to bind a call to the resolver
+  itself, so the translated Ubuntu zlib 1.2.11 (which selects `crc32_z` this way) returned the resolver's code
+  address as every checksum, and libpng in KeePassXC reported `IHDR: CRC error` for its PNG icons. Each resolver now
+  gets a small trampoline in the module (sections `.cifunc` and `.cifdt`) that saves the argument registers, runs the
+  resolver on the first call, caches the answer and jumps to it; later calls cost one indirect jump. Symbols that
+  share a resolver share a trampoline, a variadic target still sees its vector-register count, and a module may
+  have at most 4096 resolvers.
+- Two corpus cases: `zlib_crc` (crc32 and adler32 of every length up to 600 at 16 alignments, against a bitwise
+  reference, through the system `libz.so.1`) and `ifunc` (an exported, a local and a variadic indirect function
+  called through the PLT, through a pointer and from inside their library).
+
+## 0.7.8
+
+- XKB: the in-process X server now has the XKEYBOARD extension, so Qt's `xcb` platform finds it (`XKeyboard
+  extension not present` is gone) and builds its keymap with libxkbcommon-x11. libxcb-xkb sends its requests
+  through `xcb_send_request`, and the shim answers them at the wire level, in the protocol's layout:
+  - UseExtension, PerClientFlags, GetState, GetControls, GetDeviceInfo and SelectEvents, which is what
+    `xkb_x11_setup_xkb_extension` and `xkb_x11_get_core_keyboard_device_id` need.
+  - GetMap (the four canonical key types, one group of symbols and the modifier map), GetNames (component, type,
+    level, group and key names as atoms) and empty compat and indicator maps, which is what
+    `xkb_x11_keymap_new_from_device` reads. The keymap is the US layout the core protocol already reports.
+  - XkbStateNotify: a client that selects it gets an event whenever Shift, Lock, Control or Alt changes, so a
+    toolkit's own keymap state follows the keyboard and Shift or Caps Lock change the text a key makes.
+  - Xlib: `XkbQueryExtension` and `XQueryExtension("XKEYBOARD")` report the extension; `XkbUseExtension`,
+    `XkbLibraryVersion`, `XkbGetState`, `XkbGetIndicatorState`, `XkbLockGroup`, `XkbLatchGroup`,
+    `XkbLockModifiers`, `XkbLatchModifiers`, `XkbSelectEvents`, `XkbSelectEventDetails` and `XkbBell` answer;
+    `XkbGetMap` still answers NULL (the keymap is read through the xcb requests, not Xlib's descriptor
+    structures), so GTK's use of it is for Milestone 7's GTK step.
+  - `xkb_requests` joins the corpus: it sends the extension's requests and compares the answers with Xvfb.
+- Not yet: XkbStateNotify for Xlib clients, group switching (one layout), compose files beyond what
+  libxkbcommon finds in the runtime pack.
+
+## 0.7.7
+
+- KeePassXC 2.8.0 shows its window: the Qt `xcb` platform runs on the in-process X11, paints the main window and the
+  "check for updates" dialog with text, icons and menus, and receives the keyboard and the mouse. Found by running
+  the converted app and following each failure to its cause:
+  - `crossport convert` writes a `qt.conf` beside the program inside the AppDir when the app has none, a
+    `fonts.conf` that points fontconfig at the Windows fonts directory, and `CROSSPORT_PROGRAM` in `crossport.env`.
+    `QT_PLUGIN_PATH` alone cannot work: Qt splits it at every colon and a Windows path has one after the drive.
+  - `readlink("/proc/self/exe")` answers with the program's original place inside the AppDir, so the `../share`,
+    `../lib` and `../plugins` that toolkits and applications look for next to their program resolve as on Linux.
+    Before, Qt guessed the path from `argv[0]` and the current directory and failed when they were on different drives.
+  - The thread pointer read inline (`%fs:0x10`, glibc's `pthread_self`) now equals what `pthread_self()` returns.
+    Qt compared the two, decided every object lived in another thread, and queued every slot call: a deleted
+    button stayed in its dialog's lists and the next layout crashed.
+  - `/dev/urandom` and `/dev/random` open and read from the system generator (Botan seeds itself there).
+  - Mapping a window with `xcb_map_window` reports MapNotify, and unmapping reports UnmapNotify. A toolkit treats
+    a window as exposed only after its MapNotify and paints nothing before that. Xlib keeps reporting its own.
+  - `CROSSPORT_TRACE=1` prints the drawing requests and paints of the X layer to stderr.
+- A startup run of KeePassXC joins the corpus (`keepassxc/gui-start`: it must still be running after 40 seconds,
+  as it is on Linux under Xvfb).
+- Not yet: XKB (keys that need a keymap), icon themes beyond the built-in ones, auto-type, a check that
+  the window's contents are right, and GTK.
+
 ## 0.7.6
 
 - A real Qt application runs: KeePassXC 2.8.0 (Qt 6, 153 modules with its plugins) starts translated on Windows,
@@ -43,7 +114,15 @@ bumped in the same commit as the change. Releases are tagged by the maintainer, 
   an image, runs `crossport convert` into `Program Files\Crossport\<app>` (or a per-user folder that needs no
   elevation), registers the app with its own uninstaller, and shows a readable report when an app is unsupported.
   A failed conversion leaves nothing behind, and an uninstall refuses to run while the app is open.
-- Not yet done: code signing, update checks, a release download, the runtime pack inside the installer.
+- Releases: pushing a tag `vMAJOR.MINOR.PATCH` runs `.github/workflows/release.yml`, which builds the translator, the shim
+  and the installer and publishes `Crossport-Setup.exe` with `SHA256SUMS.txt`. The tag becomes the programs' version.
+- The runtime pack goes inside the installer (`installer/package.sh --runtime`), is installed in `<folder>\runtime` and
+  is passed to every conversion.
+- Optional Authenticode signing (`tools/ci/sign-windows.ps1`), run only when the secret `CROSSPORT_SIGN_PFX_BASE64`
+  exists; the setup program finds its payload in a file signed after packing. See `docs/RELEASING.md`.
+- `--check-update` (both programs): one WinHTTP request to the GitHub releases API on request, never in the background,
+  allowlisted host and path, 8 second timeouts, no redirects; offers to open the release page.
+- Not yet done: the first release, a real signing certificate, reproducible translation.
 
 ## 0.7.4
 

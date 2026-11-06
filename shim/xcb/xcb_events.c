@@ -2,7 +2,7 @@
  * File: shim/xcb/xcb_events.c
  * Purpose: Turn Win32 window messages into X events and serve xcb_poll_for_event and xcb_wait_for_event
  * Author: Akilesh
- * Date: 2026-11-05
+ * Date: 2026-11-06
  *
  * The window procedure runs on the window thread (xcb_ui.c), whatever the program's threads are doing, and
  * appends X events to a queue that the polling functions drain. A thread waiting for an event sleeps on a
@@ -13,6 +13,7 @@
 #include <windowsx.h>
 
 #include "xcb_internal.h"
+#include "xcb_xkb.h"
 
 #define QUEUE_CAPACITY 256
 #define EVENT_WORDS 8
@@ -174,6 +175,7 @@ static void push_key(HWND window, LPARAM parameter, uint8_t type)
     default:
         break;
     }
+    xcb_xkb_note_modifiers(input_state());
     push_input_with_state(window, type, xcb_keycode_from_scancode(scancode, is_extended), 0, 0, state);
 }
 

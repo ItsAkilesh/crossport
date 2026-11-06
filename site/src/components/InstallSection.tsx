@@ -1,12 +1,14 @@
 /*
  * File: site/src/components/InstallSection.tsx
- * Purpose: How to build Crossport and convert an AppImage today (an installer can be built from source; there is no signed download yet), and what does not work yet
+ * Purpose: How to build Crossport and convert an AppImage today (an installer can be built from source; releases are not published yet), and what does not work yet
  * Author: Akilesh
- * Date: 2026-11-05
+ * Date: 2026-11-06
  */
 
 import { INSTALL_STEPS, LIMITS, REPOSITORY_URL, REQUIREMENTS } from "../content/distributions";
+import { INSTALLER_FACTS, LAUNCHER_SCREENSHOTS, SETUP_SCREENSHOTS } from "../content/updates";
 import { CommandBlock } from "./CommandBlock";
+import { ScreenshotRow } from "./ScreenshotRow";
 import { Section } from "./Section";
 
 export function InstallSection() {
@@ -15,7 +17,7 @@ export function InstallSection() {
       id="install"
       eyebrow="Install"
       title="Build it once, then convert any AppImage."
-      intro="There is no signed download yet. You build the translator and the shim from source, then give the translator an x86-64 Linux AppImage. The command line installs nothing system-wide; installer/package.sh builds a setup wizard and an AppImage launcher if you prefer double-clicking."
+      intro="No release download exists yet; a tagged release will publish a setup file with a checksum. For now you build the translator and the shim from source, then give the translator an x86-64 Linux AppImage. The command line installs nothing system-wide; installer/package.sh builds a setup wizard and an AppImage launcher if you prefer double-clicking."
     >
       <div className="install-grid">
         <div>
@@ -40,6 +42,19 @@ export function InstallSection() {
         and graphics driver notes, is in the{" "}
         <a href={`${REPOSITORY_URL}#use-crossport-on-windows`}>README</a>.
       </p>
+      <div className="detail">
+        <h3>The installer</h3>
+        <p>
+          Build it with <code>bash installer/package.sh build/installer</code>.
+        </p>
+        <ScreenshotRow shots={SETUP_SCREENSHOTS} />
+        <ScreenshotRow shots={LAUNCHER_SCREENSHOTS} />
+        <ul className="plain">
+          {INSTALLER_FACTS.map((fact) => (
+            <li key={fact}>{fact}</li>
+          ))}
+        </ul>
+      </div>
       <div className="detail">
         <h3>Honest limits</h3>
         <ul className="plain">

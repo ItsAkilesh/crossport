@@ -2,7 +2,7 @@
   File: docs/ROADMAP.md
   Purpose: Milestones and exit criteria for Crossport
   Author: Akilesh
-  Date: 2026-11-05
+  Date: 2026-11-06
 -->
 
 # Crossport Roadmap
@@ -96,6 +96,13 @@ matching Linux. Text clipboard bridged with Windows, and a real SDL2 program (SD
 - **Qt first** (the `xcb` platform plugin on the in-process X), then **GTK**, with D-Bus over Unix-domain
   sockets, fontconfig, GSettings and icon themes as needed.
 - **The red zone (done in 0.7.1, see DESIGN 2.12):** audited, enforced in CI, and tested with red-zone code.
+- **Status (2026-11-05):** KeePassXC 2.8.0 (Qt 6) runs translated and shows its main window and a dialog, drawn by
+  Qt's `xcb` platform on the in-process X11, with mouse and keyboard events arriving (CHANGELOG 0.7.7). A startup
+  run is in the corpus, and it fails when the window has no drawn contents (`CROSSPORT_DUMP_WINDOWS`, CHANGELOG
+  0.7.10). XKB is in (CHANGELOG 0.7.8): the extension, the keymap
+  libxkbcommon-x11 reads, and StateNotify for modifiers. Still open for Qt: the auto-type plugin, `Unable to disable core dumps` (prctl and
+  setrlimit). The `IHDR: CRC error` on PNG icons is fixed (0.7.9): Ubuntu's zlib picks `crc32` with a GNU indirect
+  function, which the translator bound to its resolver instead of the chosen function. Not started: GTK, D-Bus over Unix sockets, GSettings.
 - **Exit criterion:** a real Qt AppImage and a real GTK AppImage run with usable input and rendering, and
   a regression suite of their startup and basic interaction runs in CI.
 
@@ -109,8 +116,11 @@ matching Linux. Text clipboard bridged with Windows, and a real SDL2 program (SD
   unsupported (a report of what is missing rather than a crash).
 - **Status (2026-11-05):** the installer and launcher are built (`installer/`, decision in DESIGN section 6): a setup
   wizard for Crossport, an AppImage launcher with its own wizard, file association, per-app uninstall, elevation only
-  when needed, and a readable unsupported-app report. Still to do: code signing, update checks, a release download,
-  and the three-AppImage run on a clean machine (blocked on Qt, Milestone 7).
+  when needed, and a readable unsupported-app report. Also built (2026-11-05): a tag-triggered release workflow
+  that publishes `Crossport-Setup.exe` with a SHA-256 checksum, the runtime pack inside the installer, optional Authenticode
+  signing that runs only when signing secrets exist, and an on-request update check (`--check-update`, WinHTTP, allowlisted
+  GitHub URL; docs/RELEASING.md). Still to do: the first release and a signing certificate, reproducible translation, and
+  the three-AppImage run on a clean machine (blocked on Qt, Milestone 7).
 - **Exit criterion:** someone who has never seen Crossport installs and runs three different AppImages
   from a signed installer with no terminal.
 

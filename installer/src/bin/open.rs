@@ -23,10 +23,11 @@ fn main() {
     let tools = Tools::beside(&dir);
     let code = match parse_open(&args) {
         Err(message) => {
-            dialogs::error(None, &format!("{message}\n\nUsage: crossport-open [file.AppImage] [--silent --dir <folder> --user --desktop]"));
+            dialogs::error(None, &format!("{message}\n\nUsage: crossport-open [file.AppImage] [--silent --dir <folder> --user --desktop] | --check-update [--quiet]"));
             EXIT_USAGE
         }
         Ok(OpenCommand::Uninstall { dir, quiet }) => uninstall::run(&dir, &exe, quiet),
+        Ok(OpenCommand::CheckUpdate { quiet }) => crossport_setup::flows::update::run(quiet),
         Ok(OpenCommand::Silent(request)) => match run_open(&request, &exe, &tools) {
             Ok(done) => {
                 for finding in &done.report.findings {

@@ -2,7 +2,7 @@
  * File: shim/posix_fs.c
  * Purpose: Path-based POSIX calls: stat, unlink, rename, mkdir, access, getcwd, realpath and temp files
  * Author: Akilesh
- * Date: 2026-10-29
+ * Date: 2026-11-05
  */
 
 #include "fd.h"
@@ -143,13 +143,32 @@ LIBC_FN char *sysv_realpath(const char *path, char *resolved)
     return out;
 }
 
-/* No symbolic links exist in a translated AppDir (they were turned into copies), so nothing can be read. */
+LIBC_FN char *sysv_getenv(const char *name);
+
+/*
+ * The only link that exists is /proc/self/exe: the path of the running program, which toolkits use to find their own
+ * files. A converted app answers with the program's original place inside its AppDir (crossport.env sets
+ * CROSSPORT_PROGRAM), so that "../share" and "../plugins" next to it resolve as they do on Linux.
+ */
 LIBC_FN int64_t sysv_readlink(const char *path, char *buffer, size_t size)
 {
-    (void)path;
-    (void)buffer;
-    (void)size;
-    return shim_fail(LINUX_EINVAL);
+    if (path == NULL || strcmp(path, "/proc/self/exe") != 0) {
+        return shim_fail(LINUX_EINVAL);
+    }
+    char text[SHIM_PATH_MAX];
+    const char *program = sysv_getenv("CROSSPORT_PROGRAM");
+    if (program != NULL && *program != '\0' && strlen(program) < sizeof(text)) {
+        strcpy(text, program);
+    } else {
+        wchar_t wide[SHIM_PATH_MAX];
+        if (GetModuleFileNameW(NULL, wide, SHIM_PATH_MAX) == 0 || shim_wide_to_linux_path(wide, text, sizeof(text)) != 0) {
+            return shim_fail(LINUX_ENOENT);
+        }
+    }
+    size_t length = strlen(text);
+    size_t copied = length < size ? length : size;
+    CopyMemory(buffer, text, copied);
+    return (int64_t)copied;
 }
 
 LIBC_FN int sysv_symlink(const char *target, const char *link)

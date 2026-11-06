@@ -1,7 +1,7 @@
 # File: .github/workflows/fuzz.yml
 # Purpose: Fuzz the translator with hostile ELF and SquashFS input: a short smoke run per PR, a long scheduled run
 # Author: Akilesh
-# Date: 2026-11-05
+# Date: 2026-11-06
 #
 # Targets live in fuzz/ (cargo-fuzz, libFuzzer with AddressSanitizer). A crash, hang or out-of-memory input is
 # uploaded as an artifact; the seed corpora are in fuzz/corpus. The scheduled run is the Milestone 9 exit
@@ -82,7 +82,7 @@ jobs:
         run: |
           mkdir -p "work/${{ matrix.target }}"
           cp -r "corpus/${{ matrix.target }}/." "work/${{ matrix.target }}/"
-          cargo fuzz run --features libfuzzer "fuzz_${{ matrix.target }}" "work/${{ matrix.target }}" -- \
+          cargo fuzz run --fuzz-dir . --features libfuzzer "fuzz_${{ matrix.target }}" "work/${{ matrix.target }}" -- \
             -max_total_time="$RUN_SECONDS" \
             -timeout="$TARGET_TIMEOUT_SECONDS" \
             -rss_limit_mb="$MEMORY_LIMIT_MB" \
