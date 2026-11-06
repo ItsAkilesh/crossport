@@ -102,7 +102,8 @@ matching Linux. Text clipboard bridged with Windows, and a real SDL2 program (SD
   0.7.10). XKB is in (CHANGELOG 0.7.8): the extension, the keymap
   libxkbcommon-x11 reads, and StateNotify for modifiers. Still open for Qt: the auto-type plugin, `Unable to disable core dumps` (prctl and
   setrlimit). The `IHDR: CRC error` on PNG icons is fixed (0.7.9): Ubuntu's zlib picks `crc32` with a GNU indirect
-  function, which the translator bound to its resolver instead of the chosen function. Not started: GTK, D-Bus over Unix sockets, GSettings.
+  function, which the translator bound to its resolver instead of the chosen function. Unix-domain sockets for D-Bus are in (CHANGELOG 0.7.13: paths, `/run`, abstract names, `socketpair`, peer
+  credentials; no descriptor passing). Not started: GTK, a D-Bus session bus to connect to, GSettings.
 - **Exit criterion:** a real Qt AppImage and a real GTK AppImage run with usable input and rendering, and
   a regression suite of their startup and basic interaction runs in CI.
 

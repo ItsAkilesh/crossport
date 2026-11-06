@@ -193,6 +193,7 @@ installed system-wide, no registry keys are written and no administrator rights 
 | Vulkan programs (offscreen and in a window) | Works. Needs a Windows Vulkan driver. |
 | SDL2 programs using the X11 driver (windows, software drawing, keyboard, mouse) | Works for the test programs. |
 | OpenGL (GLX) and EGL programs, including OpenGL ES 2 | Works for the test programs. Needs an OpenGL driver. |
+| Programs that talk over Unix-domain sockets (a D-Bus client, a local server and client) | Works in the test corpus. There is no session bus to connect to, so such programs fail cleanly with ENOENT. |
 | Qt and GTK applications | **Partly.** KeePassXC (Qt 6) shows its window and takes the keyboard and mouse, with PNG icons since 0.7.9 and the XKB extension and keymap Qt asks for; GTK and D-Bus are not done (Milestone 7). Try `coverage` first. |
 | Anything that draws text through X fonts or fontconfig, or uses sound | Not yet. Sound libraries are not provided, so audio is silent when they are stubbed. |
 | Electron, the JVM and other apps that generate machine code at run time | Out of scope. |

@@ -2,7 +2,7 @@
  * File: shim/fd.h
  * Purpose: The file-descriptor table and path mapping that stdio and the POSIX file calls are built on
  * Author: Akilesh
- * Date: 2026-11-05
+ * Date: 2026-11-06
  */
 
 #ifndef CROSSPORT_FD_H
@@ -87,6 +87,7 @@ typedef struct {
     HANDLE event;
     int family; /* the Linux address family the program asked for */
     int type;
+    char *abstract_path; /* the file standing in for a bound abstract Unix-domain name, or NULL */
 } SocketState;
 
 /* Socket reads and writes behind read(2) and write(2); see sock.c. */

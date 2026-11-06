@@ -18,6 +18,28 @@ bumped in the same commit as the change. Releases are tagged by the maintainer, 
 - Fixed: an archive entry whose name is not UTF-8 made the SquashFS reader panic on Windows; `unpack` and `convert`
   now report a malformed archive instead.
 
+## 0.7.13
+
+- Unix-domain sockets work well enough for a D-Bus client (libdbus-1 in KeePassXC and GTK applications): a program can
+  connect to a session bus, or fail the way it does on Linux when there is none.
+  - Addresses: a path under `/run` or `/var/run` (`/run/user/1000/bus`) is a file under `%TEMP%\crossport-run`, made
+    on demand; an abstract name (a leading NUL byte, as D-Bus uses) is a file named after it under
+    `%TEMP%\crossport-abs` and deleted when its socket closes. `getsockname`, `getpeername`, `accept` and
+    `recvfrom` map the names back, so the program sees the address it bound.
+  - `connect` to a path that does not exist fails with `ENOENT` (Winsock says "refused"); a second `bind` to a name in
+    use fails with `EADDRINUSE`.
+  - `socketpair` is a real pair of `AF_UNIX` sockets on a private path, not a loopback TCP pair that any local
+    program could connect to. Only `SOCK_STREAM` is supported.
+  - `SO_PEERCRED` answers with the peer's process id (when Windows reports it), user id and group id; `SO_PASSCRED`
+    is accepted. `sendmsg` with `SCM_RIGHTS` fails with `EOPNOTSUPP`: descriptors cannot be passed between Windows
+    processes this way, so a D-Bus connection must not negotiate file-descriptor passing.
+  - poll, select and epoll treat these sockets like any other.
+- `unix_sockets` joins the corpus: a client and a server in one process over a path, a `/run/user` path and an abstract
+  name, a connect that finds no bus, and a `socketpair` with poll, select, epoll, peer credentials, a quarter megabyte
+  of data and hangup. It runs on Linux and translated on Windows with the same output.
+- Not yet: `SOCK_DGRAM` and `SOCK_SEQPACKET` Unix sockets, passing descriptors, autobind (binding with no name), and a
+  session bus to talk to (nothing on Windows provides one).
+
 ## 0.7.10
 
 - The corpus checks that a toolkit window really has contents. `CROSSPORT_DUMP_WINDOWS=<directory>` makes the shim
