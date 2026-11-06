@@ -2,12 +2,12 @@
  * File: shim/xcb/xcb_keys.c
  * Purpose: The keyboard map: Windows scan codes to X keycodes, and X keycodes to keysyms for a US layout
  * Author: Akilesh
- * Date: 2026-10-29
+ * Date: 2026-11-06
  *
  * X keycodes on Linux are evdev codes plus 8. The main block of a PC keyboard has the same numbers in
  * Windows scan codes and evdev; the keys Windows reports with the "extended" flag need a table. The
  * keysym columns are the unshifted and shifted symbols of a US layout, which is what the server reports
- * until XKB keymaps (libxkbcommon) are provided.
+ * through the core protocol and, in xcb_xkb_*.c, through XKB.
  */
 
 #include "xcb_internal.h"
