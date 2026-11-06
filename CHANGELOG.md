@@ -5,6 +5,11 @@ being worked on. A feature commit that adds user-visible capability (a new flag,
 that runs) bumps the patch number; a fix does not. The version lives in `translator/Cargo.toml` and is
 bumped in the same commit as the change. Releases are tagged by the maintainer, not by automation.
 
+## 0.7.9
+
+- `prctl` answers: `PR_SET_DUMPABLE` is remembered and read back, `PR_SET_NAME` succeeds and any other option fails
+  with `EINVAL`. KeePassXC no longer warns `Unable to disable core dumps`. Tested in `posix_io`.
+
 ## 0.7.8
 
 - XKB: the in-process X server now has the XKEYBOARD extension, so Qt's `xcb` platform finds it (`XKeyboard
