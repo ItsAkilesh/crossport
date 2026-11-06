@@ -17,6 +17,8 @@ pub mod paths;
 pub mod payload;
 pub mod regplan;
 pub mod report;
+pub mod signed;
+pub mod update;
 
 #[cfg(windows)]
 pub mod win;

@@ -1,11 +1,12 @@
 // File: installer/src/win/mod.rs
-// Purpose: Windows-only helpers: wide strings, process elevation, known folders
+// Purpose: Windows-only helpers: wide strings, process elevation, known folders, registry, shortcuts, HTTPS
 // Author: Akilesh
 // Date: 2026-11-05
 
 #![allow(unsafe_code)]
 
 pub mod elevate;
+pub mod http;
 pub mod registry;
 pub mod shortcut;
 
@@ -93,6 +94,31 @@ pub fn can_write(dir: &std::path::Path) -> bool {
 pub fn announce_association_change() {
     // SAFETY: no item pointers are passed for a global association change.
     unsafe { SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, None, None) };
+}
+
+/// Open a release page in the default browser. Only addresses on the project's releases are opened.
+pub fn open_release_page(url: &str) -> Result<(), String> {
+    if !crate::update::is_release_url(url) {
+        return Err("that address is not a Crossport release page".to_string());
+    }
+    let url_w = wide(url);
+    // SAFETY: the verb and the address are NUL-terminated and outlive the call; no other pointers are passed.
+    let result = unsafe {
+        windows::Win32::UI::Shell::ShellExecuteW(
+            None,
+            windows::core::w!("open"),
+            pcwstr(&url_w),
+            PCWSTR::null(),
+            PCWSTR::null(),
+            windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL,
+        )
+    };
+    // ShellExecute reports success with a value above 32.
+    if result.0 as usize > 32 {
+        Ok(())
+    } else {
+        Err("could not open the browser".to_string())
+    }
 }
 
 /// Make `println!` and `eprintln!` reach the terminal that started this windowed program, if there is one.

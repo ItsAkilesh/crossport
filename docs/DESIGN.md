@@ -2,7 +2,7 @@
   File: docs/DESIGN.md
   Purpose: Technical design for the Crossport ELF-to-PE static translator
   Author: Akilesh
-  Date: 2026-11-05
+  Date: 2026-11-06
 -->
 
 # Crossport Design
@@ -110,7 +110,7 @@ What it showed, and what has been done about it:
   kept non-blocking, with blocking emulated by waiting on the socket's event; Unix-domain paths go
   through the path mapper. `posix_io`, `sockets` and `event_loop` test them.
 
-**Unix-domain sockets (0.7.9).** D-Bus needs `AF_UNIX` stream sockets, which Winsock has since Windows 10. The
+**Unix-domain sockets (0.7.13).** D-Bus needs `AF_UNIX` stream sockets, which Winsock has since Windows 10. The
 shim keeps the socket descriptor kind and changes only the addresses (`sock_unix.c`). A pathname goes through the
 path mapper; `/run` and `/var/run` map to `%TEMP%\crossport-run`, whose parent directories are created when a
 program binds there (on Linux systemd makes `/run/user/<uid>`). Winsock has no abstract namespace, so a name that
@@ -295,7 +295,9 @@ thread control block holds the same pthread object `pthread_self()` returns (a m
 call). A window must report MapNotify (`xcb_map_window`) before a toolkit paints it. `/dev/urandom` is a descriptor
 kind that reads the system generator. fontconfig reads a `fonts.conf` that `convert` writes beside the program,
 listing the Windows fonts directory. For finding such gaps: run with `CROSSPORT_TRACE=1` (drawing requests and
-paints), and under `gdb` from MinGW, which resolves the exported names of translated libraries
+paints), `CROSSPORT_DUMP_WINDOWS=<directory>` (every window that painted is written to
+`window-<id>.ppm` about twice a second, so a run that a timeout kills still leaves its last picture; the corpus checks
+them with `tools/corpus/window_check.py`), and under `gdb` from MinGW, which resolves the exported names of translated libraries
 (`libQt6Core.so.6!_ZN7QObject6senderEv`) and so can count calls and read arguments.
 
 **Short thread-local accesses.** An FS-relative instruction shorter than the 5-byte jump that redirects it

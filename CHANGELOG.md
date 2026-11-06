@@ -5,7 +5,7 @@ being worked on. A feature commit that adds user-visible capability (a new flag,
 that runs) bumps the patch number; a fix does not. The version lives in `translator/Cargo.toml` and is
 bumped in the same commit as the change. Releases are tagged by the maintainer, not by automation.
 
-## 0.7.9
+## 0.7.13
 
 - Unix-domain sockets work well enough for a D-Bus client (libdbus-1 in KeePassXC and GTK applications): a program can
   connect to a session bus, or fail the way it does on Linux when there is none.
@@ -26,6 +26,33 @@ bumped in the same commit as the change. Releases are tagged by the maintainer, 
   of data and hangup. It runs on Linux and translated on Windows with the same output.
 - Not yet: `SOCK_DGRAM` and `SOCK_SEQPACKET` Unix sockets, passing descriptors, autobind (binding with no name), and a
   session bus to talk to (nothing on Windows provides one).
+
+## 0.7.10
+
+- The corpus checks that a toolkit window really has contents. `CROSSPORT_DUMP_WINDOWS=<directory>` makes the shim
+  write the pixels of every window that has painted to `window-<id>.ppm`, about twice a second while it paints (a run
+  stopped by a timeout never reaches an exit handler, so the dump does not wait for one). A corpus test with a
+  `window_check` entry (`keepassxc/gui-start`) runs with it, and `tools/corpus/window_check.py` decides: some window of
+  at least 200x150 must use eight or more colours, with 1% of its pixels different from its most common colour; a
+  window that never painted is one flat colour and fails. It also writes a PNG beside each dump, which CI uploads as
+  the `app-windows-pictures` artifact, so a person can see what the test saw (the KeePassXC window shows the welcome
+  page, logo and buttons).
+- Found while building it: the check needed the window's pixels from the xcb path, so the dump follows painted
+  windows instead of the Xlib "mapped" flag, which only Xlib's `XMapWindow` sets.
+
+## 0.7.9
+
+- GNU indirect functions work. A symbol of type `STT_GNU_IFUNC` holds a resolver that returns the real function, and
+  an `R_X86_64_IRELATIVE` slot holds what a resolver returns. The translator used to bind a call to the resolver
+  itself, so the translated Ubuntu zlib 1.2.11 (which selects `crc32_z` this way) returned the resolver's code
+  address as every checksum, and libpng in KeePassXC reported `IHDR: CRC error` for its PNG icons. Each resolver now
+  gets a small trampoline in the module (sections `.cifunc` and `.cifdt`) that saves the argument registers, runs the
+  resolver on the first call, caches the answer and jumps to it; later calls cost one indirect jump. Symbols that
+  share a resolver share a trampoline, a variadic target still sees its vector-register count, and a module may
+  have at most 4096 resolvers.
+- Two corpus cases: `zlib_crc` (crc32 and adler32 of every length up to 600 at 16 alignments, against a bitwise
+  reference, through the system `libz.so.1`) and `ifunc` (an exported, a local and a variadic indirect function
+  called through the PLT, through a pointer and from inside their library).
 
 ## 0.7.8
 
@@ -96,7 +123,15 @@ bumped in the same commit as the change. Releases are tagged by the maintainer, 
   an image, runs `crossport convert` into `Program Files\Crossport\<app>` (or a per-user folder that needs no
   elevation), registers the app with its own uninstaller, and shows a readable report when an app is unsupported.
   A failed conversion leaves nothing behind, and an uninstall refuses to run while the app is open.
-- Not yet done: code signing, update checks, a release download, the runtime pack inside the installer.
+- Releases: pushing a tag `vMAJOR.MINOR.PATCH` runs `.github/workflows/release.yml`, which builds the translator, the shim
+  and the installer and publishes `Crossport-Setup.exe` with `SHA256SUMS.txt`. The tag becomes the programs' version.
+- The runtime pack goes inside the installer (`installer/package.sh --runtime`), is installed in `<folder>\runtime` and
+  is passed to every conversion.
+- Optional Authenticode signing (`tools/ci/sign-windows.ps1`), run only when the secret `CROSSPORT_SIGN_PFX_BASE64`
+  exists; the setup program finds its payload in a file signed after packing. See `docs/RELEASING.md`.
+- `--check-update` (both programs): one WinHTTP request to the GitHub releases API on request, never in the background,
+  allowlisted host and path, 8 second timeouts, no redirects; offers to open the release page.
+- Not yet done: the first release, a real signing certificate, reproducible translation.
 
 ## 0.7.4
 

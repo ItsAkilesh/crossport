@@ -6,14 +6,18 @@
 #![cfg_attr(windows, windows_subsystem = "windows")]
 
 #[cfg(windows)]
-fn make_installer(out: &std::path::Path, from: &std::path::Path) -> Result<(), String> {
+fn make_installer(out: &std::path::Path, from: &std::path::Path, uninstaller: Option<&std::path::Path>) -> Result<(), String> {
     use crossport_setup::engine::UNINSTALLER;
     use crossport_setup::payload::{attach, collect, encode, Entry};
 
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
     let program = std::fs::read(&exe).map_err(|e| format!("reading {}: {e}", exe.display()))?;
     let mut entries = collect(from).map_err(|e| format!("reading {}: {e}", from.display()))?;
-    entries.push(Entry { path: UNINSTALLER.to_string(), data: program.clone() });
+    let uninstall_exe = match uninstaller {
+        Some(path) => std::fs::read(path).map_err(|e| format!("reading {}: {e}", path.display()))?,
+        None => program.clone(),
+    };
+    entries.push(Entry { path: UNINSTALLER.to_string(), data: uninstall_exe });
     std::fs::write(out, attach(&program, &encode(&entries))).map_err(|e| format!("writing {}: {e}", out.display()))
 }
 
@@ -35,7 +39,8 @@ fn main() {
             EXIT_USAGE
         }
         Ok(SetupCommand::Uninstall { dir, quiet }) => uninstall::run(&dir, &exe, quiet),
-        Ok(SetupCommand::MakeInstaller { out, from }) => match make_installer(&out, &from) {
+        Ok(SetupCommand::CheckUpdate { quiet }) => crossport_setup::flows::update::run(quiet),
+        Ok(SetupCommand::MakeInstaller { out, from, uninstaller }) => match make_installer(&out, &from, uninstaller.as_deref()) {
             Ok(()) => 0,
             Err(message) => {
                 eprintln!("crossport-setup: {message}");
