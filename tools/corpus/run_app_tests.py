@@ -2,10 +2,14 @@
 """File: tools/corpus/run_app_tests.py
 Purpose: Run an app's test invocations through difftest, each in a fresh sandbox, and record the results
 Author: Akilesh
-Date: 2026-10-29
+Date: 2026-11-06
 
 Usage: run_app_tests.py --app-dir DIR --exe PATH --label linux|windows --work DIR --results DIR --difftest PATH
 Writes <results>/<app>-<test>-<label>.json for every test.
+
+A test with a "window_check" object ({"min_width": N, "min_height": N}, both optional) is also run with
+CROSSPORT_DUMP_WINDOWS set on Windows, and fails when no window of that size has drawn contents (window_check.py).
+The dumps stay in <work>/<app>/<test>-windows for a person to look at.
 """
 
 from __future__ import annotations
@@ -19,9 +23,12 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
+import window_check
+
 TEST_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 DEFAULT_TIMEOUT_SECONDS = 120
 MAX_TIMEOUT_SECONDS = 3600
+MAX_WINDOW_SIZE = 8192
 
 
 @dataclass(frozen=True)
@@ -33,6 +40,7 @@ class AppTest:
     timeout: int
     stderr_keep: re.Pattern[str] | None = None
     env: tuple[tuple[str, str], ...] = ()
+    window_size: tuple[int, int] | None = None
 
 
 def _relative(path: object, what: str) -> str:
@@ -49,6 +57,17 @@ def _sandbox_name(name: object) -> str:
     if not isinstance(name, str) or not name or "/" in name or "\\" in name or name in {".", ".."}:
         raise ValueError(f"sandbox file name must be a plain name, got {name!r}")
     return name
+
+
+def parse_window_check(test_id: str, raw: object) -> tuple[int, int] | None:
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        raise ValueError(f"{test_id}: window_check must be an object")
+    sizes = (raw.get("min_width", window_check.DEFAULT_MIN_WIDTH), raw.get("min_height", window_check.DEFAULT_MIN_HEIGHT))
+    if not all(isinstance(size, int) and 1 <= size <= MAX_WINDOW_SIZE for size in sizes):
+        raise ValueError(f"{test_id}: window_check sizes must be integers in 1..{MAX_WINDOW_SIZE}")
+    return sizes
 
 
 def parse_test(raw: object) -> AppTest:
@@ -74,6 +93,7 @@ def parse_test(raw: object) -> AppTest:
     if keep is not None and not isinstance(keep, str):
         raise ValueError(f"{test_id}: stderr_keep must be a regular expression string")
     return AppTest(
+        window_size=parse_window_check(test_id, raw.get("window_check")),
         id=test_id,
         args=tuple(args),
         stdin=_relative(stdin, f"{test_id}: stdin") if stdin is not None else None,
@@ -101,7 +121,28 @@ def prepare_sandbox(app_dir: Path, test: AppTest, sandbox: Path) -> None:
         shutil.copyfile(app_dir / source, sandbox / name)
 
 
-def difftest_command(difftest: Path, exe: Path, test: AppTest, app_dir: Path, sandbox: Path, out: Path) -> list[str]:
+def wants_window_check(test: AppTest, label: str) -> bool:
+    """Only the translated run has the shim that can dump its windows."""
+    return test.window_size is not None and label == "windows"
+
+
+def prepare_dump_directory(directory: Path) -> Path:
+    if directory.exists():
+        shutil.rmtree(directory)
+    directory.mkdir(parents=True)
+    return directory.resolve()
+
+
+def report_window_check(test_name: str, dumps: Path, size: tuple[int, int]) -> int:
+    is_ok, lines = window_check.check_directory(dumps, *size)
+    for line in lines:
+        print(f"{test_name}: {line}")
+    return 0 if is_ok else 1
+
+
+def difftest_command(
+    difftest: Path, exe: Path, test: AppTest, app_dir: Path, sandbox: Path, out: Path, dumps: Path | None = None
+) -> list[str]:
     command = [
         str(difftest), "run", "--out", str(out), "--cwd", str(sandbox), "--capture-dir", str(sandbox),
         "--timeout", str(test.timeout),
@@ -110,6 +151,8 @@ def difftest_command(difftest: Path, exe: Path, test: AppTest, app_dir: Path, sa
         command += ["--stdin", str(app_dir / test.stdin)]
     for name, value in test.env:
         command += ["--env", f"{name}={value}"]
+    if dumps is not None:
+        command += ["--env", f"CROSSPORT_DUMP_WINDOWS={dumps}"]
     return command + ["--", str(exe), *test.args]
 
 
@@ -148,7 +191,10 @@ def run_all(app_dir: Path, exe: Path, label: str, work: Path, results: Path, dif
         sandbox = work / name / test.id
         prepare_sandbox(app_dir, test, sandbox)
         out = results / f"{name}-{test.id}-{label}.json"
-        completed = subprocess.run(difftest_command(difftest, exe, test, app_dir, sandbox, out), capture_output=True, text=True)
+        dumps = prepare_dump_directory(work / name / f"{test.id}-windows") if wants_window_check(test, label) else None
+        completed = subprocess.run(
+            difftest_command(difftest, exe, test, app_dir, sandbox, out, dumps), capture_output=True, text=True
+        )
         if completed.returncode != 0:
             failures += 1
             print(f"{name}/{test.id}: the runner failed: {completed.stderr.strip()}", file=sys.stderr)
@@ -156,6 +202,8 @@ def run_all(app_dir: Path, exe: Path, label: str, work: Path, results: Path, dif
             anonymize_program(out, exe, name)
             if test.stderr_keep is not None:
                 filter_stderr(out, test.stderr_keep)
+        if dumps is not None and test.window_size is not None:
+            failures += report_window_check(f"{name}/{test.id}", dumps, test.window_size)
     print(f"{name}: ran {len(tests)} tests ({label}), {failures} runner failures")
     return 1 if failures else 0
 

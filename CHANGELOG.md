@@ -5,6 +5,19 @@ being worked on. A feature commit that adds user-visible capability (a new flag,
 that runs) bumps the patch number; a fix does not. The version lives in `translator/Cargo.toml` and is
 bumped in the same commit as the change. Releases are tagged by the maintainer, not by automation.
 
+## 0.7.10
+
+- The corpus checks that a toolkit window really has contents. `CROSSPORT_DUMP_WINDOWS=<directory>` makes the shim
+  write the pixels of every window that has painted to `window-<id>.ppm`, about twice a second while it paints (a run
+  stopped by a timeout never reaches an exit handler, so the dump does not wait for one). A corpus test with a
+  `window_check` entry (`keepassxc/gui-start`) runs with it, and `tools/corpus/window_check.py` decides: some window of
+  at least 200x150 must use eight or more colours, with 1% of its pixels different from its most common colour; a
+  window that never painted is one flat colour and fails. It also writes a PNG beside each dump, which CI uploads as
+  the `app-windows-pictures` artifact, so a person can see what the test saw (the KeePassXC window shows the welcome
+  page, logo and buttons).
+- Found while building it: the check needed the window's pixels from the xcb path, so the dump follows painted
+  windows instead of the Xlib "mapped" flag, which only Xlib's `XMapWindow` sets.
+
 ## 0.7.9
 
 - GNU indirect functions work. A symbol of type `STT_GNU_IFUNC` holds a resolver that returns the real function, and

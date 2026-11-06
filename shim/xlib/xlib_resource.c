@@ -2,7 +2,7 @@
  * File: shim/xlib/xlib_resource.c
  * Purpose: The drawable table (windows and pixmaps with their pixel buffers) and the Win32 side of painting them
  * Author: Akilesh
- * Date: 2026-10-29
+ * Date: 2026-11-06
  *
  * Windows keep a buffer the size of their client area. WM_PAINT copies it to the window; a window whose
  * buffer was just created or resized also asks the program for an Expose, because its contents are blank.
@@ -176,6 +176,7 @@ int xl_paint_window(HWND window)
     }
     xl_unlock();
     EndPaint(window, &paint);
+    xl_dump_notify_paint(id);
     if (needs_expose) {
         RECT client;
         GetClientRect(window, &client);
