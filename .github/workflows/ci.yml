@@ -1,7 +1,7 @@
 # File: .github/workflows/ci.yml
 # Purpose: Build and run corpus cases on Linux and Windows in parallel jobs, then diff the results
 # Author: Akilesh
-# Date: 2026-11-05
+# Date: 2026-11-06
 #
 # Job graph (the Windows work that needs no Linux output starts at once):
 #   lint-test ----------------------------------------------\
@@ -42,7 +42,7 @@ env:
   ABORT_CASES: canary_smash
   CRASH_CASES: crash_null
   CLIPBOARD_CASES: xlib_clipboard
-  APPS: ${{ inputs.apps || 'lua sqlite3 jq sdl2_tests keepassxc' }}
+  APPS: ${{ inputs.apps || 'lua sqlite3 jq sdl2_tests keepassxc gedit' }}
   CARGO_PATHS: |
     ~/.cargo/registry/index
     ~/.cargo/registry/cache

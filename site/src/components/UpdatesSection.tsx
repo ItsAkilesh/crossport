@@ -5,7 +5,8 @@
  * Date: 2026-11-06
  */
 
-import { UPDATES } from "../content/updates";
+import { GEDIT_SCREENSHOTS, UPDATES } from "../content/updates";
+import { ScreenshotRow } from "./ScreenshotRow";
 import { Section } from "./Section";
 
 export function UpdatesSection() {
@@ -14,7 +15,7 @@ export function UpdatesSection() {
       id="latest"
       eyebrow="Latest"
       title="What changed most recently."
-      intro="Taken from the changelog: Milestone 7 reached a real Qt application with a window, and the Windows installer arrived."
+      intro="Taken from the changelog: Milestone 7 reached a real Qt application and a real GTK application with windows, and the Windows installer arrived."
     >
       <ol className="updates" aria-label="Recent changes">
         {UPDATES.map((update) => (
@@ -25,6 +26,7 @@ export function UpdatesSection() {
           </li>
         ))}
       </ol>
+      <ScreenshotRow shots={GEDIT_SCREENSHOTS} />
     </Section>
   );
 }

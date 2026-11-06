@@ -2,7 +2,7 @@
 # File: tools/corpus/package.sh
 # Purpose: Build one corpus app from its pinned source and pack it into a real type 2 AppImage
 # Author: Akilesh
-# Date: 2026-11-05
+# Date: 2026-11-06
 #
 # Usage: tools/corpus/package.sh <app>
 # Output: build/corpus/appdirs/<app>/ (the AppDir) and build/corpus/images/<app>.AppImage
@@ -36,6 +36,18 @@ if python3 -c 'import json,sys; sys.exit(0 if "image" in json.load(open(sys.argv
   rm -rf "$appdir"
   "$root/translator/target/release/crossport" unpack "$image" --out "$appdir" > /dev/null
   binary="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["binary"])' "$app_dir/app.json")"
+  # An app that carries its own root file system (a JuNest AppImage) only runs through its own launcher, so the
+  # Linux baseline runs the image itself; the runtime unpacks it to a temporary directory instead of mounting it.
+  if python3 -c 'import json,sys; sys.exit(0 if json.load(open(sys.argv[1])).get("linux_runs_image") else 1)' "$app_dir/app.json"; then
+    cat > "$appdir/crossport-run" <<WRAPPER
+#!/usr/bin/env bash
+export APPIMAGE_EXTRACT_AND_RUN=1
+exec "$image" "\$@"
+WRAPPER
+    chmod +x "$appdir/crossport-run"
+    echo "$image"
+    exit 0
+  fi
   cat > "$appdir/crossport-run" <<WRAPPER
 #!/usr/bin/env bash
 here="\$(cd "\$(dirname "\$0")" && pwd)"

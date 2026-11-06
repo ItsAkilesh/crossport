@@ -1,0 +1,33 @@
+{
+  "name": "gedit",
+  "version": "51.0",
+  "binary": "gedit",
+  "image": {
+    "url": "https://github.com/ivan-hc/Gedit-appimage/releases/download/20261101-070337/gedit_51.0-1-archimage5.0-x86_64.AppImage",
+    "sha256": "17b67374c42c2a15ece5d14cf6d8c7ac49024e966fe698584e84d6c440cac1bf"
+  },
+  "linux_runs_image": true,
+  "convert": true,
+  "translate_flags": [
+    "--stub-missing"
+  ],
+  "tests": [
+    {
+      "id": "version",
+      "args": [
+        "--version"
+      ],
+      "timeout": 180,
+      "stderr_keep": "(?!)"
+    },
+    {
+      "id": "gui-start",
+      "args": [],
+      "timeout": 40,
+      "stderr_keep": "(?!)",
+      "env": {
+        "GDK_BACKEND": "x11"
+      }
+    }
+  ]
+}

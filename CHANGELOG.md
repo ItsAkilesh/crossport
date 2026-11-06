@@ -5,6 +5,37 @@ being worked on. A feature commit that adds user-visible capability (a new flag,
 that runs) bumps the patch number; a fix does not. The version lives in `translator/Cargo.toml` and is
 bumped in the same commit as the change. Releases are tagged by the maintainer, not by automation.
 
+## 0.7.10
+
+- gedit 51.0 (GTK 3, a JuNest AppImage built from Arch Linux packages) starts, draws its window with the GTK theme,
+  and takes the keyboard: typing "hello from crossport" shows the text, marks the document modified and moves the
+  cursor. It is in the app corpus as `gedit` (`version` and `gui-start`). What it needed, found by running it:
+  - `crossport convert` accepts a JuNest AppImage: the `.junest` directory holds a whole Arch root, so its
+    children are moved up beside `AppRun` and the image is read as an ordinary AppDir (`usr/bin/gedit`).
+  - RELR packed relative relocations (`DT_RELR`, `.relr.dyn`) are applied; the Arch toolchain emits them.
+  - The X extension libraries (`libXext`, `libXrandr`, `libXi`, `libXfixes`, `libXcomposite`, `libXdamage`,
+    `libXinerama`, `libXrender`, `libXcursor`) are stood in for by the shim, because they sit on Xlib's private
+    wire interface and the in-process display offers no extensions. Their entry points answer "not present".
+    `XAddExtension` returns a record (cairo registers its display hooks with it and fails without), and
+    `_XLockMutex_fn`, `_XUnlockMutex_fn` and `_Xglobal_lock` exist as data.
+  - `XInitImage` prepares an image a library described itself, which cairo's Xlib surfaces do before drawing.
+  - The AppDir stands in for the system root: an absolute path below `/usr`, `/etc`, `/lib`, `/lib64`, `/opt` or
+    `/var` that exists nowhere else is looked up inside `APPDIR`. GLib, GTK and gdk-pixbuf name `/usr/share` and
+    `/usr/lib` in their own data, and a colon-separated search path cannot hold a Windows drive letter.
+  - `dlsym` on the program handle searches every loaded module, as the single global symbol scope of Linux does.
+    GtkBuilder finds `gedit_multi_notebook_get_type` that way.
+  - `getauxval` answers `AT_SECURE`, `AT_PAGESZ`, `AT_CLKTCK` and the hardware-capability entries (GLib aborts
+    without `AT_SECURE`).
+  - The main thread has an 8 MiB stack committed up front, and so do created threads. Windows grows a stack one
+    guard page at a time, so a frame of more than a page (gdk-pixbuf has one of 64 KiB) crashed; Linux grows it.
+  - An injected key press with no scan code (SendInput by virtual key, remote tools) gets its scan code from
+    `MapVirtualKey`; before, every such key was keycode 8 and GTK ignored it.
+  - Xlib clients see no XKB (`XkbQueryExtension` says no) until `XkbGetMap` exists: GDK found the extension, asked
+    for the whole keyboard description and aborted. Qt still gets XKB through the xcb requests.
+  - `crossport convert` scans the GTK, GIO and gdk-pixbuf plugin directories and the application's own plugins.
+- Not yet: D-Bus (gedit runs without a session bus), spell-check providers (enchant backends are left out), the
+  file chooser and other dialogs, clipboard, window-manager hints beyond title and size.
+
 ## 0.7.9
 
 - `prctl` answers: `PR_SET_DUMPABLE` is remembered and read back, `PR_SET_NAME` succeeds and any other option fails
