@@ -116,8 +116,11 @@ matching Linux. Text clipboard bridged with Windows, and a real SDL2 program (SD
   unsupported (a report of what is missing rather than a crash).
 - **Status (2026-11-05):** the installer and launcher are built (`installer/`, decision in DESIGN section 6): a setup
   wizard for Crossport, an AppImage launcher with its own wizard, file association, per-app uninstall, elevation only
-  when needed, and a readable unsupported-app report. Still to do: code signing, update checks, a release download,
-  and the three-AppImage run on a clean machine (blocked on Qt, Milestone 7).
+  when needed, and a readable unsupported-app report. Also built (2026-11-05): a tag-triggered release workflow
+  that publishes `Crossport-Setup.exe` with a SHA-256 checksum, the runtime pack inside the installer, optional Authenticode
+  signing that runs only when signing secrets exist, and an on-request update check (`--check-update`, WinHTTP, allowlisted
+  GitHub URL; docs/RELEASING.md). Still to do: the first release and a signing certificate, reproducible translation, and
+  the three-AppImage run on a clean machine (blocked on Qt, Milestone 7).
 - **Exit criterion:** someone who has never seen Crossport installs and runs three different AppImages
   from a signed installer with no terminal.
 

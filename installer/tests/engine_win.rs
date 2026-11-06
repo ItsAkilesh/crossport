@@ -14,7 +14,7 @@ use crossport_setup::engine::uninstall::uninstall;
 use crossport_setup::engine::{Env, Tools};
 use crossport_setup::manifest::MANIFEST_FILE;
 use crossport_setup::paths::Scope;
-use crossport_setup::payload::Entry;
+use crossport_setup::payload::{collect, decode, encode, Entry};
 use crossport_setup::regplan::{path_location, uninstall_key, Hive};
 use crossport_setup::win::registry::Registry;
 
@@ -163,4 +163,55 @@ fn a_running_app_blocks_the_uninstall_before_anything_is_removed() {
     drop(held);
     assert!(uninstall(&dir, &sb.env).unwrap().is_empty());
     assert!(!dir.exists());
+}
+
+const RECORDING: &str = "@echo off\r\nmkdir \"%~6\"\r\necho %~7 %~8> \"%~6\\args.txt\"\r\ncopy nul \"%~6\\lua.exe\" >nul\r\necho wrote %~6\\lua.exe (2 modules)\r\n";
+
+/// The files `installer/package.sh --runtime` stages: the tools plus a `runtime` folder of libraries.
+fn stage_with_runtime(sb: &Sandbox) -> PathBuf {
+    let stage = sb.base.join("stage");
+    fs::create_dir_all(stage.join("runtime").join("usr").join("lib")).unwrap();
+    for file in ["crossport.exe", "crossport_libc.dll", "crossport-open.exe"] {
+        fs::write(stage.join(file), file).unwrap();
+    }
+    fs::write(stage.join("runtime").join("usr").join("lib").join("libstdc++.so.6"), b"lib").unwrap();
+    stage
+}
+
+#[test]
+fn a_bundled_runtime_pack_installs_with_crossport_and_reaches_every_conversion() {
+    let sb = Sandbox::new("runtime");
+    let packed = encode(&collect(&stage_with_runtime(&sb)).unwrap());
+    let dir = sb.base.join("Crossport");
+    let opts = SelfOptions { dir: dir.clone(), scope: Scope::User, start_menu: false, desktop: false, add_to_path: false, associate: false };
+    install_self(&decode(&packed).unwrap(), &opts, &sb.env).unwrap();
+
+    let mut tools = Tools::beside(&dir);
+    assert_eq!(tools.runtime.as_deref(), Some(dir.join("runtime").as_path()));
+    assert!(dir.join("runtime").join("usr").join("lib").join("libstdc++.so.6").is_file());
+    let manifest = fs::read_to_string(dir.join(MANIFEST_FILE)).unwrap();
+    assert!(manifest.contains("runtime/usr/lib/libstdc++.so.6"));
+
+    tools.translator = sb.base.join("crossport.bat");
+    fs::write(&tools.translator, RECORDING).unwrap();
+    let launcher = sb.base.join("crossport-open.exe");
+    fs::write(&launcher, b"launcher").unwrap();
+    let app_dir = sb.base.join("Apps").join("Lua");
+    install_app(&request(&app_dir, &launcher), &tools, &sb.env).unwrap();
+    let recorded = fs::read_to_string(app_dir.join("args.txt")).unwrap();
+    assert!(recorded.starts_with("--runtime ") && recorded.contains(r"Crossport\runtime"), "{recorded:?}");
+
+    assert!(uninstall(&dir, &sb.env).unwrap().is_empty());
+    assert!(!dir.exists());
+}
+
+#[test]
+fn without_a_runtime_pack_conversions_get_no_runtime_argument() {
+    let sb = Sandbox::new("noruntime");
+    let stage = stage_with_runtime(&sb);
+    fs::remove_dir_all(stage.join("runtime")).unwrap();
+    let dir = sb.base.join("Crossport");
+    let opts = SelfOptions { dir: dir.clone(), scope: Scope::User, start_menu: false, desktop: false, add_to_path: false, associate: false };
+    install_self(&collect(&stage).unwrap(), &opts, &sb.env).unwrap();
+    assert_eq!(Tools::beside(&dir).runtime, None);
 }

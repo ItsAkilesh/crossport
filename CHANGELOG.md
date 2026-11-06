@@ -101,7 +101,15 @@ bumped in the same commit as the change. Releases are tagged by the maintainer, 
   an image, runs `crossport convert` into `Program Files\Crossport\<app>` (or a per-user folder that needs no
   elevation), registers the app with its own uninstaller, and shows a readable report when an app is unsupported.
   A failed conversion leaves nothing behind, and an uninstall refuses to run while the app is open.
-- Not yet done: code signing, update checks, a release download, the runtime pack inside the installer.
+- Releases: pushing a tag `vMAJOR.MINOR.PATCH` runs `.github/workflows/release.yml`, which builds the translator, the shim
+  and the installer and publishes `Crossport-Setup.exe` with `SHA256SUMS.txt`. The tag becomes the programs' version.
+- The runtime pack goes inside the installer (`installer/package.sh --runtime`), is installed in `<folder>\runtime` and
+  is passed to every conversion.
+- Optional Authenticode signing (`tools/ci/sign-windows.ps1`), run only when the secret `CROSSPORT_SIGN_PFX_BASE64`
+  exists; the setup program finds its payload in a file signed after packing. See `docs/RELEASING.md`.
+- `--check-update` (both programs): one WinHTTP request to the GitHub releases API on request, never in the background,
+  allowlisted host and path, 8 second timeouts, no redirects; offers to open the release page.
+- Not yet done: the first release, a real signing certificate, reproducible translation.
 
 ## 0.7.4
 
