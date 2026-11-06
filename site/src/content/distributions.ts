@@ -58,7 +58,7 @@ export const REQUIREMENTS: readonly string[] = [
 ];
 
 export const LIMITS: readonly string[] = [
-  "KeePassXC (Qt 6) shows its window, but Qt support is not finished: no XKB yet, and its contents are not checked. GTK applications do not run yet.",
+  "KeePassXC (Qt 6) shows its window and has the XKB extension it asks for, but Qt support is not finished: its contents are not checked. GTK applications do not run yet.",
   "Sound is not done. The clipboard works for text.",
   "Programs that make raw Linux system calls (rare outside the C library) are not translated; the translator warns about them.",
   "Electron, the JVM and other programs that generate machine code at run time are out of scope.",

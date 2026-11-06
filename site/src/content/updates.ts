@@ -4,7 +4,7 @@
  * Author: Akilesh
  * Date: 2026-11-06
  *
- * Mirrors CHANGELOG.md (0.7.5 to 0.7.7 and the installer entry); when those change, change this. The screenshots
+ * Mirrors CHANGELOG.md (0.7.5 to 0.7.8 and the installer entry); when those change, change this. The screenshots
  * are the ones in docs/images, copied to public/screens. No screenshot of the KeePassXC window is in the
  * repository yet, so the page shows an empty, labelled slot for it instead of an invented picture.
  */
@@ -17,10 +17,16 @@ export interface Update {
 
 export const UPDATES: readonly Update[] = [
   {
+    version: "0.7.8",
+    title: "XKB: Qt finds its keyboard",
+    summary:
+      "The in-process X server has the XKEYBOARD extension. Qt's xcb platform finds it, reads a US keymap through libxkbcommon-x11, and is told when Shift, Caps Lock, Control or Alt change, so keys make the right text. Checked against a real X server by the xkb_requests test.",
+  },
+  {
     version: "0.7.7",
     title: "KeePassXC shows its window",
     summary:
-      "KeePassXC 2.8.0 (Qt 6) runs translated: Qt's xcb platform paints the main window and a dialog, with text, icons and menus, on the in-process X11, and the keyboard and mouse reach it. Still open for Qt: XKB, icon themes beyond the built-in ones, auto-type, a check that the window's contents are right, and GTK.",
+      "KeePassXC 2.8.0 (Qt 6) runs translated: Qt's xcb platform paints the main window and a dialog, with text, icons and menus, on the in-process X11, and the keyboard and mouse reach it. Still open for Qt: icon themes beyond the built-in ones, auto-type, a check that the window's contents are right, and GTK.",
   },
   {
     version: "0.7.6",
