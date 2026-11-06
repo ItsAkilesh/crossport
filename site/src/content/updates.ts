@@ -4,7 +4,7 @@
  * Author: Akilesh
  * Date: 2026-11-06
  *
- * Mirrors CHANGELOG.md (0.7.5 to 0.7.7 and the installer entry); when those change, change this. The screenshots
+ * Mirrors CHANGELOG.md (0.7.5 to 0.7.8 and the installer entry); when those change, change this. The screenshots
  * are the ones in docs/images, copied to public/screens. No screenshot of the KeePassXC window is in the
  * repository yet, so the page shows an empty, labelled slot for it instead of an invented picture.
  */
@@ -16,6 +16,12 @@ export interface Update {
 }
 
 export const UPDATES: readonly Update[] = [
+  {
+    version: "0.7.8",
+    title: "Indirect functions, and PNG icons without CRC errors",
+    summary:
+      "Functions that a library picks at load time (GNU indirect functions, which Ubuntu's zlib uses for crc32) now resolve to the chosen implementation. Before, every checksum was wrong and KeePassXC's PNG icons failed with IHDR: CRC error.",
+  },
   {
     version: "0.7.7",
     title: "KeePassXC shows its window",
