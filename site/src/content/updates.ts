@@ -4,7 +4,7 @@
  * Author: Akilesh
  * Date: 2026-11-06
  *
- * Mirrors CHANGELOG.md (0.7.5 to 0.7.7 and the installer entry); when those change, change this. The screenshots
+ * Mirrors CHANGELOG.md (0.7.5 to 0.7.9 and the installer entry); when those change, change this. The screenshots
  * are the ones in docs/images, copied to public/screens. No screenshot of the KeePassXC window is in the
  * repository yet, so the page shows an empty, labelled slot for it instead of an invented picture.
  */
@@ -16,6 +16,12 @@ export interface Update {
 }
 
 export const UPDATES: readonly Update[] = [
+  {
+    version: "0.7.9",
+    title: "Unix-domain sockets for D-Bus",
+    summary:
+      "Unix sockets map /run paths and abstract names onto Windows files, socketpair is a real pair of sockets, and peer credentials and poll, select and epoll work, so libdbus can connect to a session bus or fail with the right error when there is none. Descriptor passing is refused.",
+  },
   {
     version: "0.7.7",
     title: "KeePassXC shows its window",

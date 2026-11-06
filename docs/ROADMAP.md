@@ -101,7 +101,8 @@ matching Linux. Text clipboard bridged with Windows, and a real SDL2 program (SD
   run is in the corpus. Still open for Qt: XKB (so keys that need a keymap and compose work), checking the window's
   contents rather than only that it stays up, the auto-type plugin, `Unable to disable core dumps` (prctl and
   setrlimit), and PNG icons that fail with `IHDR: CRC error` (suspected zlib `crc32` in the translated library, not
-  yet isolated). Not started: GTK, D-Bus over Unix sockets, GSettings.
+  yet isolated). Unix-domain sockets for D-Bus are in (CHANGELOG 0.7.9: paths, `/run`, abstract names, `socketpair`, peer
+  credentials; no descriptor passing). Not started: GTK, a D-Bus session bus to connect to, GSettings.
 - **Exit criterion:** a real Qt AppImage and a real GTK AppImage run with usable input and rendering, and
   a regression suite of their startup and basic interaction runs in CI.
 
