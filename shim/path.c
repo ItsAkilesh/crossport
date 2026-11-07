@@ -1,6 +1,6 @@
 /*
  * File: shim/path.c
- * Purpose: Map Linux paths onto Windows paths: /tmp, /run, /dev/null, /proc/self/exe, drive paths and separators
+ * Purpose: Map Linux paths onto Windows paths: /tmp, /run, /dev/null, /proc/self/exe, drive paths, separators and the AppDir as the system root
  * Author: Akilesh
  * Date: 2026-11-06
  */
@@ -74,6 +74,39 @@ static int map_virtual(const char *path, wchar_t *out, size_t out_count)
     return 1;
 }
 
+LIBC_FN char *sysv_getenv(const char *name);
+
+/* Directories a Linux program expects under the root of its system. A converted AppDir stands in for that root:
+ * a path below one of these that exists nowhere else is looked up inside APPDIR (GTK and Arch based AppImages
+ * name /usr/share and /usr/lib in their own configuration). */
+static const char *const OVERLAY_ROOTS[] = {"/usr", "/etc", "/lib", "/lib64", "/opt", "/var"};
+
+static int is_overlay_path(const char *path)
+{
+    for (size_t i = 0; i < sizeof(OVERLAY_ROOTS) / sizeof(OVERLAY_ROOTS[0]); i++) {
+        if (has_prefix(path, OVERLAY_ROOTS[i])) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+/* Returns 0 with the AppDir location in `out` when the path exists there, 1 otherwise. */
+static int map_appdir(const char *path, wchar_t *out, size_t out_count)
+{
+    const char *appdir = sysv_getenv("APPDIR");
+    char joined[SHIM_PATH_MAX];
+    if (appdir == NULL || !is_overlay_path(path) || (size_t)lstrlenA(appdir) + (size_t)lstrlenA(path) + 1 > sizeof(joined)) {
+        return 1;
+    }
+    lstrcpyA(joined, appdir);
+    lstrcatA(joined, path);
+    if (shim_path_to_wide(joined, out, out_count) != 0) {
+        return 1;
+    }
+    return GetFileAttributesW(out) != INVALID_FILE_ATTRIBUTES ? 0 : 1;
+}
+
 /* True for "X:" at the start of a path: a drive letter and a colon. */
 static int is_drive_prefix(const wchar_t *text)
 {
@@ -88,6 +121,9 @@ int shim_path_to_wide(const char *linux_path, wchar_t *out, size_t out_count)
     int mapped = map_virtual(linux_path, out, out_count);
     if (mapped <= 0) {
         return mapped;
+    }
+    if (map_appdir(linux_path, out, out_count) == 0) {
+        return 0;
     }
     if (utf8_to_wide(linux_path, out, out_count) != 0) {
         return -1;

@@ -42,7 +42,7 @@ env:
   ABORT_CASES: canary_smash
   CRASH_CASES: crash_null
   CLIPBOARD_CASES: xlib_clipboard
-  APPS: ${{ inputs.apps || 'lua sqlite3 jq sdl2_tests keepassxc' }}
+  APPS: ${{ inputs.apps || 'lua sqlite3 jq sdl2_tests keepassxc gedit' }}
   CARGO_PATHS: |
     ~/.cargo/registry/index
     ~/.cargo/registry/cache

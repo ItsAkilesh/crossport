@@ -1,8 +1,8 @@
 /*
  * File: shim/fs_more.c
- * Purpose: rlimits, load average, fsync variants, fallocate, fchdir, statfs, futimens and utime
+ * Purpose: rlimits, prctl, load average, fsync variants, fallocate, fchdir, statfs, futimens and utime
  * Author: Akilesh
- * Date: 2026-10-29
+ * Date: 2026-11-06
  */
 
 #include <string.h>
@@ -31,6 +31,25 @@ LIBC_FN int sysv_getrlimit(int resource, uint64_t *limit)
 LIBC_FN int sysv_getrlimit64(int resource, uint64_t *limit)
 {
     return sysv_getrlimit(resource, limit);
+}
+
+/* prctl: programs hide themselves from core dumps (PR_SET_DUMPABLE) and name threads. Windows has no core
+ * dumps, so the dumpable flag is only remembered; every other request is refused as invalid. */
+LIBC_FN int sysv_prctl(int option, uint64_t arg2, uint64_t arg3, uint64_t arg4, uint64_t arg5)
+{
+    enum { PR_GET_DUMPABLE = 3, PR_SET_DUMPABLE = 4, PR_SET_NAME = 15 };
+    static volatile LONG dumpable = 1;
+    (void)arg3;
+    (void)arg4;
+    (void)arg5;
+    if (option == PR_SET_DUMPABLE) {
+        InterlockedExchange(&dumpable, arg2 != 0);
+        return 0;
+    }
+    if (option == PR_GET_DUMPABLE) {
+        return (int)dumpable;
+    }
+    return option == PR_SET_NAME ? 0 : shim_fail(LINUX_EINVAL);
 }
 
 LIBC_FN int sysv_getloadavg(double *averages, int count)

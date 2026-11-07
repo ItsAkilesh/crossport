@@ -2,7 +2,7 @@
  * File: shim/xlib/xlib_image.c
  * Purpose: XImage support: XCreateImage, XPutImage, XGetImage and the pixel accessors reached through the XImage function table
  * Author: Akilesh
- * Date: 2026-10-29
+ * Date: 2026-11-06
  *
  * Supported formats: ZPixmap with 32 or 24 bits per pixel (the layout of the window buffers) and XYBitmap
  * with one bit per pixel. Pixels are little-endian BGRX, which is what the visual's masks describe.
@@ -81,6 +81,20 @@ LIBC_FN XlImage *sysv_XCreateImage(XlDisplay *display, XlVisual *visual, unsigne
     image->data = data;
     image->bytes_per_line = bytes_per_line > 0 ? bytes_per_line : default_stride(image);
     return image;
+}
+
+/* Prepares an XImage the caller filled in itself (cairo does, around its own pixels): installs the function table
+ * and a stride when none was given. Returns 0 when the description cannot be an image. */
+LIBC_FN int sysv_XInitImage(XlImage *image)
+{
+    if (image == NULL || image->width <= 0 || image->height <= 0 || image->bits_per_pixel <= 0) {
+        return 0;
+    }
+    if (image->bytes_per_line == 0) {
+        image->bytes_per_line = default_stride(image);
+    }
+    install_functions(image);
+    return 1;
 }
 
 static SYSV XlImage *allocate_image(int32_t depth, int32_t width, int32_t height)

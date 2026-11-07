@@ -2,7 +2,7 @@
  * File: tests/corpus/xlib_draw/main.c
  * Purpose: Xlib client that opens a window, receives its first events, draws, copies, puts and reads back images, and prints what it saw
  * Author: Akilesh
- * Date: 2026-10-29
+ * Date: 2026-11-06
  *
  * Differential test for the in-process libX11: the same program runs against a real X server (Xvfb) on
  * Linux and against the shim on Windows, and the output must match. It draws only what every X server
@@ -142,6 +142,27 @@ static void put_pattern(Display *display, Window window)
     XFreeGC(display, gc);
 }
 
+/* An image a library describes itself (cairo does) and prepares with XInitImage before drawing it. */
+static void put_described_image(Display *display, Window window)
+{
+    GC gc = XCreateGC(display, window, 0, NULL);
+    static uint32_t pixels[PATTERN_WIDTH * PATTERN_HEIGHT];
+    for (int i = 0; i < PATTERN_WIDTH * PATTERN_HEIGHT; i++) {
+        pixels[i] = 0x00102030u + (uint32_t)i;
+    }
+    XImage image = {.width = PATTERN_WIDTH, .height = PATTERN_HEIGHT, .format = ZPixmap, .data = (char *)pixels,
+                    .byte_order = LSBFirst, .bitmap_unit = 32, .bitmap_bit_order = LSBFirst, .bitmap_pad = 32,
+                    .depth = 24, .bits_per_pixel = 32, .red_mask = 0xff0000, .green_mask = 0xff00, .blue_mask = 0xff};
+    int is_ready = XInitImage(&image);
+    printf("init image: ready=%d bytes_per_line=%d pixel=%lx\n", is_ready, image.bytes_per_line,
+           (unsigned long)XGetPixel(&image, 1, 1) & PIXEL_MASK);
+    XPutImage(display, window, gc, &image, 0, 0, 120, 120, PATTERN_WIDTH, PATTERN_HEIGHT);
+    XImage *back = XGetImage(display, window, 120, 120, PATTERN_WIDTH, PATTERN_HEIGHT, AllPlanes, ZPixmap);
+    printf("init image: round_trip=%d\n", (XGetPixel(back, 2, 3) & PIXEL_MASK) == pixels[3 * PATTERN_WIDTH + 2]);
+    XDestroyImage(back);
+    XFreeGC(display, gc);
+}
+
 static void print_pixels(Display *display, Window window)
 {
     XImage *image = XGetImage(display, window, 0, 0, WIDTH, HEIGHT, AllPlanes, ZPixmap);
@@ -259,6 +280,7 @@ int main(void)
     draw_shapes(display, window);
     copy_through_pixmap(display, window);
     put_pattern(display, window);
+    put_described_image(display, window);
     XSync(display, False);
     print_pixels(display, window);
     print_keys(display, window);

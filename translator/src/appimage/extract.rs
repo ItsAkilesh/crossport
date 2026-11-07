@@ -1,7 +1,7 @@
 // File: translator/src/appimage/extract.rs
 // Purpose: Extract an AppImage's SquashFS payload to a directory under strict size, path and collision limits
 // Author: Akilesh
-// Date: 2026-11-05
+// Date: 2026-11-06
 
 use std::collections::{HashMap, HashSet};
 use std::fs::{self, File, OpenOptions};
@@ -13,6 +13,7 @@ use backhand::{FilesystemReader, InnerNode};
 
 use super::desktop;
 use super::header::{squashfs_offset, PREFIX_BYTES};
+use super::junest;
 use super::paths::{case_key, resolve_link, safe_components};
 use crate::error::TranslateError;
 
@@ -350,6 +351,7 @@ impl<'a> Extraction<'a> {
             ));
         }
         if magic[..2] == *b"#!" {
+            junest::hoist_root(self.root)?;
             if let Some(program) = desktop::find_program(self.root) {
                 return Ok(program);
             }

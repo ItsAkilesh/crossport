@@ -1,7 +1,7 @@
 // File: translator/src/analyze/dynamic.rs
 // Purpose: Read the PT_DYNAMIC table into a typed record of the addresses and values the analyzer needs
 // Author: Akilesh
-// Date: 2026-10-28
+// Date: 2026-11-06
 
 use object::elf;
 use object::read::elf::{Dyn, ProgramHeader};
@@ -14,6 +14,9 @@ use crate::error::TranslateError;
 
 const RELA_ENTRY_SIZE: u64 = 24;
 const MAX_NEEDED: usize = 256;
+/// `DT_RELRSZ` and `DT_RELR` (packed relative relocations, see relr.rs).
+const DT_RELRSZ: elf::DynamicTag = object::elf::DynamicTag(35);
+const DT_RELR: elf::DynamicTag = object::elf::DynamicTag(36);
 
 /// Values from `PT_DYNAMIC`. Addresses are virtual addresses; zero means absent.
 #[derive(Default)]
@@ -31,6 +34,8 @@ pub(super) struct DynamicTable {
     pub relasz: u64,
     pub jmprel: u64,
     pub pltrelsz: u64,
+    pub relr: u64,
+    pub relrsz: u64,
     pub init: Option<u64>,
     pub fini: Option<u64>,
     pub init_array: u64,
@@ -108,6 +113,8 @@ fn assign(table: &mut DynamicTable, tag: elf::DynamicTag, value: u64) {
         elf::DT_RELASZ => table.relasz = value,
         elf::DT_JMPREL => table.jmprel = value,
         elf::DT_PLTRELSZ => table.pltrelsz = value,
+        DT_RELR => table.relr = value,
+        DT_RELRSZ => table.relrsz = value,
         elf::DT_INIT => table.init = Some(value),
         elf::DT_FINI => table.fini = Some(value),
         elf::DT_INIT_ARRAY => table.init_array = value,

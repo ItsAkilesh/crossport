@@ -1,7 +1,7 @@
 // File: tools/difftest/src/runner.rs
 // Purpose: Run a command under controlled conditions (stdin, environment, directory, timeout) and record what it did
 // Author: Akilesh
-// Date: 2026-10-28
+// Date: 2026-11-06
 
 use std::fs::File;
 use std::io::Read;
@@ -106,6 +106,9 @@ fn spawn(spec: &RunSpec) -> Result<Child, DifftestError> {
         None => Stdio::null(),
     });
     command.stdout(Stdio::piped()).stderr(Stdio::piped());
+    // Its own process group, so a timeout can end the program and everything it started.
+    #[cfg(unix)]
+    std::os::unix::process::CommandExt::process_group(&mut command, 0);
     command
         .spawn()
         .map_err(|source| io_error(format!("running {program}"), source))
@@ -146,6 +149,20 @@ fn collect(handle: Option<JoinHandle<Captured>>) -> Result<Captured, DifftestErr
     }
 }
 
+/// Ends every process of the child's group. A launcher that starts the real program as a child (JuNest does)
+/// would otherwise leave it running with the output pipes open, and the readers would never see the end.
+#[cfg(unix)]
+fn kill_group(pid: u32) {
+    let _ = Command::new("kill")
+        .args(["-KILL", "--", &format!("-{pid}")])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status();
+}
+
+#[cfg(not(unix))]
+fn kill_group(_pid: u32) {}
+
 /// Waits for the child, killing it when `timeout` passes. Returns the status
 /// (absent after a kill) and whether the time limit was hit.
 fn wait(child: &mut Child, timeout: Duration) -> Result<(Option<ExitStatus>, bool), DifftestError> {
@@ -158,10 +175,26 @@ fn wait(child: &mut Child, timeout: Duration) -> Result<(Option<ExitStatus>, boo
             return Ok((Some(status), false));
         }
         if Instant::now() >= deadline {
+            kill_group(child.id());
             let _ = child.kill();
             let _ = child.wait();
             return Ok((None, true));
         }
         thread::sleep(POLL_INTERVAL);
+    }
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_timeout_ends_the_programs_children_too() {
+        let mut spec = RunSpec::new(vec!["sh".into(), "-c".into(), "sleep 60 & sleep 60".into()]);
+        spec.timeout = Duration::from_secs(1);
+        let started = Instant::now();
+        let result = run(&spec).expect("runs");
+        assert!(result.timed_out);
+        assert!(started.elapsed() < Duration::from_secs(20));
     }
 }

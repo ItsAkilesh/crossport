@@ -4,7 +4,7 @@
  * Author: Akilesh
  * Date: 2026-11-06
  *
- * The extension is the one the xcb layer serves (xcb_xkb.c), so Xlib reports it present with the same opcode and
+ * The extension is the one the xcb layer serves (xcb_xkb.c). XQueryExtension reports it, but XkbQueryExtension says no, see below.
  * event base. Locks and latches are accepted and change nothing: the keyboard is Windows', and its lock keys are
  * read from Windows. Selected events are accepted; Xlib clients do not receive XkbStateNotify, they read the state.
  * XkbGetMap answers NULL: the keymap is served through the xcb requests (as Qt reads it with libxkbcommon-x11),
@@ -64,19 +64,18 @@ static int agree_on_version(int *major, int *minor)
     return is_compatible;
 }
 
+/* Xlib clients are told there is no XKB: those that find it (GDK, for one) go on to ask for the whole keyboard
+ * description with XkbGetMap and abort when it is missing, and without XKB they use the core keymap, which the
+ * display answers. xcb clients (Qt through libxkbcommon-x11) reach XKB through the wire requests instead. */
 LIBC_FN int sysv_XkbQueryExtension(XlDisplay *display, int *opcode, int *event, int *error, int *major, int *minor)
 {
     (void)display;
-    if (opcode != NULL) {
-        *opcode = XKB_MAJOR_OPCODE;
-    }
-    if (event != NULL) {
-        *event = XKB_FIRST_EVENT;
-    }
-    if (error != NULL) {
-        *error = XKB_FIRST_ERROR;
-    }
-    return agree_on_version(major, minor);
+    (void)opcode;
+    (void)event;
+    (void)error;
+    (void)major;
+    (void)minor;
+    return BOOL_FALSE;
 }
 
 LIBC_FN int sysv_XkbUseExtension(XlDisplay *display, int *major, int *minor)

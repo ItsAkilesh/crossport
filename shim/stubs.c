@@ -2,7 +2,7 @@
  * File: shim/stubs.c
  * Purpose: Linux entry points with no Windows counterpart, answered honestly: ENOSYS, "nothing there", or a harmless success
  * Author: Akilesh
- * Date: 2026-10-29
+ * Date: 2026-11-06
  *
  * Programs name these functions even when they never need them, or they ask and fall back when told no. A
  * missing symbol would stop the translation, so each is present. The groups:
@@ -51,7 +51,6 @@ STUB_FAIL(open_tree)
 STUB_FAIL(umount)
 STUB_FAIL(umount2)
 STUB_FAIL(memfd_create)
-STUB_FAIL(prctl)
 STUB_FAIL(capget)
 STUB_FAIL(capset)
 STUB_FAIL(chroot)

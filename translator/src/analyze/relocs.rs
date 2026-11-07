@@ -32,6 +32,7 @@ pub(super) fn read(
             }
         }
     }
+    relocations.extend(super::relr::read(data, map, table.relr, table.relrsz)?);
     Ok(relocations)
 }
 

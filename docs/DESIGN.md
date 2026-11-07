@@ -300,6 +300,17 @@ paints), `CROSSPORT_DUMP_WINDOWS=<directory>` (every window that painted is writ
 them with `tools/corpus/window_check.py`), and under `gdb` from MinGW, which resolves the exported names of translated libraries
 (`libQt6Core.so.6!_ZN7QObject6senderEv`) and so can count calls and read arguments.
 
+**What GTK expects (found with gedit).** A JuNest AppImage keeps a whole Arch root in `.junest`; `unpack` moves
+its children up beside `AppRun`, so the program is `usr/bin/gedit` as in any AppDir. GLib, GTK and gdk-pixbuf
+find their data through absolute paths (`/usr/share/glib-2.0/schemas`), so the AppDir stands in for the system
+root: a path under `/usr`, `/etc`, `/lib`, `/lib64`, `/opt` or `/var` that exists nowhere else is looked up inside
+`APPDIR`. The X extension libraries (`libXext`, `libXrandr`, `libXi`, `libXfixes`, `libXrender` and the rest) are
+provided by the shim, since they call Xlib's private wire interface; the display has no extensions, so they answer
+"not present", except `XAddExtension`, which cairo needs to get a surface. cairo draws through `XPutImage` after
+`XInitImage`. `dlsym` on the program handle searches all loaded modules, as one global scope does on Linux
+(GtkBuilder finds `*_get_type` functions that way). The main thread's stack is 8 MiB and committed up front,
+because Windows grows a stack only one guard page at a time and a frame larger than a page would fault.
+
 **Short thread-local accesses.** An FS-relative instruction shorter than the 5-byte jump that redirects it
 (a 4-byte `mov %fs:0x28(%rdx),%eax`, for instance) is moved into a stub with its neighbours. The group is the
 smallest straight-line run of at most three instructions on each side that is at least 5 bytes, contiguous, has no
