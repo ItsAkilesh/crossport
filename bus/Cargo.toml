@@ -1,0 +1,24 @@
+# File: bus/Cargo.toml
+# Purpose: Manifest for crossport-bus, the D-Bus session bus daemon Crossport starts for translated programs
+# Author: Akilesh
+# Date: 2026-11-09
+
+[package]
+name = "crossport-bus"
+version = "0.7.16"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[lib]
+name = "crossport_bus"
+path = "src/lib.rs"
+
+[[bin]]
+name = "crossport-bus"
+path = "src/main.rs"
+
+[dependencies]
+
+[lints.rust]
+unsafe_code = "forbid"

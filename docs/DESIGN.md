@@ -461,6 +461,24 @@ Built before the translator, because agents and humans both need fast, objective
   messenger callback) are called by the driver with the Microsoft convention and are not yet thunked in
   that direction.
 
+- **D-Bus (decided 2026-11-09):** a session bus daemon of our own, `crossport-bus`, a small Rust program with no
+  dependencies (`bus/`). Qt and GTK talk to a session bus for single-instance handling, notifications, screen
+  saver inhibition, portals and the secret service; without one they run with those features missing. The options
+  were: (a) translate Ubuntu's `dbus-daemon` with Crossport itself, (b) implement the bus inside the shim, (c) write
+  a daemon. (a) gets real behaviour for free but ties the bus to the Linux build's configuration and dependencies
+  (policy files, systemd and audit stubs, credential passing) and can only be tested through CI; (b) puts a
+  message router in every program's address space and gives each program its own bus, which is wrong for
+  programs that talk to each other; (c) is one process per user session, written once, tested against real
+  libdbus clients on Linux CI and on Windows. The daemon listens on `127.0.0.1` with the `nonce-tcp` transport:
+  Windows' Rust standard library has no Unix sockets, and the nonce (a random file only the user can read, which
+  the client sends first) keeps other users of the machine out. Clients authenticate with EXTERNAL or ANONYMOUS and
+  the nonce is the real check. It supports the methods of `org.freedesktop.DBus` that toolkits call (Hello,
+  RequestName and its queueing, ReleaseName, NameHasOwner, GetNameOwner, ListNames, AddMatch, RemoveMatch, GetId,
+  Ping), match rules with sender, interface, member, path and string arguments, unicast and broadcast routing,
+  `NameOwnerChanged`, and errors for calls whose service is missing or dies. It does not pass file descriptors,
+  activate services, or enforce policy. The shim starts it on demand and sets `DBUS_SESSION_BUS_ADDRESS`
+  (section 2.13).
+
 ### Open
 
 Nothing is open at the moment.
