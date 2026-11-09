@@ -251,7 +251,7 @@ jobs:
             cat "results/$corpus_case-windows.json" || true
             python3 tools/ci/symbolize.py "results/$corpus_case-windows.json" build/shim/crossport_libc.dll || true
           done
-      - name: A program reaches the session bus the shim starts (libdbus: connect, take a name, list it, receive a signal)
+      - name: A program reaches the session bus the shim starts (libdbus connects, takes a name, lists it, gets a signal)
         if: inputs.cases == ''
         run: |
           python3 tools/ci/check_output.py results/dbus_session-windows.json "bus: connected unique_name_ok=1" "request: 1"             "has_owner: 1" "names: listed=1" "signal: received=1" "done"
