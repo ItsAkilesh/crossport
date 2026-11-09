@@ -194,7 +194,7 @@ installed system-wide, no registry keys are written and no administrator rights 
 | SDL2 programs using the X11 driver (windows, software drawing, keyboard, mouse) | Works for the test programs. |
 | OpenGL (GLX) and EGL programs, including OpenGL ES 2 | Works for the test programs. Needs an OpenGL driver. |
 | Programs that talk over Unix-domain sockets (a D-Bus client, a local server and client) | Works in the test corpus. There is no session bus to connect to, so such programs fail cleanly with ENOENT. |
-| Qt and GTK applications | **Partly.** KeePassXC (Qt 6) shows its window and takes the keyboard and mouse, with PNG icons and the XKB extension and keymap Qt asks for; gedit (GTK 3) shows its window and takes typed text; D-Bus, dialogs and the clipboard are not done (Milestone 7). Try `coverage` first. |
+| Qt and GTK applications | **Partly.** KeePassXC (Qt 6) shows its window and takes the keyboard and mouse, with PNG icons and the XKB extension and keymap Qt asks for; gedit (GTK 3) shows its window, takes typed text and copies it to the Windows clipboard; D-Bus and dialogs are not done (Milestone 7). Try `coverage` first. |
 | Anything that draws text through X fonts or fontconfig, or uses sound | Not yet. Sound libraries are not provided, so audio is silent when they are stubbed. |
 | Electron, the JVM and other apps that generate machine code at run time | Out of scope. |
 

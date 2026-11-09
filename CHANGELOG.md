@@ -5,6 +5,14 @@ being worked on. A feature commit that adds user-visible capability (a new flag,
 that runs) bumps the patch number; a fix does not. The version lives in `translator/Cargo.toml` and is
 bumped in the same commit as the change. Releases are tagged by the maintainer, not by automation.
 
+## 0.7.16
+
+- Copying text in a GTK program reaches the Windows clipboard. The shim asks a program that takes CLIPBOARD for its
+  text through a pseudo requestor window, and GTK looks the requestor up with `XGetWindowAttributes` before it
+  answers, refusing a window the server does not know. The pseudo window is now registered (never mapped), and
+  the `xlib_clipboard` test refuses unknown requestors the same way. Checked with gedit: select all and copy
+  puts the text on the Windows clipboard.
+
 ## 0.7.15
 
 - gedit 51.0 (GTK 3, a JuNest AppImage built from Arch Linux packages) starts, draws its window with the GTK theme,
