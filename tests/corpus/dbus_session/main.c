@@ -78,7 +78,7 @@ int main(void)
     printf("has_owner: %d\n", dbus_bus_name_has_owner(connection, OWNED_NAME, &error));
     printf("names: listed=%d\n", list_contains(connection, OWNED_NAME));
     printf("signal: received=%d\n", receive_own_signal(connection));
-    dbus_connection_close(connection);
+    /* A shared connection (dbus_bus_get) is only released, never closed. */
     dbus_connection_unref(connection);
     puts("done");
     return 0;

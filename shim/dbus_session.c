@@ -105,7 +105,8 @@ static int is_listening(const char *address)
     return is_open;
 }
 
-/* Starts the daemon without a window, detached, and waits for it to publish an address that answers. */
+/* Starts the daemon without a window, detached and in its own directory (so it never keeps the program's folder
+   from being removed), and waits for it to publish an address that answers. */
 static int start_daemon(const wchar_t *executable, const wchar_t *directory, char *address, size_t capacity)
 {
     wchar_t address_file[SHIM_PATH_MAX];
@@ -119,7 +120,7 @@ static int start_daemon(const wchar_t *executable, const wchar_t *directory, cha
     STARTUPINFOW startup = {.cb = sizeof(startup)};
     PROCESS_INFORMATION process;
     if (!CreateProcessW(executable, command, NULL, NULL, FALSE, CREATE_NO_WINDOW | DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP,
-                        NULL, NULL, &startup, &process)) {
+                        NULL, directory, &startup, &process)) {
         return 0;
     }
     CloseHandle(process.hThread);
