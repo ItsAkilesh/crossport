@@ -1,7 +1,7 @@
 // File: translator/src/bundle.rs
 // Purpose: Write the translated files and the shim DLL into a loose bundle directory
 // Author: Akilesh
-// Date: 2026-11-05
+// Date: 2026-11-09
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -31,6 +31,34 @@ pub fn write_bundle(
     fs::copy(shim_path, out_dir.join(SHIM_DLL))
         .map_err(io_error(format!("copying shim {}", shim_path.display())))?;
     executable.ok_or_else(|| TranslateError::Elf("internal: translation produced no files".into()))
+}
+
+/// The D-Bus session bus daemon (the `bus` crate), which programs in a bundle share through the shim.
+pub const SESSION_BUS_EXE: &str = "crossport-bus.exe";
+/// Names a session bus executable explicitly (a build tree keeps it apart from `crossport.exe`).
+pub const SESSION_BUS_VARIABLE: &str = "CROSSPORT_BUS_EXE";
+
+/// Where the session bus executable is: the variable if set, otherwise beside this program.
+pub fn locate_session_bus() -> Option<PathBuf> {
+    let explicit = std::env::var_os(SESSION_BUS_VARIABLE).map(PathBuf::from);
+    let beside = std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(|dir| dir.join(SESSION_BUS_EXE)));
+    explicit
+        .into_iter()
+        .chain(beside)
+        .find(|path| path.is_file())
+}
+
+/// Copies the session bus into the bundle when there is one to copy; returns whether it did. Without it a
+/// program still runs, only without a D-Bus session.
+pub fn copy_session_bus(out_dir: &Path, bus: Option<&Path>) -> Result<bool, TranslateError> {
+    let Some(source) = bus else {
+        return Ok(false);
+    };
+    let target = out_dir.join(SESSION_BUS_EXE);
+    fs::copy(source, &target).map_err(io_error(format!("copying {}", source.display())))?;
+    Ok(true)
 }
 
 /// Name of the file the shim reads at start to set the environment a launcher script would have set.
@@ -126,6 +154,25 @@ mod tests {
         assert!(text.contains("APPDIR=${BUNDLE}/appdir\nA=b\n"));
         assert!(write_env_file(&dir, &[("BAD=NAME", "x")]).is_err());
         assert!(write_env_file(&dir, &[("OK", "two\nlines")]).is_err());
+    }
+
+    #[test]
+    fn the_session_bus_is_copied_when_there_is_one_and_skipped_when_there_is_not() {
+        let dir = std::env::temp_dir().join("crossport-bus-copy-test");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).expect("temp dir");
+        let source = dir.join("source.exe");
+        fs::write(&source, b"daemon").expect("writes");
+        let out = dir.join("bundle");
+        fs::create_dir_all(&out).expect("bundle dir");
+        assert!(!copy_session_bus(&out, None).expect("no bus is fine"));
+        assert!(!out.join(SESSION_BUS_EXE).exists());
+        assert!(copy_session_bus(&out, Some(&source)).expect("copies"));
+        assert_eq!(
+            fs::read(out.join(SESSION_BUS_EXE)).expect("copied"),
+            b"daemon"
+        );
+        assert!(copy_session_bus(&out, Some(&dir.join("missing.exe"))).is_err());
     }
 
     #[test]

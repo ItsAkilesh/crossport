@@ -1,7 +1,7 @@
 // File: translator/src/main.rs
 // Purpose: crossport command-line entry point; exit code 0 = success, 2 = error
 // Author: Akilesh
-// Date: 2026-11-06
+// Date: 2026-11-09
 
 use std::fs::File;
 use std::path::{Path, PathBuf};
@@ -265,6 +265,9 @@ fn run_translation(
         executable.display(),
         translation.files.len()
     );
+    if bundle::copy_session_bus(out, bundle::locate_session_bus().as_deref())? {
+        println!("added {} (the D-Bus session bus)", bundle::SESSION_BUS_EXE);
+    }
     for report in &translation.reports {
         let stats = report.rewrite;
         if stats.canary_sites + stats.stub_sites > 0 {

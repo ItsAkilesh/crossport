@@ -42,6 +42,7 @@ env:
   ABORT_CASES: canary_smash
   CRASH_CASES: crash_null
   CLIPBOARD_CASES: xlib_clipboard
+  BUS_CASES: dbus_session
   APPS: ${{ inputs.apps || 'lua sqlite3 jq sdl2_tests keepassxc gedit' }}
   CARGO_PATHS: |
     ~/.cargo/registry/index
@@ -86,7 +87,7 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq dbus-bin libglib2.0-bin
-          tools/ci/check_bus.sh
+          bash tools/ci/check_bus.sh
       - name: Save the Cargo cache
         if: always() && steps.cargo.outputs.cache-hit != 'true'
         uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
@@ -107,14 +108,14 @@ jobs:
           key: cargo-${{ github.job }}-${{ runner.os }}-${{ hashFiles('tools/difftest/Cargo.lock', 'translator/Cargo.lock', 'bus/Cargo.lock') }}
           restore-keys: cargo-${{ github.job }}-${{ runner.os }}-
       - name: Install the build tools, a Vulkan software driver, X11, SDL2 and SquashFS tools
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq glslang-tools libvulkan-dev mesa-vulkan-drivers libxcb1-dev libx11-dev libxext-dev libxtst-dev libsdl2-dev libgl-dev libglx-dev libegl-dev libopengl0 libegl-mesa0 libgl1-mesa-dri xvfb squashfs-tools
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq glslang-tools libvulkan-dev mesa-vulkan-drivers libxcb1-dev libx11-dev libxext-dev libxtst-dev libsdl2-dev libgl-dev libglx-dev libegl-dev libopengl0 libdbus-1-dev pkg-config libegl-mesa0 libgl1-mesa-dri xvfb squashfs-tools
       - name: Check the xcb structure layouts against the real headers
         run: gcc -fsyntax-only -Wall -Wextra -Werror tests/shim/xcb_layout_check.c tests/shim/xlib_layout_check.c
       - name: Build and run corpus cases
         env:
           LIBGL_ALWAYS_SOFTWARE: "1"
         run: |
-          xvfb-run -a bash -ec 'for corpus_case in $NATIVE_CASES $TRANSLATED_CASES $ABORT_CASES $CRASH_CASES $CLIPBOARD_CASES; do tools/run-case.sh "$corpus_case" linux; done'
+          xvfb-run -a bash -ec 'for corpus_case in $NATIVE_CASES $TRANSLATED_CASES $ABORT_CASES $CRASH_CASES $CLIPBOARD_CASES $BUS_CASES; do tools/run-case.sh "$corpus_case" linux; done'
       - name: Package the corpus apps and record their Linux results
         run: |
           xvfb-run -a bash -ec 'for app in $APPS; do tools/corpus/linux_baseline.sh "$app"; done'
@@ -231,11 +232,16 @@ jobs:
         run: tools/ci/install-vulkan-windows.sh
       - name: Stage a software OpenGL driver
         run: tools/ci/install-opengl-windows.sh
+      - name: Build the session bus and put it beside the translator, so every bundle gets it
+        run: |
+          cargo build --release --locked --manifest-path bus/Cargo.toml
+          mkdir -p translator/target/release
+          cp bus/target/release/crossport-bus.exe translator/target/release/
       - name: Translate the Linux ELF files and run them on Windows
         env:
           GALLIUM_DRIVER: llvmpipe
         run: |
-          for corpus_case in $TRANSLATED_CASES $ABORT_CASES $CRASH_CASES $CLIPBOARD_CASES; do
+          for corpus_case in $TRANSLATED_CASES $ABORT_CASES $CRASH_CASES $CLIPBOARD_CASES $BUS_CASES; do
             tools/run-translated.sh "$corpus_case"
           done
       - name: Show the translated results (single-case runs only)
@@ -245,6 +251,10 @@ jobs:
             cat "results/$corpus_case-windows.json" || true
             python3 tools/ci/symbolize.py "results/$corpus_case-windows.json" build/shim/crossport_libc.dll || true
           done
+      - name: A program reaches the session bus the shim starts (libdbus: connect, take a name, list it, receive a signal)
+        if: inputs.cases == ''
+        run: |
+          python3 tools/ci/check_output.py results/dbus_session-windows.json "bus: connected unique_name_ok=1" "request: 1"             "has_owner: 1" "names: listed=1" "signal: received=1" "done"
       - name: The Windows clipboard reaches a translated program and its copy reaches Windows
         if: inputs.cases == ''
         shell: pwsh

@@ -230,6 +230,7 @@ EXPORT void crossport_start(const StartInfo *info)
     stdio_init();
     env_init();
     shim_apply_env_file();
+    shim_start_session_bus();
     for (size_t i = 0; i < g_module_count; i++) {
         bind_module(&g_modules[i]);
     }
