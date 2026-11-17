@@ -1,8 +1,8 @@
 /*
  * File: shim/locale.c
- * Purpose: The C/POSIX locale: setlocale and localeconv with glibc's struct layout
+ * Purpose: The C/POSIX and C.UTF-8 locales: setlocale and localeconv with glibc's struct layout
  * Author: Akilesh
- * Date: 2026-10-28
+ * Date: 2026-11-17
  */
 
 #include "libc_abi.h"
@@ -48,12 +48,29 @@ static Lconv g_lconv = {
     LC_CHAR_UNSET, LC_CHAR_UNSET,
 };
 
-/* Only the C locale exists. "" selects the environment's locale, which the corpus pins to C. */
+static char g_utf8_locale[] = "C.UTF-8";
+static char *g_current_locale = g_c_locale;
+
+static int is_c_utf8(const char *name)
+{
+    return lstrcmpiA(name, "C.UTF-8") == 0 || lstrcmpiA(name, "C.utf8") == 0;
+}
+
+/* The C and C.UTF-8 locales exist (glibc 2.35 and newer builds C.UTF-8 in, and the shim's one locale is UTF-8 anyway).
+ * "" selects the environment's locale, which the corpus pins to C. A query (NULL) returns the locale last set. */
 LIBC_FN char *sysv_setlocale(int category, const char *locale)
 {
     (void)category;
-    if (locale == NULL || *locale == '\0' || lstrcmpA(locale, "C") == 0 || lstrcmpA(locale, "POSIX") == 0) {
-        return g_c_locale;
+    if (locale == NULL) {
+        return g_current_locale;
+    }
+    if (*locale == '\0' || lstrcmpA(locale, "C") == 0 || lstrcmpA(locale, "POSIX") == 0) {
+        g_current_locale = g_c_locale;
+        return g_current_locale;
+    }
+    if (is_c_utf8(locale)) {
+        g_current_locale = g_utf8_locale;
+        return g_current_locale;
     }
     return NULL;
 }

@@ -360,7 +360,9 @@ Translated code keeps Linux conventions internally. Only the boundary into shims
 ## 4. Known limits
 
 - **JIT code** is generated at runtime and cannot be statically translated. JIT-based apps are out of scope.
-- **`fork()`** has no efficient Windows equivalent.
+- **`fork()`** has no efficient Windows equivalent. Programs that start children with it (GNU `xargs`) translate but fail at that point.
+- **GNU `grep` and `find`** need glibc's regex API (`re_compile_pattern`, `re_search` and friends) and a few group-database
+  calls, and do not translate yet. Stock `du`, `wc`, `cat`, `head` and `tr` do (CHANGELOG 0.7.17).
 - **Signals** map imperfectly onto structured exception handling.
 - **Filesystem semantics** (case sensitivity, `/proc`, `/dev`, symlinks, permission bits) require emulation in the shim.
 

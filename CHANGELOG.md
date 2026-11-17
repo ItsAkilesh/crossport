@@ -5,6 +5,19 @@ being worked on. A feature commit that adds user-visible capability (a new flag,
 that runs) bumps the patch number; a fix does not. The version lives in `translator/Cargo.toml` and is
 bumped in the same commit as the change. Releases are tagged by the maintainer, not by automation.
 
+## 0.7.17
+
+- Stock GNU command-line tools translate. Ubuntu 24.04's own `du`, `wc`, `cat`, `head` and `tr` run translated and match
+  Linux (`du -sb` of a 3,800-file tree reports the same byte count). They had failed only on a handful of glibc
+  extensions, which the shim now provides (`shim/gnu_ext.c`): `error`, `rawmemchr`, `freopen`, `mbrtoc32`, `__freading`,
+  `__fwriting`, `__fpurge` and `sysinfo`.
+- `setlocale` accepts `C.UTF-8` and `C.utf8`, and a query returns the locale last set. Before, only `C` and `POSIX`
+  were accepted, unlike glibc 2.35 and newer.
+- A new corpus case, `gnu_ext`, compares these functions with Linux.
+- Still missing for GNU `grep` and `find`: glibc's regex API (`re_compile_pattern`, `re_search` and friends),
+  `mincore`, `sigaltstack`, `getgrnam`, `getgrgid`, `endgrent` and `rpmatch`. `xargs` translates but needs `fork` to
+  start its children.
+
 ## 0.7.15
 
 - gedit 51.0 (GTK 3, a JuNest AppImage built from Arch Linux packages) starts, draws its window with the GTK theme,
