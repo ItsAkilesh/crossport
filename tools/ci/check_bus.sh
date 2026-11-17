@@ -24,7 +24,7 @@ cleanup() {
 trap cleanup EXIT
 
 cargo build --release --locked --manifest-path "$root/bus/Cargo.toml"
-"$root/bus/target/release/crossport-bus" --nonce-file "$work/nonce" --idle-exit 120 > "$work/address" 2> "$work/log" &
+"$root/bus/target/release/crossport-bus" --nonce-file "$work/nonce" --idle-exit 120 --verbose > "$work/address" 2> "$work/log" &
 daemon_pid=$!
 
 for _ in $(seq 1 50); do
@@ -42,20 +42,20 @@ fail() {
 }
 
 # libdbus: a call to the bus itself, and a name that is taken and released again.
-names="$(dbus-send --address="$address" --print-reply --dest=org.freedesktop.DBus /org/freedesktop/DBus org.freedesktop.DBus.ListNames)"
+names="$(timeout 20 dbus-send --bus="$address" --print-reply --dest=org.freedesktop.DBus /org/freedesktop/DBus org.freedesktop.DBus.ListNames 2>&1)" || fail "dbus-send ListNames: $names"
 grep -q 'string "org.freedesktop.DBus"' <<< "$names" || fail "ListNames lacks the bus: $names"
 grep -q 'string ":1\.' <<< "$names" || fail "ListNames lacks the caller's unique name: $names"
 
 dbus-monitor --address "$address" "type='signal',member='NameOwnerChanged'" > "$work/monitor" 2>&1 &
 monitor_pid=$!
 sleep 1
-reply="$(dbus-send --address="$address" --print-reply --dest=org.freedesktop.DBus /org/freedesktop/DBus org.freedesktop.DBus.RequestName string:org.crossport.Check uint32:0)"
+reply="$(dbus-send --bus="$address" --print-reply --dest=org.freedesktop.DBus /org/freedesktop/DBus org.freedesktop.DBus.RequestName string:org.crossport.Check uint32:0)"
 grep -q 'uint32 1' <<< "$reply" || fail "RequestName did not make the caller the owner: $reply"
 sleep 1
 grep -q 'org.crossport.Check' "$work/monitor" || fail "the monitor never saw the name arrive: $(cat "$work/monitor")"
 
 # A call to a name nobody owns must come back as an error, not hang.
-if dbus-send --address="$address" --print-reply --dest=org.crossport.Nobody /x org.crossport.Nobody.Call 2> "$work/error" > /dev/null; then
+if dbus-send --bus="$address" --print-reply --dest=org.crossport.Nobody /x org.crossport.Nobody.Call 2> "$work/error" > /dev/null; then
   fail "a call to a missing service succeeded"
 fi
 grep -q 'ServiceUnknown' "$work/error" || fail "a missing service did not answer ServiceUnknown: $(cat "$work/error")"

@@ -228,6 +228,10 @@ jobs:
         with:
           name: elf-corpus
           path: build/elf
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: runtime-pack
+          path: build/runtime-pack
       - name: Install a Vulkan loader and a software driver
         run: tools/ci/install-vulkan-windows.sh
       - name: Stage a software OpenGL driver
@@ -280,10 +284,6 @@ jobs:
         with:
           name: apps-linux
           path: .
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: runtime-pack
-          path: build/runtime-pack
       - name: Unpack, translate and run the corpus apps on Windows
         if: inputs.cases == ''
         run: |
