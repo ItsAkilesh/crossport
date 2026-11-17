@@ -2,7 +2,7 @@
  * File: shim/dbus_session.c
  * Purpose: Give a program a D-Bus session bus: find the running crossport-bus, or start it, and set DBUS_SESSION_BUS_ADDRESS
  * Author: Akilesh
- * Date: 2026-11-09
+ * Date: 2026-11-17
  *
  * GTK and Qt programs look for a session bus in DBUS_SESSION_BUS_ADDRESS. The bus is one process for the user, so
  * every program started from a bundle shares it. The first program starts crossport-bus.exe (found beside the
@@ -33,6 +33,8 @@
 #define PROBE_MILLISECONDS 300
 #define PORT_TOKEN "port="
 #define MAX_ADDRESS_BYTES 1024
+#define DRIVE_PREFIX_LENGTH 3 /* the length of C:\ */
+#define UNC_PREFIX_LENGTH 2
 
 /* The directory of the running executable, as a wide Windows path without a trailing separator. */
 static int program_directory(wchar_t *out, size_t capacity)
@@ -105,12 +107,32 @@ static int is_listening(const char *address)
     return is_open;
 }
 
+/* Creates the directory and any missing parents; an existing directory is fine. The daemon starts in this directory, and CreateProcess
+   fails with ERROR_DIRECTORY when it does not exist (a clean machine has never run the daemon, so nothing has made it yet). */
+static void make_directories(const wchar_t *path)
+{
+    wchar_t partial[SHIM_PATH_MAX];
+    size_t length = wcslen(path);
+    if (length >= SHIM_PATH_MAX) {
+        return;
+    }
+    wcscpy(partial, path);
+    for (size_t at = partial[1] == L':' ? DRIVE_PREFIX_LENGTH : UNC_PREFIX_LENGTH; at < length; at++) {
+        if (partial[at] == L'\\') {
+            partial[at] = L'\0';
+            CreateDirectoryW(partial, NULL);
+            partial[at] = L'\\';
+        }
+    }
+}
+
 /* Starts the daemon without a window, detached and in its own directory (so it never keeps the program's folder
    from being removed), and waits for it to publish an address that answers. */
 static int start_daemon(const wchar_t *executable, const wchar_t *directory, char *address, size_t capacity)
 {
     wchar_t address_file[SHIM_PATH_MAX];
     wchar_t command[SHIM_PATH_MAX * 2];
+    make_directories(directory);
     swprintf(address_file, SHIM_PATH_MAX, L"%lsaddress", directory);
     DeleteFileW(address_file);
     swprintf(command, sizeof(command) / sizeof(command[0]),

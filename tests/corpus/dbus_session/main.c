@@ -2,13 +2,14 @@
  * File: tests/corpus/dbus_session/main.c
  * Purpose: libdbus client that connects to the session bus, takes a name, lists names and receives its own signal
  * Author: Akilesh
- * Date: 2026-11-09
+ * Date: 2026-11-17
  *
  * Windows-only check of the session bus the shim starts (tools/ci/check_output.py reads the output). On Linux there
  * is usually no session bus in CI, and the program prints "bus: none" and succeeds.
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <dbus/dbus.h>
@@ -63,6 +64,14 @@ static int receive_own_signal(DBusConnection *connection)
     return 0;
 }
 
+/* Only reached when no bus was found: say what libdbus reported and whether the shim set the address. */
+static void explain_failure(const DBusError *error)
+{
+    const char *address = getenv("DBUS_SESSION_BUS_ADDRESS");
+    printf("diag: address %s\n", address != NULL ? address : "(unset)");
+    printf("diag: libdbus error %s: %s\n", error->name != NULL ? error->name : "?", error->message != NULL ? error->message : "?");
+}
+
 int main(void)
 {
     DBusError error;
@@ -70,6 +79,7 @@ int main(void)
     DBusConnection *connection = dbus_bus_get(DBUS_BUS_SESSION, &error);
     if (connection == NULL) {
         puts("bus: none");
+        explain_failure(&error);
         return 0;
     }
     const char *unique = dbus_bus_get_unique_name(connection);

@@ -14,6 +14,8 @@ bumped in the same commit as the change. Releases are tagged by the maintainer, 
 - `setlocale` accepts `C.UTF-8` and `C.utf8`, and a query returns the locale last set. Before, only `C` and `POSIX`
   were accepted, unlike glibc 2.35 and newer.
 - A new corpus case, `gnu_ext`, compares these functions with Linux.
+- The session bus's directory is created before the daemon is started in it. A machine that had never run the daemon failed
+  with `ERROR_DIRECTORY` and a program found no bus (the Windows CI runner showed it; machines that had run the daemon before did not).
 - Still missing for GNU `grep` and `find`: glibc's regex API (`re_compile_pattern`, `re_search` and friends),
   `mincore`, `sigaltstack`, `getgrnam`, `getgrgid`, `endgrent` and `rpmatch`. `xargs` translates but needs `fork` to
   start its children.
