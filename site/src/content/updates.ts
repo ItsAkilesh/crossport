@@ -4,7 +4,7 @@
  * Author: Akilesh
  * Date: 2026-11-06
  *
- * Mirrors CHANGELOG.md (0.7.5 to 0.7.15 and the installer entry); when those change, change this. The screenshots
+ * Mirrors CHANGELOG.md (0.7.5 to 0.7.16 and the installer entry); when those change, change this. The screenshots
  * are the ones in docs/images, copied to public/screens, including the gedit window.
  */
 
@@ -15,6 +15,12 @@ export interface Update {
 }
 
 export const UPDATES: readonly Update[] = [
+  {
+    version: "0.7.16",
+    title: "Copying out of GTK programs",
+    summary:
+      "Text copied in gedit now lands on the Windows clipboard. GTK refused the shim's clipboard request because the window that made it did not exist; it is registered now.",
+  },
   {
     version: "0.7.15",
     title: "gedit (GTK 3) runs and takes typing",

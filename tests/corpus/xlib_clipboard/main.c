@@ -2,7 +2,7 @@
  * File: tests/corpus/xlib_clipboard/main.c
  * Purpose: Xlib client that reads the system clipboard as UTF-8 text, then takes it over and serves a clipboard manager's request
  * Author: Akilesh
- * Date: 2026-11-04
+ * Date: 2026-11-09
  *
  * Windows-only check of the clipboard bridge (tools/ci/check_clipboard.ps1 sets the Windows clipboard before the run
  * and reads it after). The program prints what CLIPBOARD held (line ends shown as '|'), then owns CLIPBOARD and answers
@@ -51,7 +51,9 @@ static void print_clipboard(Display *display, Window window, Atom clipboard, Ato
 static void answer(Display *display, const XSelectionRequestEvent *request, Atom utf8)
 {
     XEvent reply = {0};
-    int is_supported = request->target == utf8;
+    /* GTK looks the requestor up before it answers and refuses a window the server does not know. */
+    XWindowAttributes requestor_attributes;
+    int is_supported = request->target == utf8 && XGetWindowAttributes(display, request->requestor, &requestor_attributes);
     if (is_supported) {
         XChangeProperty(display, request->requestor, request->property, utf8, 8, PropModeReplace,
                         (const unsigned char *)OFFERED_TEXT, (int)strlen(OFFERED_TEXT));

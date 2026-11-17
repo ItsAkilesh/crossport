@@ -2,7 +2,7 @@
  * File: shim/xlib/xlib_selection.c
  * Purpose: X selections (the clipboard): owners, SelectionClear, SelectionRequest and SelectionNotify, bridged to the Windows clipboard for text
  * Author: Akilesh
- * Date: 2026-11-04
+ * Date: 2026-11-09
  *
  * One table of selection owners serves every display of the process. As in Xorg, the previous owner is told with
  * SelectionClear when the selection passes to a different client (display) or is released (owner None); a client
@@ -26,6 +26,7 @@
 #define NO_PROPERTY 0
 /* Not a real window: the requestor of the shim's own clipboard request, and the owner reported for Windows' text. */
 #define BRIDGE_WINDOW 0x7f000001u
+#define BRIDGE_DEPTH 24
 #define ATOM_TYPE_ATOM 4
 #define FORMAT_8 8
 #define FORMAT_32 32
@@ -103,6 +104,17 @@ static SYSV void post_request(XlDisplay *display, const Selection *owner, XlId r
     xl_events_push_back(owner->display, &event);
 }
 
+/* The requestor of the shim's own clipboard request has to exist as far as the owner can tell: GTK looks it up with
+ * XGetWindowAttributes before it answers and refuses when the window is unknown. Registered once, never mapped. */
+static void ensure_bridge_window(void)
+{
+    xl_lock();
+    if (xl_drawable_find(BRIDGE_WINDOW) == NULL) {
+        xl_drawable_add(BRIDGE_WINDOW, 1, BRIDGE_DEPTH, 1, 1, 0);
+    }
+    xl_unlock();
+}
+
 /* Windows' clipboard has been replaced by another program: a translated owner of CLIPBOARD no longer owns it. */
 static SYSV void drop_if_replaced(XlId selection)
 {
@@ -162,6 +174,7 @@ LIBC_FN int sysv_XSetSelectionOwner(XlDisplay *display, XlId selection, XlId own
         post_clear(previous.display, previous.owner, selection, time);
     }
     if (owner != 0 && is_clipboard(selection)) {
+        ensure_bridge_window();
         post_request(display, &(Selection){selection, owner, display}, BRIDGE_WINDOW, atom("UTF8_STRING"),
                      atom("CROSSPORT_CLIPBOARD"), time);
     }
