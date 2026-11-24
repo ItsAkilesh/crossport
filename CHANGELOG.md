@@ -14,6 +14,10 @@ bumped in the same commit as the change. Releases are tagged by the maintainer, 
 - `setlocale` accepts `C.UTF-8` and `C.utf8`, and a query returns the locale last set. Before, only `C` and `POSIX`
   were accepted, unlike glibc 2.35 and newer.
 - A new corpus case, `gnu_ext`, compares these functions with Linux.
+- `argv[0]` is a Linux-style path: forward slashes and no `.exe`. It was the Windows path with backslashes, so the usual
+  way of finding a program's own name (the last `/`, as in gnulib's `last_component` and glibc's `basename`) returned the whole path,
+  and `du --version` printed `D:\...\du.exe`. A compatibility survey of 488 programs found 23 that differed only in this. A new corpus
+  case, `argv_name`, compares it with Linux.
 - The session bus's directory is created before the daemon is started in it. A machine that had never run the daemon failed
   with `ERROR_DIRECTORY` and a program found no bus (the Windows CI runner showed it; machines that had run the daemon before did not).
 - Still missing for GNU `grep` and `find`: glibc's regex API (`re_compile_pattern`, `re_search` and friends),

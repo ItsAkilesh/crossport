@@ -2,9 +2,10 @@
  * File: shim/args.c
  * Purpose: Builds the initial stack block a Linux process starts with: argc, argv, envp and the auxiliary vector
  * Author: Akilesh
- * Date: 2026-10-28
+ * Date: 2026-11-24
  *
  * The command line is split the way Windows programs expect (CommandLineToArgvW) and converted to UTF-8.
+ * argv[0] is rewritten to a Linux-style path (forward slashes, no ".exe").
  * The strings live on the heap for the rest of the process; the block itself is a template for the stack.
  */
 
@@ -15,6 +16,7 @@
 
 #define AUXV_END_SLOTS 2
 #define BLOCK_FIXED_SLOTS 3 /* argc, the argv terminator and the envp terminator */
+#define EXE_SUFFIX_LENGTH 4 /* ".exe" */
 
 extern char **crossport_data_environ;
 
@@ -26,6 +28,21 @@ static char *utf8_copy(const wchar_t *wide)
         shim_die("crossport: cannot convert the command line\n");
     }
     return text;
+}
+
+/*
+ * Makes argv[0] look the way a Linux program expects: forward slashes and no ".exe" suffix. Programs find their own short name by
+ * looking for the last '/' (gnulib's last_component, glibc's basename), so a Windows path would print in full.
+ */
+static void normalize_program_path(char *path)
+{
+    size_t length = strlen(path);
+    for (size_t i = 0; i < length; i++) {
+        path[i] = path[i] == '\\' ? '/' : path[i];
+    }
+    if (length > EXE_SUFFIX_LENGTH && lstrcmpiA(path + length - EXE_SUFFIX_LENGTH, ".exe") == 0) {
+        path[length - EXE_SUFFIX_LENGTH] = '\0';
+    }
 }
 
 static size_t environment_count(void)
@@ -54,6 +71,7 @@ uint64_t *args_build_stack(size_t *slot_count)
     for (int i = 0; i < argc; i++) {
         block[1 + i] = (uint64_t)(uintptr_t)utf8_copy(wide[i]);
     }
+    normalize_program_path((char *)(uintptr_t)block[1]);
     for (size_t i = 0; i < env_count; i++) {
         block[2 + (size_t)argc + i] = (uint64_t)(uintptr_t)crossport_data_environ[i];
     }
