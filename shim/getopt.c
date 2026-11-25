@@ -2,9 +2,9 @@
  * File: shim/getopt.c
  * Purpose: getopt, getopt_long and getopt_long_only with GNU argument permutation, and the optarg, optind, opterr, optopt globals
  * Author: Akilesh
- * Date: 2026-10-29
+ * Date: 2026-11-24
  *
- * Non-option arguments are moved to the end as the scan goes (GNU behaviour) unless the option string
+ * Error messages use glibc's wording. Non-option arguments are moved to the end as the scan goes (GNU behaviour) unless the option string
  * starts with '+' or POSIXLY_CORRECT is set. Setting optind to 0 restarts the scan.
  */
 
@@ -16,7 +16,7 @@
 LIBC_DATA(char *, optarg);
 LIBC_DATA(int, optind) = 1;
 LIBC_DATA(int, opterr) = 1;
-LIBC_DATA(int, optopt) = '?';
+LIBC_DATA(int, optopt) = 0; /* glibc's value before any error (never reset by later calls), whatever the manual says */
 
 #define NO_ARGUMENT 0
 #define REQUIRED_ARGUMENT 1
@@ -56,14 +56,39 @@ static SYSV void locate_globals(void)
 static const char *g_place = "";
 static int g_nonoption_start = -1;
 static int g_nonoption_end = -1;
+static int g_is_silent; /* the option string began with ":": no messages, and a missing argument is reported as ":" */
 
 enum { FLAG_PERMUTE = 1, FLAG_ALLARGS = 2, FLAG_LONGONLY = 4 };
 
-static SYSV void report(const char *program, const char *message, const char *detail)
+/* Prints "program: " followed by a message built from one string (glibc's wording, quotes included); only when opterr is set. */
+static SYSV void report(const char *program, const char *format, const char *first, const char *second)
 {
-    if ((*p_opterr)) {
-        sysv_fprintf(crossport_data_stderr, "%s: %s %s\n", program, message, detail);
+    if ((*p_opterr) && !g_is_silent) {
+        sysv_fprintf(crossport_data_stderr, "%s: ", program);
+        sysv_fprintf(crossport_data_stderr, format, first, second);
+        sysv_fprintf(crossport_data_stderr, "\n");
     }
+}
+
+/* The long-option prefix as the user typed it: "--" or, for getopt_long_only, "-". */
+static SYSV const char *prefix_of(const char *word)
+{
+    return word[1] == '-' ? "--" : "-";
+}
+
+/* glibc lists every candidate after "is ambiguous; possibilities:". */
+static SYSV void report_ambiguous(const char *program, const char *prefix, const char *typed, const LongOption *longs, size_t length)
+{
+    if (!(*p_opterr) || g_is_silent) {
+        return;
+    }
+    sysv_fprintf(crossport_data_stderr, "%s: option '%s%s' is ambiguous; possibilities:", program, prefix, typed);
+    for (const LongOption *at = longs; at->name != NULL; at++) {
+        if (strncmp(at->name, typed, length) == 0) {
+            sysv_fprintf(crossport_data_stderr, " '%s%s'", prefix, at->name);
+        }
+    }
+    sysv_fprintf(crossport_data_stderr, "\n");
 }
 
 static SYSV void reverse(char **argv, int low, int high)
@@ -122,14 +147,18 @@ static SYSV int long_option(int argc, char **argv, const char *options, const Lo
     (void)flags;
     (*p_optind)++;
     if (match == NULL || is_ambiguous) {
-        report(argv[0], is_ambiguous ? "option is ambiguous:" : "unrecognized option", current);
+        if (is_ambiguous) {
+            report_ambiguous(argv[0], prefix_of(current), name, longs, length);
+        } else {
+            report(argv[0], "unrecognized option '%s%s'", prefix_of(current), name);
+        }
         (*p_optopt) = 0;
         g_place = "";
         return '?';
     }
     if (name[length] == '=') {
         if (match->has_argument == NO_ARGUMENT) {
-            report(argv[0], "option doesn't take an argument:", match->name);
+            report(argv[0], "option '%s%s' doesn't allow an argument", prefix_of(current), match->name);
             (*p_optopt) = match->value;
             g_place = "";
             return '?';
@@ -139,10 +168,10 @@ static SYSV int long_option(int argc, char **argv, const char *options, const Lo
         if ((*p_optind) < argc) {
             (*p_optarg) = argv[(*p_optind)++];
         } else {
-            report(argv[0], "option requires an argument:", match->name);
+            report(argv[0], "option '%s%s' requires an argument", prefix_of(current), match->name);
             (*p_optopt) = match->value;
             g_place = "";
-            return ':';
+            return g_is_silent ? ':' : '?';
         }
     }
     g_place = "";
@@ -166,7 +195,7 @@ static SYSV int short_option(int argc, char **argv, const char *options)
         (*p_optopt) = letter;
         (*p_optind) += is_last;
         g_place = is_last ? "" : g_place;
-        report(argv[0], "invalid option --", (char[]){(char)letter, '\0'});
+        report(argv[0], "invalid option -- '%s%s'", (char[]){(char)letter, '\0'}, "");
         return '?';
     }
     if (spec[1] != ':') {
@@ -189,7 +218,7 @@ static SYSV int short_option(int argc, char **argv, const char *options)
         return letter;
     }
     (*p_optopt) = letter;
-    report(argv[0], "option requires an argument --", (char[]){(char)letter, '\0'});
+    report(argv[0], "option requires an argument -- '%s%s'", (char[]){(char)letter, '\0'}, "");
     return options[0] == ':' ? ':' : '?';
 }
 
@@ -229,7 +258,8 @@ static SYSV int scan(int argc, char **argv, const char *options, const LongOptio
                 return finish(argc, argv);
             }
             g_place = word + 1;
-            if (word[1] == '-') {
+            /* Only getopt_long and getopt_long_only know "--name"; plain getopt reads it as the short option '-', as glibc does. */
+            if (word[1] == '-' && longs != NULL) {
                 g_place = word + 2;
                 return long_option(argc, argv, options, longs, index, flags);
             }
@@ -250,6 +280,7 @@ static SYSV int dispatch(int argc, char **argv, const char *options, const LongO
     } else if (sysv_getenv("POSIXLY_CORRECT") == NULL) {
         flags |= FLAG_PERMUTE;
     }
+    g_is_silent = options != NULL && options[0] == ':';
     return scan(argc, argv, options, longs, index, flags);
 }
 
