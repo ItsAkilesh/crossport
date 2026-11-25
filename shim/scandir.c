@@ -1,8 +1,8 @@
 /*
  * File: shim/scandir.c
- * Purpose: scandir, alphasort, versionsort and rewinddir
+ * Purpose: scandir, alphasort and versionsort
  * Author: Akilesh
- * Date: 2026-10-29
+ * Date: 2026-11-24
  */
 
 #include <string.h>
@@ -103,10 +103,4 @@ LIBC_FN int sysv_scandirat(int dirfd, const char *path, Dirent64 ***names, DirFi
 {
     (void)dirfd;
     return sysv_scandir64(path, names, filter, compare);
-}
-
-/* Restarts a directory stream by reopening the directory it was made for. */
-LIBC_FN void sysv_rewinddir(void *directory)
-{
-    (void)directory;
 }

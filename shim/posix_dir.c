@@ -1,8 +1,8 @@
 /*
  * File: shim/posix_dir.c
- * Purpose: Directory streams: opendir, fdopendir, dirfd, readdir and closedir over the Win32 find functions
+ * Purpose: Directory streams: opendir, fdopendir, dirfd, readdir, rewinddir, telldir, seekdir and closedir over the Win32 find functions
  * Author: Akilesh
- * Date: 2026-10-29
+ * Date: 2026-11-24
  */
 
 #include "fd.h"
@@ -34,6 +34,7 @@ typedef struct {
     Dirent64 entry;
     wchar_t *path; /* the directory itself, for dirfd and the *at calls */
     int fd;        /* descriptor made by dirfd, or -1 */
+    long position; /* entries returned so far: what telldir reports */
 } Directory;
 
 /* Starts enumerating the directory named by a wide Windows path. Returns NULL with errno set. */
@@ -118,6 +119,7 @@ LIBC_FN Dirent64 *sysv_readdir64(void *handle)
         return NULL;
     }
     directory->has_pending = 0;
+    directory->position++;
     Dirent64 *entry = &directory->entry;
     entry->d_ino = 1;
     entry->d_off = 0;
@@ -129,6 +131,36 @@ LIBC_FN Dirent64 *sysv_readdir64(void *handle)
 LIBC_FN Dirent64 *sysv_readdir(void *handle)
 {
     return sysv_readdir64(handle);
+}
+
+/* Starts the enumeration again from the first entry. */
+LIBC_FN void sysv_rewinddir(void *handle)
+{
+    Directory *directory = (Directory *)handle;
+    wchar_t pattern[SHIM_PATH_MAX];
+    size_t length = (size_t)lstrlenW(directory->path);
+    if (length + 3 >= SHIM_PATH_MAX) {
+        return;
+    }
+    lstrcpyW(pattern, directory->path);
+    lstrcatW(pattern, PATTERN_SUFFIX);
+    FindClose(directory->find);
+    directory->find = FindFirstFileW(pattern, &directory->data);
+    directory->has_pending = directory->find != INVALID_HANDLE_VALUE;
+    directory->position = 0;
+}
+
+LIBC_FN long sysv_telldir(void *handle)
+{
+    return ((Directory *)handle)->position;
+}
+
+/* Positions the stream after `position` entries, as telldir reported it. */
+LIBC_FN void sysv_seekdir(void *handle, long position)
+{
+    sysv_rewinddir(handle);
+    for (long skipped = 0; skipped < position && sysv_readdir64(handle) != NULL; skipped++) {
+    }
 }
 
 LIBC_FN int sysv_closedir(void *handle)

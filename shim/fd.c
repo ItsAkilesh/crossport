@@ -41,7 +41,7 @@ void fd_init(void)
 /* Takes the lowest free descriptor, as POSIX requires. */
 int shim_fd_adopt_kind(FdKind kind, HANDLE handle, void *state, int flags)
 {
-    int result = shim_fail(LINUX_EMFILE);
+    int result = -1;
     AcquireSRWLockExclusive(&g_lock);
     for (int fd = 0; fd < SHIM_MAX_FDS; fd++) {
         if (!g_table[fd].is_in_use) {
@@ -53,7 +53,8 @@ int shim_fd_adopt_kind(FdKind kind, HANDLE handle, void *state, int flags)
         }
     }
     ReleaseSRWLockExclusive(&g_lock);
-    return result;
+    /* errno is set only on failure: programs read it after unrelated expected failures, and a stale EMFILE here was reported by make. */
+    return result >= 0 ? result : shim_fail(LINUX_EMFILE);
 }
 
 /* Puts a descriptor at a chosen number (dup2), closing whatever was there. */
