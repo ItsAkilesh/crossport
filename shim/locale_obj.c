@@ -2,7 +2,7 @@
  * File: shim/locale_obj.c
  * Purpose: locale_t objects, nl_langinfo and the locale constants (all in the one built-in locale)
  * Author: Akilesh
- * Date: 2026-10-29
+ * Date: 2026-11-24
  *
  * The shim has a single locale: the C locale with UTF-8 text, spelled "C.UTF-8" by glibc. Objects
  * created with newlocale are therefore all alike; they exist so that C++ runtimes, which pass a
@@ -36,9 +36,43 @@
 #define DAYS_PER_WEEK 7
 #define MONTHS_PER_YEAR 12
 
+#define GLIBC_LOCALE_CATEGORIES 13
+
+/*
+ * glibc's struct __locale_struct (232 bytes). libstdc++ reads __ctype_b, __ctype_tolower and __ctype_toupper straight out of it
+ * (std::ctype<char> takes its case-conversion tables from the locale_t it is given), so the layout is an ABI contract. The category
+ * mask the program asked for is kept in the first of the unused data pointers.
+ */
 typedef struct {
-    int mask;
+    void *locales[GLIBC_LOCALE_CATEGORIES];
+    const uint16_t *ctype_b;
+    const int32_t *ctype_tolower;
+    const int32_t *ctype_toupper;
+    const char *names[GLIBC_LOCALE_CATEGORIES];
 } Locale;
+
+_Static_assert(sizeof(Locale) == 232, "locale_t must match glibc's struct __locale_struct");
+
+LIBC_FN const uint16_t **sysv___ctype_b_loc(void);
+LIBC_FN const int32_t **sysv___ctype_tolower_loc(void);
+LIBC_FN const int32_t **sysv___ctype_toupper_loc(void);
+
+static int mask_of(const Locale *locale)
+{
+    return (int)(intptr_t)locale->locales[0];
+}
+
+/* Every locale here is the one built-in locale, so the tables are the C library's own. */
+static void fill(Locale *locale, int mask)
+{
+    locale->locales[0] = (void *)(intptr_t)mask;
+    locale->ctype_b = *sysv___ctype_b_loc();
+    locale->ctype_tolower = *sysv___ctype_tolower_loc();
+    locale->ctype_toupper = *sysv___ctype_toupper_loc();
+    for (int i = 0; i < GLIBC_LOCALE_CATEGORIES; i++) {
+        locale->names[i] = "C";
+    }
+}
 
 static const char *const ABBREVIATED_DAYS[DAYS_PER_WEEK] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
 static const char *const DAYS[DAYS_PER_WEEK] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
@@ -70,13 +104,13 @@ LIBC_FN void *sysv_newlocale(int mask, const char *name, void *base)
         shim_set_errno(LINUX_ENOMEM);
         return NULL;
     }
-    locale->mask = mask;
+    fill(locale, mask);
     return locale;
 }
 
 LIBC_FN void *sysv_duplocale(void *locale)
 {
-    return locale == LC_GLOBAL_LOCALE ? sysv_newlocale(0, "C", NULL) : sysv_newlocale(((Locale *)locale)->mask, "C", NULL);
+    return locale == LC_GLOBAL_LOCALE ? sysv_newlocale(0, "C", NULL) : sysv_newlocale(mask_of((Locale *)locale), "C", NULL);
 }
 
 LIBC_FN void sysv_freelocale(void *locale)
