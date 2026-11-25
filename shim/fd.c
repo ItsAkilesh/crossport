@@ -2,7 +2,7 @@
  * File: shim/fd.c
  * Purpose: Linux file descriptors over Win32 handles: open, read, write, seek and close
  * Author: Akilesh
- * Date: 2026-11-05
+ * Date: 2026-11-24
  */
 
 #include "fd.h"
@@ -202,7 +202,9 @@ int shim_fd_open(const char *path, int flags, int mode)
     if (shim_path_to_wide(path, wide, SHIM_PATH_MAX) != 0) {
         return -1;
     }
-    DWORD attributes = FILE_ATTRIBUTE_NORMAL | ((flags & LINUX_O_DIRECTORY) ? FILE_FLAG_BACKUP_SEMANTICS : 0);
+    /* Linux lets a directory be opened for reading (tar, find and ls do); Windows needs backup semantics for that. */
+    int is_read_only = (flags & LINUX_O_ACCMODE) == LINUX_O_RDONLY;
+    DWORD attributes = FILE_ATTRIBUTE_NORMAL | ((flags & LINUX_O_DIRECTORY) || is_read_only ? FILE_FLAG_BACKUP_SEMANTICS : 0);
     HANDLE handle = CreateFileW(wide, access_for(flags), FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL,
                                 disposition_for(flags), attributes, NULL);
     if (handle == INVALID_HANDLE_VALUE) {
