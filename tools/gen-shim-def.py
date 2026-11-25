@@ -2,7 +2,7 @@
 # File: tools/gen-shim-def.py
 # Purpose: Generate the shim DLL's .def file: every LIBC_FN function is exported as its real name, every LIBC_DATA symbol too
 # Author: Akilesh
-# Date: 2026-10-29
+# Date: 2026-11-24
 #
 # Usage: gen-shim-def.py <output.def> <dir>...  (each directory is scanned recursively for *.c)
 #
@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 
 FUNCTION = re.compile(r"^LIBC_FN\b[^;{(]*?\bsysv_(\w+)\s*\(", re.MULTILINE)
-DATA = re.compile(r"^LIBC_DATA\([^,]+,\s*(\w+)\)", re.MULTILINE)
+DATA = re.compile(r"^LIBC_DATA\([^,]+,\s*(\w+)(?:\[\w*\])?\)", re.MULTILINE)
 MACRO_FUNCTION = re.compile(r"\b(?:MATHF?[12]\((\w+)\)|(?:NARROW|WIDE)\((\w+),|STUB_(?:FAIL|NULL|ZERO)\((\w+)\))")
 MACRO_PARAMETER = "name"
 # Data symbols the C library also exports under other names.

@@ -1,7 +1,7 @@
 # File: tools/test_gen_shim_def.py
 # Purpose: Unit tests for the shim export-list generator: LIBC_FN functions, data, macro-defined functions and aliases
 # Author: Akilesh
-# Date: 2026-10-29
+# Date: 2026-11-24
 
 import importlib.util
 import tempfile
@@ -44,6 +44,10 @@ class ScanTests(unittest.TestCase):
         text = gen.render(functions, data)
         self.assertIn("environ=crossport_data_environ DATA", text)
         self.assertIn("__environ=crossport_data_environ DATA", text)
+
+    def test_array_data_symbols_are_found_by_their_plain_name(self):
+        _, data = gen.scan('LIBC_DATA(char *, tzname[2]) = {"UTC", "UTC"};\nLIBC_DATA(uint8_t, in6addr_any[16]);\n')
+        self.assertEqual(data, {"tzname", "in6addr_any"})
 
 
 class MainTests(unittest.TestCase):
