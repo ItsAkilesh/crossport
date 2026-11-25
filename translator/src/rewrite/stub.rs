@@ -1,7 +1,7 @@
 // File: translator/src/rewrite/stub.rs
 // Purpose: Build the out-of-line stub that executes one FS-relative instruction against the real thread pointer
 // Author: Akilesh
-// Date: 2026-11-05
+// Date: 2026-11-24
 
 use iced_x86::{Code, Encoder, Instruction, InstructionInfoFactory, MemoryOperand, Register};
 
@@ -109,13 +109,52 @@ fn retarget(instruction: &Instruction, scratch: Register, has_base_and_index: bo
         modified.set_memory_index_scale(1);
     }
     let displacement = instruction.memory_displacement64() as i64;
-    modified.set_memory_displacement64(displacement as u64);
-    modified.set_memory_displ_size(if i8::try_from(displacement).is_ok() {
-        1
+    if i8::try_from(displacement).is_ok() {
+        modified.set_memory_displacement64(displacement as u64);
+        modified.set_memory_displ_size(1);
     } else {
-        4
-    });
+        // In 64-bit addressing iced calls a 32-bit displacement "size 8" (the decoder reports it so); size 4 is rejected. Displacements
+        // that did not fit one byte never reached the encoder before `fd` (a Rust program) needed one.
+        modified.set_memory_displacement64(displacement as u64);
+        modified.set_memory_displ_size(8);
+    }
     modified
+}
+
+/// The absolute-address forms of `mov` with the accumulator (opcodes A0 to A3, a 64-bit offset and no ModRM byte) cannot take a base
+/// register, so a stub that retargets them first turns each into the ordinary ModRM `mov` with the same effect. Found when `fd` (a Rust
+/// program) used `mov %fs:0xfffffffffffffff8,%rax`.
+fn from_moffs(instruction: &Instruction) -> Option<Instruction> {
+    let (register, is_load, code) = match instruction.code() {
+        Code::Mov_AL_moffs8 => (Register::AL, true, Code::Mov_r8_rm8),
+        Code::Mov_AX_moffs16 => (Register::AX, true, Code::Mov_r16_rm16),
+        Code::Mov_EAX_moffs32 => (Register::EAX, true, Code::Mov_r32_rm32),
+        Code::Mov_RAX_moffs64 => (Register::RAX, true, Code::Mov_r64_rm64),
+        Code::Mov_moffs8_AL => (Register::AL, false, Code::Mov_rm8_r8),
+        Code::Mov_moffs16_AX => (Register::AX, false, Code::Mov_rm16_r16),
+        Code::Mov_moffs32_EAX => (Register::EAX, false, Code::Mov_rm32_r32),
+        Code::Mov_moffs64_RAX => (Register::RAX, false, Code::Mov_rm64_r64),
+        _ => return None,
+    };
+    let displacement = instruction.memory_displacement64() as i64;
+    i32::try_from(displacement).ok()?;
+    let memory = MemoryOperand::new(
+        Register::None,
+        Register::None,
+        1,
+        displacement,
+        4,
+        false,
+        instruction.segment_prefix(),
+    );
+    let mut converted = if is_load {
+        Instruction::with2(code, register, memory)
+    } else {
+        Instruction::with2(code, memory, register)
+    }
+    .ok()?;
+    converted.set_ip(instruction.ip());
+    Some(converted)
 }
 
 fn uses_fs(instruction: &Instruction) -> bool {
@@ -145,6 +184,11 @@ pub(super) fn build_group(
     stub_rva: u64,
     return_rva: u64,
 ) -> Result<BuiltStub, TranslateError> {
+    let converted: Vec<Instruction> = group
+        .iter()
+        .map(|instruction| from_moffs(instruction).unwrap_or(*instruction))
+        .collect();
+    let group = converted.as_slice();
     let fs_count = group
         .iter()
         .filter(|instruction| uses_fs(instruction))
@@ -242,6 +286,31 @@ mod tests {
     const STORE_BASE: [u8; 5] = [0x64, 0xc6, 0x40, 0xe0, 0x00];
     // mov %esi,%fs:0xffffffffffffff90
     const STORE_LE: [u8; 8] = [0x64, 0x89, 0x34, 0x25, 0x90, 0xff, 0xff, 0xff];
+
+    // mov %fs:0xfffffffffffffff8,%rax in the absolute-address form (opcode A1), as Rust programs use it
+    const LOAD_MOFFS64: [u8; 11] = [0x64, 0x48, 0xa1, 0xf8, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff];
+
+    // cmpq $0x0,%fs:0xffffffffffffff70 (an absolute displacement with a one-byte immediate), from `fd`
+    const CMP_IMMEDIATE: [u8; 10] = [0x64, 0x48, 0x83, 0x3c, 0x25, 0x70, 0xff, 0xff, 0xff, 0x00];
+
+    #[test]
+    fn a_compare_of_an_immediate_with_an_absolute_fs_address_is_rewritten() {
+        let site = decode(&CMP_IMMEDIATE, 0x2000);
+        let stub = build(&site, 0x2000, 0x9000, 0x200a).expect("builds");
+        let steps = all(&stub.bytes, 0x9000);
+        assert!(steps.iter().all(|i| i.segment_prefix() != Register::FS));
+        assert!(steps.iter().any(|i| i.mnemonic() == iced_x86::Mnemonic::Cmp));
+    }
+
+    #[test]
+    fn an_absolute_address_mov_with_the_accumulator_is_rewritten() {
+        let site = decode(&LOAD_MOFFS64, 0x2000);
+        assert_eq!(site.code(), Code::Mov_RAX_moffs64);
+        let stub = build(&site, 0x2000, 0x9000, 0x200b).expect("builds");
+        let steps = all(&stub.bytes, 0x9000);
+        assert!(steps.iter().all(|i| i.segment_prefix() != Register::FS));
+        assert!(steps.iter().any(|i| i.code() == Code::Mov_r64_rm64 && i.op0_register() == Register::RAX));
+    }
 
     #[test]
     fn stub_for_an_absolute_load_ends_with_a_jump_back_and_has_no_fs_prefix() {
