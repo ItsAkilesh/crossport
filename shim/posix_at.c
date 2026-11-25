@@ -2,7 +2,7 @@
  * File: shim/posix_at.c
  * Purpose: The *at path calls (openat, unlinkat, fstatat, ...), link and utimensat
  * Author: Akilesh
- * Date: 2026-10-29
+ * Date: 2026-11-24
  */
 
 #include <string.h>
@@ -37,6 +37,7 @@ LIBC_FN int sysv_chmod(const char *path, unsigned mode);
 LIBC_FN int64_t sysv_readlink(const char *path, char *buffer, size_t size);
 LIBC_FN int sysv_rename(const char *from, const char *to);
 LIBC_FN int sysv_utimes(const char *path, const int64_t times[4]);
+LIBC_FN int sysv_symlink(const char *target, const char *link);
 
 /* The Linux-style absolute path of the directory open as `dirfd`. */
 static int directory_path(int dirfd, char *out, size_t size)
@@ -200,4 +201,21 @@ LIBC_FN int sysv_utimensat(int dirfd, const char *path, const int64_t times[4], 
     }
     int64_t converted[4] = {times[0], times[1] / NANOSECONDS_PER_MICROSECOND, times[2], times[3] / NANOSECONDS_PER_MICROSECOND};
     return sysv_utimes(full, converted);
+}
+
+/* symlinkat(2): the link's path is resolved against `dirfd`; the target is stored as given. */
+LIBC_FN int sysv_symlinkat(const char *target, int dirfd, const char *link)
+{
+    char resolved[SHIM_PATH_MAX];
+    if (resolve(dirfd, link, resolved, sizeof(resolved)) != 0) {
+        return -1;
+    }
+    return sysv_symlink(target, resolved);
+}
+
+/* futimesat(2): like utimes, with the path resolved against `dirfd`. */
+LIBC_FN int sysv_futimesat(int dirfd, const char *path, const int64_t times[4])
+{
+    WITH_PATH(dirfd, path, full)
+    return sysv_utimes(full, times);
 }

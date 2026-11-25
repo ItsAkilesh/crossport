@@ -5,6 +5,33 @@ being worked on. A feature commit that adds user-visible capability (a new flag,
 that runs) bumps the patch number; a fix does not. The version lives in `translator/Cargo.toml` and is
 bumped in the same commit as the change. Releases are tagged by the maintainer, not by automation.
 
+## 0.7.18
+
+- A real POSIX regular-expression engine replaces the `regcomp` stub that always failed (`shim/regex_*.c`): basic and extended syntax, the GNU
+  extensions (`\w \s \b \B \< \>`, back-references in both syntaxes), bracket expressions with character classes, `REG_ICASE`,
+  `REG_NEWLINE`, `REG_NOSUB`, `REG_NOTBOL`, `REG_NOTEOL`, sub-matches, glibc's error messages, and the leftmost-longest rule. The GNU
+  interface (`re_compile_pattern`, `re_search`, `re_match`, `re_set_syntax`) sits on the same engine. A new corpus case, `regex_posix`,
+  compares 100 patterns with glibc: matches, sub-matches and error messages are identical. Matching is byte-wise, so a multibyte
+  UTF-8 character is several bytes to `.`.
+- The functions a survey of Ubuntu's 488 dynamically linked `/usr/bin` programs found missing, most needed first: the group and
+  password databases (`getgrgid`, `getgrnam`, `getpwent`, `initgroups`, `getlogin` and friends), BSD error printing (`err`, `warn`
+  families), `alarm` and `setitimer` (a timer-queue timer raises SIGALRM), `clock_nanosleep`, `tmpfile`, `mkdtemp`, `mkstemps`,
+  `cfmakeraw`, the IPv6 address constants, GNU obstacks, wide-string functions, older names (`creat`, `__xstat`, `_IO_getc`), fortified
+  forms, thread stack queries, and honest refusals (ENOSYS or EPERM) for kernel-module, mount, pty and system-administration calls.
+  A new corpus case, `libc_gaps`, compares them with Linux. After this, 236 of the 488 programs translate (126 before), 202 match
+  Linux on `--version` (95 before the `argv[0]` fix), and stock GNU `grep`, `sed`, `find`, `tar`, `diff` and `sort` run translated.
+- `mincore` fails with `ENOMEM` for unmapped pages. Programs probe the end of a mapping with it, and an always-successful answer
+  made GNU `grep` and `diff` loop forever.
+- A directory can be opened for reading (tar, find and ls do); it failed with `EISDIR`.
+- `.def` generation exports array data symbols such as `tzname`; the pattern missed any declared with `[2]`.
+- Translator: a thread-local access whose displacement does not fit one byte failed to encode ("Invalid memory_displ_size"), which
+  stopped `fd` (Rust) from translating; iced calls a 32-bit displacement in 64-bit addressing size 8. The absolute `mov %fs:...,%rax`
+  forms (opcodes A0 to A3) are converted to the ordinary ModRM form first. Both have unit tests.
+- A new tool, `tools/appsweep`, runs 43 real programs (58 invocations: calculators, archivers, editors, pagers, SQLite, jq, ripgrep, fd,
+  curl, rsync, text tools) on Linux and translated and compares standard output, standard error, exit code and every file written.
+  56 of 58 match; `rsync` needs `fork`, and `curl` against a closed local port reports after Windows' own connect timeout.
+- Still missing: `fork`, `fopencookie`, `hcreate_r` and `hsearch_r`, and a local time zone (time is UTC).
+
 ## 0.7.17
 
 - Stock GNU command-line tools translate. Ubuntu 24.04's own `du`, `wc`, `cat`, `head` and `tr` run translated and match

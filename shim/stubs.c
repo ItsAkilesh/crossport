@@ -2,7 +2,7 @@
  * File: shim/stubs.c
  * Purpose: Linux entry points with no Windows counterpart, answered honestly: ENOSYS, "nothing there", or a harmless success
  * Author: Akilesh
- * Date: 2026-11-06
+ * Date: 2026-11-24
  *
  * Programs name these functions even when they never need them, or they ask and fall back when told no. A
  * missing symbol would stop the translation, so each is present. The groups:
@@ -80,9 +80,6 @@ STUB_FAIL(sched_getaffinity)
 STUB_FAIL(setgid)
 STUB_FAIL(setgroups)
 STUB_FAIL(parse_printf_format)
-STUB_FAIL(regcomp)
-STUB_FAIL(regexec)
-STUB_ZERO(regfree)
 STUB_FAIL(setns)
 STUB_FAIL(unshare)
 STUB_FAIL(shmat)
@@ -177,3 +174,35 @@ STUB_ZERO(__register_atfork)
 STUB_ZERO(backtrace)
 STUB_ZERO(setrlimit)
 STUB_ZERO(setrlimit64)
+
+/* Found by the compatibility survey (2026-11-24): administration calls that need a Linux kernel or privileges. A program that imports them
+ * for a rare path still starts, and the call answers "not here". */
+STUB_FAIL(posix_openpt)
+STUB_FAIL(ptsname_r)
+STUB_FAIL(unlockpt)
+STUB_FAIL(grantpt)
+STUB_FAIL(msgctl)
+STUB_FAIL(mkfifoat)
+STUB_FAIL(mknod)
+STUB_FAIL(mknodat)
+STUB_FAIL(timer_create)
+STUB_FAIL(timer_settime)
+STUB_FAIL(mq_unlink)
+STUB_FAIL(quotactl)
+STUB_FAIL(getdents64)
+STUB_FAIL(sigtimedwait)
+STUB_FAIL(sethostname)
+STUB_FAIL(settimeofday)
+STUB_FAIL(reboot)
+STUB_FAIL(putpwent)
+STUB_FAIL(putspent)
+STUB_FAIL(putgrent)
+STUB_FAIL(putsgent)
+STUB_FAIL(dn_skipname)
+STUB_NULL(pututxline)
+STUB_ZERO(setpriority)
+STUB_ZERO(utmpxname)
+STUB_ZERO(updwtmpx)
+STUB_ZERO(syncfs)
+STUB_ZERO(personality)
+STUB_ZERO(posix_spawnattr_setsigmask)

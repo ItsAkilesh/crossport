@@ -2,7 +2,7 @@
  * File: shim/signal.c
  * Purpose: Signal handler registration and raise; no asynchronous delivery except what raise and abort do
  * Author: Akilesh
- * Date: 2026-10-28
+ * Date: 2026-11-24
  *
  * Handlers are recorded so programs that install them (Lua and sqlite do for SIGINT) behave, and raise()
  * calls them. Asynchronous signals such as Ctrl-C are not delivered yet.
@@ -12,6 +12,7 @@
 
 #define SIGNAL_COUNT 65
 #define SIGNAL_ABORT 6
+#define KILLED_BY_SIGNAL_BASE 128u
 #define SIG_DEFAULT ((uintptr_t)0)
 #define SIG_IGNORED ((uintptr_t)1)
 #define SIG_ERROR ((uintptr_t)-1)
@@ -110,4 +111,21 @@ LIBC_FN int sysv_raise(int signal_number)
         ExitProcess(ABORT_EXIT_CODE);
     }
     return 0;
+}
+
+/*
+ * Delivers a signal a timer raised: the handler runs on the thread that delivers it, and the default action of SIGALRM ends the process
+ * with the status a shell reports for a process killed by it (128 plus the signal number).
+ */
+void shim_deliver_timer_signal(int signal_number)
+{
+    uintptr_t handler = g_handlers[signal_number];
+    if (handler == SIG_IGNORED) {
+        return;
+    }
+    if (handler != SIG_DEFAULT) {
+        ((Handler)handler)(signal_number);
+        return;
+    }
+    ExitProcess(KILLED_BY_SIGNAL_BASE + (UINT)signal_number);
 }
