@@ -2,7 +2,7 @@
  * File: shim/printf.c
  * Purpose: The printf formatting engine over a System V va_list, and the printf, snprintf and fortify entry points
  * Author: Akilesh
- * Date: 2026-10-28
+ * Date: 2026-11-24
  *
  * Every function here is SYSV because the argument list comes from translated code and is a System V
  * va_list. Integers, strings, pointers and %c are formatted here to match glibc exactly; floating-point
@@ -148,6 +148,23 @@ static SYSV int format_string(Out *out, const Spec *spec, const char *text)
     return pad_field(out, &(Spec){.is_left = spec->is_left, .width = spec->width}, "", text, length, 0);
 }
 
+/* %ls: the wide string as UTF-8; the precision counts bytes and the width pads to bytes. */
+static SYSV int format_wide_string(Out *out, const Spec *spec, const int32_t *text)
+{
+    if (text == NULL) {
+        return format_string(out, spec, NULL);
+    }
+    char *converted = shim_wide_string_to_utf8(text, spec->precision);
+    if (converted == NULL) {
+        return -1;
+    }
+    Spec plain = *spec;
+    plain.precision = -1;
+    int result = format_string(out, &plain, converted);
+    HeapFree(GetProcessHeap(), 0, converted);
+    return result;
+}
+
 static SYSV int format_pointer(Out *out, const Spec *spec, uintptr_t value)
 {
     if (value == 0) {
@@ -166,9 +183,32 @@ static SYSV int format_special(Out *out, const Spec *spec, long double value, in
     return pad_field(out, spec, sign, text, strlen(text), 0);
 }
 
+/* struct __va_list_tag of the System V x86-64 ABI. */
+typedef struct {
+    unsigned gp_offset;
+    unsigned fp_offset;
+    void *overflow_arg_area;
+    void *reg_save_area;
+} SysvVaList;
+
+#define X87_ARGUMENT_ALIGNMENT 16
+
+/*
+ * A long double argument is class X87: always in memory, in the overflow area at a 16-byte boundary. It is read by hand because the
+ * compiler's own va_arg for this type did not produce the right address for a System V list inside this MS-ABI build (%Lg crashed).
+ */
+static SYSV long double fetch_long_double(__builtin_sysv_va_list ap)
+{
+    SysvVaList *list = (SysvVaList *)(void *)ap;
+    uintptr_t at = ((uintptr_t)list->overflow_arg_area + (X87_ARGUMENT_ALIGNMENT - 1)) & ~(uintptr_t)(X87_ARGUMENT_ALIGNMENT - 1);
+    long double value = *(long double *)at;
+    list->overflow_arg_area = (void *)(at + X87_ARGUMENT_ALIGNMENT);
+    return value;
+}
+
 static SYSV int format_float(Out *out, const Spec *spec, char conversion, __builtin_sysv_va_list ap)
 {
-    long double value = spec->length == 3 ? __builtin_va_arg(ap, long double) : (long double)__builtin_va_arg(ap, double);
+    long double value = spec->length == 3 ? fetch_long_double(ap) : (long double)__builtin_va_arg(ap, double);
     int upper = conversion == 'F' || conversion == 'E' || conversion == 'G' || conversion == 'A';
     if (isnan(value) || isinf(value)) {
         return format_special(out, spec, value, upper);
@@ -268,11 +308,22 @@ static SYSV int format_one(Out *out, const Spec *spec, char conversion, __builti
     case 'o': return format_integer(out, spec, fetch_unsigned(spec, ap), 0, 8, 0);
     case 'x': return format_integer(out, spec, fetch_unsigned(spec, ap), 0, 16, 0);
     case 'X': return format_integer(out, spec, fetch_unsigned(spec, ap), 0, 16, 1);
-    case 'c': {
+    case 'c':
+    case 'C': {
+        if (conversion == 'C' || spec->length == 1) {
+            char encoded[4];
+            size_t length = shim_wide_char_to_utf8(encoded, (int32_t)__builtin_va_arg(ap, int));
+            return length == 0 ? -1 : pad_field(out, &(Spec){.is_left = spec->is_left, .width = spec->width}, "", encoded, length, 0);
+        }
         char c = (char)__builtin_va_arg(ap, int);
         return pad_field(out, &(Spec){.is_left = spec->is_left, .width = spec->width}, "", &c, 1, 0);
     }
-    case 's': return format_string(out, spec, __builtin_va_arg(ap, const char *));
+    case 'S': return format_wide_string(out, spec, __builtin_va_arg(ap, const int32_t *));
+    case 's':
+        if (spec->length == 1) {
+            return format_wide_string(out, spec, __builtin_va_arg(ap, const int32_t *));
+        }
+        return format_string(out, spec, __builtin_va_arg(ap, const char *));
     case 'p': return format_pointer(out, spec, (uintptr_t)__builtin_va_arg(ap, void *));
     case 'm': return format_string(out, spec, shim_strerror(*shim_errno_ptr(), scratch, sizeof(scratch)));
     case 'n': {
