@@ -2,7 +2,7 @@
  * File: shim/threads.c
  * Purpose: pthread thread lifecycle on Win32 threads: create, join, detach, self, exit and attributes
  * Author: Akilesh
- * Date: 2026-11-06
+ * Date: 2026-11-24
  *
  * A pthread_t is a pointer to a heap Thread that outlives the Windows thread
  * until it is joined or detached. The state word arbitrates the races between
@@ -17,6 +17,12 @@
 #define EINVAL_CODE 22
 #define ESRCH_CODE 3
 #define EDEADLK_CODE 35
+#define EBUSY_CODE 16
+#define ETIMEDOUT_CODE 110
+#define FILETIME_TICKS_PER_MILLISECOND 10000ull
+#define FILETIME_UNIX_EPOCH_TICKS 116444736000000000ull
+#define NANOSECONDS_PER_MILLISECOND 1000000
+#define MILLISECONDS_PER_SECOND 1000
 #define DEFAULT_STACK_BYTES (8u * 1024u * 1024u) /* glibc's default */
 #define THREAD_MAGIC 0x54485244u                 /* "THRD" */
 #define ATTR_DETACHED 1u
@@ -135,7 +141,8 @@ static int is_joinable(const Thread *thread)
            (thread->state == STATE_RUNNING || thread->state == STATE_FINISHED);
 }
 
-EXPORT SYSV int pthread_join(uint64_t id, void **result)
+/* Waits up to `wait_ms` for the thread and collects its result. Returns `busy_code` when it is still running after that. */
+static int join_thread(uint64_t id, void **result, DWORD wait_ms, int busy_code)
 {
     Thread *thread = (Thread *)(uintptr_t)id;
     if (thread == NULL || thread->magic != THREAD_MAGIC) {
@@ -147,7 +154,9 @@ EXPORT SYSV int pthread_join(uint64_t id, void **result)
     if (!is_joinable(thread)) {
         return EINVAL_CODE;
     }
-    WaitForSingleObject(thread->handle, INFINITE);
+    if (WaitForSingleObject(thread->handle, wait_ms) != WAIT_OBJECT_0) {
+        return busy_code;
+    }
     if (result != NULL) {
         *result = thread->result;
     }
@@ -155,6 +164,35 @@ EXPORT SYSV int pthread_join(uint64_t id, void **result)
     CloseHandle(thread->handle);
     free_thread(thread);
     return 0;
+}
+
+EXPORT SYSV int pthread_join(uint64_t id, void **result)
+{
+    return join_thread(id, result, INFINITE, EBUSY_CODE);
+}
+
+/* pthread_tryjoin_np: joins only if the thread has already finished (EBUSY otherwise). */
+EXPORT SYSV int pthread_tryjoin_np(uint64_t id, void **result)
+{
+    return join_thread(id, result, 0, EBUSY_CODE);
+}
+
+/* Milliseconds from now until an absolute CLOCK_REALTIME time (seconds, nanoseconds); 0 when it has passed. */
+static DWORD milliseconds_until(const int64_t *deadline)
+{
+    FILETIME now;
+    GetSystemTimeAsFileTime(&now);
+    uint64_t ticks = ((uint64_t)now.dwHighDateTime << 32) | now.dwLowDateTime;
+    int64_t now_ms = (int64_t)((ticks - FILETIME_UNIX_EPOCH_TICKS) / FILETIME_TICKS_PER_MILLISECOND);
+    int64_t deadline_ms = deadline[0] * MILLISECONDS_PER_SECOND + deadline[1] / NANOSECONDS_PER_MILLISECOND;
+    int64_t left = deadline_ms - now_ms;
+    return left <= 0 ? 0 : (left > 0xFFFFFFFEll ? 0xFFFFFFFEu : (DWORD)left);
+}
+
+/* pthread_timedjoin_np: waits until the absolute time, then gives up with ETIMEDOUT. */
+EXPORT SYSV int pthread_timedjoin_np(uint64_t id, void **result, const int64_t *deadline)
+{
+    return join_thread(id, result, deadline != NULL ? milliseconds_until(deadline) : INFINITE, ETIMEDOUT_CODE);
 }
 
 EXPORT SYSV int pthread_detach(uint64_t id)

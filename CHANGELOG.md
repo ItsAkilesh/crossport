@@ -5,6 +5,24 @@ being worked on. A feature commit that adds user-visible capability (a new flag,
 that runs) bumps the patch number; a fix does not. The version lives in `translator/Cargo.toml` and is
 bumped in the same commit as the change. Releases are tagged by the maintainer, not by automation.
 
+## 0.7.19
+
+- A successful open no longer leaves `errno` set to `EMFILE`. The descriptor allocator set it before looking for a free slot, so every program
+  that reads `errno` after an unrelated, expected failure (GNU make does) reported "Too many open files". Stock GNU Make 4.3 now runs
+  translated. A new corpus case, `make_startup`, repeats make's start-up calls and checks `errno`.
+- `statx` is implemented (it was an `ENOSYS` stub). Current coreutils `stat`, `ls`, `du` and `cp` call it first.
+- `rewinddir` restarts the listing (it did nothing), and `telldir` and `seekdir` exist.
+- POSIX unnamed semaphores (`sem_init`, `sem_wait`, `sem_trywait`, `sem_timedwait`, `sem_post`, `sem_getvalue`, `sem_destroy`), timed mutex and
+  read-write locks, `pthread_tryjoin_np` and `pthread_timedjoin_np`, the reentrant hash table (`hcreate_r`, `hsearch_r`, `hdestroy_r`), the
+  argz vector functions, `confstr`, `imaxdiv`, `tcsetpgrp`, `sigsuspend`, `wait3`, `futimes`, `closefrom`, termios speeds, base64 for the
+  resolver, and the small calls shells, `tmux` and `htop` import. Empty answers for the network and password databases and refusals for
+  SysV message queues, `daemon` and `forkpty`.
+- The second application sweep (105 invocations of 80 programs, adding shells, make, git, perl, openssl, ssh-keygen, tmux, htop, xxd,
+  dos2unix, more coreutils): 100 match Linux. Stock bash, dash, zsh, GNU make, perl, git and openssl run translated. `ffmpeg` and
+  ImageMagick's `convert` need the X11 client library beyond what the shim implements, `dot` needs a glibc loader data symbol,
+  and `rsync` needs `fork`.
+- Survey of Ubuntu's 488 dynamically linked `/usr/bin` programs: 341 translate (126 at the start of 0.7.17) and 304 match Linux on `--version`.
+
 ## 0.7.18
 
 - A real POSIX regular-expression engine replaces the `regcomp` stub that always failed (`shim/regex_*.c`): basic and extended syntax, the GNU
