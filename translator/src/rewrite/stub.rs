@@ -288,7 +288,9 @@ mod tests {
     const STORE_LE: [u8; 8] = [0x64, 0x89, 0x34, 0x25, 0x90, 0xff, 0xff, 0xff];
 
     // mov %fs:0xfffffffffffffff8,%rax in the absolute-address form (opcode A1), as Rust programs use it
-    const LOAD_MOFFS64: [u8; 11] = [0x64, 0x48, 0xa1, 0xf8, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff];
+    const LOAD_MOFFS64: [u8; 11] = [
+        0x64, 0x48, 0xa1, 0xf8, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    ];
 
     // cmpq $0x0,%fs:0xffffffffffffff70 (an absolute displacement with a one-byte immediate), from `fd`
     const CMP_IMMEDIATE: [u8; 10] = [0x64, 0x48, 0x83, 0x3c, 0x25, 0x70, 0xff, 0xff, 0xff, 0x00];
@@ -299,7 +301,9 @@ mod tests {
         let stub = build(&site, 0x2000, 0x9000, 0x200a).expect("builds");
         let steps = all(&stub.bytes, 0x9000);
         assert!(steps.iter().all(|i| i.segment_prefix() != Register::FS));
-        assert!(steps.iter().any(|i| i.mnemonic() == iced_x86::Mnemonic::Cmp));
+        assert!(steps
+            .iter()
+            .any(|i| i.mnemonic() == iced_x86::Mnemonic::Cmp));
     }
 
     #[test]
@@ -309,7 +313,9 @@ mod tests {
         let stub = build(&site, 0x2000, 0x9000, 0x200b).expect("builds");
         let steps = all(&stub.bytes, 0x9000);
         assert!(steps.iter().all(|i| i.segment_prefix() != Register::FS));
-        assert!(steps.iter().any(|i| i.code() == Code::Mov_r64_rm64 && i.op0_register() == Register::RAX));
+        assert!(steps
+            .iter()
+            .any(|i| i.code() == Code::Mov_r64_rm64 && i.op0_register() == Register::RAX));
     }
 
     #[test]
