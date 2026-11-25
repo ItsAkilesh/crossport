@@ -27,6 +27,9 @@ typedef uint64_t c_ulong;
 /* Marks a public C library function. Write the definition on one line: `LIBC_FN int sysv_name(...)`. */
 #define LIBC_FN SYSV
 
+/* The low eight bits of an exit status are all Linux keeps. */
+#define EXIT_STATUS_MASK 0xFFu
+
 /* Declares a public data symbol (for example stdout). It is exported as `name`. */
 #define LIBC_DATA(type, name) type crossport_data_##name
 

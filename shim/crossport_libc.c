@@ -192,9 +192,10 @@ const LoadedModule *shim_activate_module(const StartInfo *info, void *handle)
     return slot;
 }
 
+/* Linux keeps only the low eight bits of an exit status: exit(-1) ends with 255. */
 NORETURN void shim_finish(int status)
 {
-    ExitProcess((UINT)status);
+    ExitProcess((UINT)status & EXIT_STATUS_MASK);
     __builtin_unreachable();
 }
 

@@ -73,10 +73,10 @@ LIBC_FN NORETURN void sysv_exit(int status)
     shim_exit(status);
 }
 
-/* _exit and _Exit skip handlers and flushing. */
+/* _exit and _Exit skip handlers and flushing. Linux keeps only the low eight bits of the status, so exit(-1) is 255. */
 LIBC_FN NORETURN void sysv__exit(int status)
 {
-    ExitProcess((UINT)status);
+    ExitProcess((UINT)status & EXIT_STATUS_MASK);
     __builtin_unreachable();
 }
 
