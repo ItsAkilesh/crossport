@@ -19,7 +19,9 @@ import tempfile
 SHIM_PROVIDED = {"libc.so.6", "libm.so.6", "libdl.so.2", "libpthread.so.0", "librt.so.1"}
 TIMEOUT_SECONDS = 30
 FIXED_MTIME = 1700000000
-DATA_DIRECTORIES = ["units", "figlet", "misc", "file"]  # under /usr/share: data the staged programs read at run time
+DATA_DIRECTORIES = ["share/units", "share/figlet", "share/misc", "share/file", "share/perl", "share/perl5", "share/git-core", "lib/x86_64-linux-gnu/perl",
+                    "lib/x86_64-linux-gnu/perl-base", "lib/x86_64-linux-gnu/graphviz", "share/graphviz", "share/ImageMagick-6", "lib/git-core"]
+# under /usr: data the staged programs read at run time
 DATA_FILES = [("/usr/lib/file/magic.mgc", "usr/share/misc/magic.mgc"), ("/usr/lib/file/magic.mgc", "usr/lib/file/magic.mgc")]
 ENVIRONMENT = {"PATH": "/usr/bin:/bin", "LC_ALL": "C.UTF-8", "TERM": "dumb", "TZ": "UTC"}
 
@@ -43,11 +45,11 @@ def stage(binary: str, out_dir: str) -> str | None:
 
 
 def stage_data(out_dir: str) -> None:
-    """Copies the programs' data directories into OUT_DIR/appdir/usr/share, which the shim uses as the system root (APPDIR)."""
+    """Copies the programs' data directories into OUT_DIR/appdir/usr, which the shim uses as the system root (APPDIR)."""
     for name in DATA_DIRECTORIES:
-        source = f"/usr/share/{name}"
+        source = f"/usr/{name}"
         if os.path.isdir(source):
-            shutil.copytree(source, f"{out_dir}/appdir/usr/share/{name}", symlinks=False, dirs_exist_ok=True, ignore_dangling_symlinks=True)
+            shutil.copytree(source, f"{out_dir}/appdir/usr/{name}", symlinks=False, dirs_exist_ok=True, ignore_dangling_symlinks=True)
     for source, relative in DATA_FILES:
         if os.path.exists(source):
             os.makedirs(os.path.dirname(f"{out_dir}/appdir/{relative}"), exist_ok=True)

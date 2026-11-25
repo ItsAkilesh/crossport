@@ -107,7 +107,9 @@ def filesystem_tools() -> list[dict]:
 
 
 def all_cases() -> list[dict]:
-    return calculators() + archivers() + text_tools() + data_and_scripting() + filesystem_tools()
+    from cases_more import more_cases
+
+    return calculators() + archivers() + text_tools() + data_and_scripting() + filesystem_tools() + more_cases()
 
 
 if __name__ == "__main__":
