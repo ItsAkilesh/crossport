@@ -2,7 +2,7 @@
 """File: tools/corpus/run_app_tests.py
 Purpose: Run an app's test invocations through difftest, each in a fresh sandbox, and record the results
 Author: Akilesh
-Date: 2026-11-06
+Date: 2026-11-24
 
 Usage: run_app_tests.py --app-dir DIR --exe PATH --label linux|windows --work DIR --results DIR --difftest PATH
 Writes <results>/<app>-<test>-<label>.json for every test.
@@ -164,12 +164,16 @@ def difftest_command(
 def anonymize_program(result_path: Path, exe: Path, name: str) -> None:
     """Replaces the program's path with the app name in its output.
 
-    Programs print argv[0] in messages. It is the AppDir's AppRun on Linux and a path to the .exe on
-    Windows, which says nothing about whether the translation is right, so both become the app's name.
+    Programs print argv[0] in messages. It is the AppDir's AppRun on Linux and, on Windows, the path of the
+    .exe as Linux-style text (forward slashes, no ".exe": the shim rewrites argv[0] that way), which says nothing
+    about whether the translation is right, so all of them become the app's name. The longer forms go first.
     """
     result = json.loads(result_path.read_text(encoding="utf-8"))
+    plain = exe.with_suffix("")
+    forms = [str(exe), exe.as_posix(), str(plain), plain.as_posix()]
     for stream in ("stdout", "stderr"):
-        result[stream] = result[stream].replace(str(exe), name)
+        for form in forms:
+            result[stream] = result[stream].replace(form, name)
     result_path.write_text(json.dumps(result), encoding="utf-8")
 
 

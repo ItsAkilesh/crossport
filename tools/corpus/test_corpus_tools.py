@@ -1,7 +1,7 @@
 """File: tools/corpus/test_corpus_tools.py
 Purpose: Tests for run_app_tests.py and compare_results.py: input validation, command building and the ratchet
 Author: Akilesh
-Date: 2026-11-06
+Date: 2026-11-24
 """
 
 from __future__ import annotations
@@ -59,6 +59,15 @@ class ParseTestCase(unittest.TestCase):
             path.write_text(json.dumps({"stdout": "ok", "stderr": f"{program}: boom"}), encoding="utf-8")
             run_app_tests.anonymize_program(path, program, "lua")
             self.assertEqual(json.loads(path.read_text(encoding="utf-8")), {"stdout": "ok", "stderr": "lua: boom"})
+
+    def test_the_linux_style_argv0_the_shim_gives_a_translated_program_is_replaced_too(self) -> None:
+        program = Path("D:/a/work/build/bundle/apps/lua/lua.exe")
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "r.json"
+            stderr = "D:/a/work/build/bundle/apps/lua/lua: boom" + chr(10) + "D:/a/work/build/bundle/apps/lua/lua.exe: again"
+            path.write_text(json.dumps({"stdout": "", "stderr": stderr}), encoding="utf-8")
+            run_app_tests.anonymize_program(path, program, "lua")
+            self.assertEqual(json.loads(path.read_text(encoding="utf-8"))["stderr"], "lua: boom" + chr(10) + "lua: again")
 
     def test_environment_variables_are_passed_before_the_separator(self) -> None:
         test = run_app_tests.parse_test({"id": "t", "env": {"SDL_RENDER_DRIVER": "software"}})
