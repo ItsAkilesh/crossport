@@ -34,4 +34,9 @@ int64_t time_days_from_civil(int64_t year, unsigned month, unsigned day);
 LIBC_FN Tm *sysv_gmtime_r(const int64_t *timer, Tm *out);
 LIBC_FN int64_t sysv_timegm(Tm *tm);
 
+/* timezone.c: the local zone (TZ, else Windows) at a UTC instant, the inverse for wall-clock time, and the tzset variables. */
+void shim_zone_fill(int64_t utc, int *is_dst, int64_t *offset, const char **abbreviation);
+int64_t shim_utc_from_local(int64_t local_as_utc);
+void shim_zone_variables(int64_t *seconds_west, int *has_daylight, const char **standard, const char **daylight);
+
 #endif

@@ -5,6 +5,17 @@ being worked on. A feature commit that adds user-visible capability (a new flag,
 that runs) bumps the patch number; a fix does not. The version lives in `translator/Cargo.toml` and is
 bumped in the same commit as the change. Releases are tagged by the maintainer, not by automation.
 
+## 0.7.22
+
+- Local time works. `localtime`, `localtime_r`, `mktime`, `ctime` and `tzset` used UTC for every program. The zone is now chosen as glibc chooses it,
+  as far as Windows allows (`shim/timezone.c`): `TZ` set to UTC, GMT or empty gives UTC; a fixed POSIX zone such as `EST5` or `IST-5:30` gives that
+  offset; anything else, including `TZ` unset, uses the Windows time zone with its daylight-saving rules at the instant asked about, so a translated `date`
+  prints this machine's local time (`-0500 EST` in winter, `-0400 EDT` for a July date). `tm_gmtoff`, `tm_zone`, `tm_isdst`, `timezone`, `daylight` and
+  `tzname` are filled. Windows names zones rather than abbreviations, so the abbreviation comes from a short table for the common zones and is `+HH` or
+  `+HHMM` otherwise. tz database names such as `America/New_York` are not read (the shim carries no tz database): they fall back to the Windows zone.
+  New corpus case `time_zone` compares five fixed zones with glibc: localtime, `mktime` round trips and normalisation, `strftime` `%z` `%Z`, `ctime`
+  and the `tzset` variables are identical.
+
 ## 0.7.21
 
 - C++ locales work. `locale_t` was a 4-byte stub, but libstdc++ reads the `__ctype_b`, `__ctype_tolower` and `__ctype_toupper` pointers straight out
@@ -86,7 +97,7 @@ bumped in the same commit as the change. Releases are tagged by the maintainer, 
 - A new tool, `tools/appsweep`, runs 43 real programs (58 invocations: calculators, archivers, editors, pagers, SQLite, jq, ripgrep, fd,
   curl, rsync, text tools) on Linux and translated and compares standard output, standard error, exit code and every file written.
   56 of 58 match; `rsync` needs `fork`, and `curl` against a closed local port reports after Windows' own connect timeout.
-- Still missing: `fork`, `fopencookie`, `hcreate_r` and `hsearch_r`, and a local time zone (time is UTC).
+- Still missing: `fork`, `fopencookie`, `hcreate_r` and `hsearch_r`, 
 
 ## 0.7.17
 

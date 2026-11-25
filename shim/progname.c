@@ -9,6 +9,7 @@
 
 #include "libc_abi.h"
 #include "startinfo.h"
+#include "time_internal.h"
 
 #define SIGRTMIN_VALUE 34
 #define SIGRTMAX_VALUE 64
@@ -62,6 +63,27 @@ LIBC_FN c_long sysv___sysconf(int name)
     return sysv_sysconf(name);
 }
 
+extern int64_t crossport_data_timezone;
+extern int64_t crossport_data___timezone;
+extern int crossport_data_daylight;
+extern int crossport_data___daylight;
+extern char *crossport_data_tzname[2];
+extern char *crossport_data___tzname[2];
+
+/* tzset(3): the zone variables (timezone, daylight, tzname) for the zone in force. Setting them is not required for localtime to work. */
 LIBC_FN void sysv_tzset(void)
 {
+    int64_t seconds_west;
+    int has_daylight;
+    const char *standard;
+    const char *daylight;
+    shim_zone_variables(&seconds_west, &has_daylight, &standard, &daylight);
+    *(int64_t *)shim_data_home(&crossport_data_timezone) = seconds_west;
+    *(int64_t *)shim_data_home(&crossport_data___timezone) = seconds_west;
+    *(int *)shim_data_home(&crossport_data_daylight) = has_daylight;
+    *(int *)shim_data_home(&crossport_data___daylight) = has_daylight;
+    char **names = (char **)shim_data_home(&crossport_data_tzname);
+    char **double_names = (char **)shim_data_home(&crossport_data___tzname);
+    names[0] = double_names[0] = (char *)standard;
+    names[1] = double_names[1] = (char *)daylight;
 }

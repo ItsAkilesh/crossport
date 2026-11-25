@@ -13,6 +13,7 @@
 #define ASCTIME_BYTES 26
 
 LIBC_FN void *sysv_gmtime_r(const int64_t *timer, void *tm);
+LIBC_FN void *sysv_localtime_r(const int64_t *timer, void *tm);
 
 /* Terminal attributes: a console is not a termios device, so every query says "not a terminal". */
 LIBC_FN int sysv_tcgetattr(int fd, void *attributes)
@@ -140,7 +141,7 @@ LIBC_FN char *sysv_asctime(const int32_t *tm)
 LIBC_FN char *sysv_ctime_r(const int64_t *timer, char *buffer)
 {
     int32_t tm[14];
-    sysv_gmtime_r(timer, tm);
+    sysv_localtime_r(timer, tm);
     return sysv_asctime_r(tm, buffer);
 }
 

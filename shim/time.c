@@ -175,7 +175,18 @@ LIBC_FN Tm *sysv_gmtime_r(const int64_t *timer, Tm *out)
 
 LIBC_FN Tm *sysv_localtime_r(const int64_t *timer, Tm *out)
 {
-    return sysv_gmtime_r(timer, out);
+    int is_dst;
+    int64_t offset;
+    const char *zone;
+    shim_zone_fill(*timer, &is_dst, &offset, &zone);
+    int64_t local = *timer + offset;
+    if (sysv_gmtime_r(&local, out) == NULL) {
+        return NULL;
+    }
+    out->tm_isdst = is_dst;
+    out->tm_gmtoff = offset;
+    out->tm_zone = zone;
+    return out;
 }
 
 LIBC_FN Tm *sysv_gmtime(const int64_t *timer)
@@ -186,7 +197,8 @@ LIBC_FN Tm *sysv_gmtime(const int64_t *timer)
 
 LIBC_FN Tm *sysv_localtime(const int64_t *timer)
 {
-    return sysv_gmtime(timer);
+    static Tm shared;
+    return sysv_localtime_r(timer, &shared);
 }
 
 /* Normalises out-of-range fields (month 13, second 75, ...) the way mktime does, then rewrites them. */
@@ -201,7 +213,10 @@ LIBC_FN int64_t sysv_timegm(Tm *tm)
     return seconds;
 }
 
+/* mktime(3): the fields are a local wall-clock time; they are normalised and rewritten with the zone's offset. */
 LIBC_FN int64_t sysv_mktime(Tm *tm)
 {
-    return sysv_timegm(tm);
+    int64_t utc = shim_utc_from_local(sysv_timegm(tm));
+    sysv_localtime_r(&utc, tm);
+    return utc;
 }
