@@ -8,6 +8,7 @@ Usage: python run_windows.py CASES_JSON OUT_DIR REPORT_JSON   (after run_linux.p
 Needs translator/target/release/crossport.exe and build/shim/crossport_libc.dll in the repository.
 """
 
+import base64
 import hashlib
 import json
 import os
@@ -34,9 +35,10 @@ def stop_bus() -> None:
 def translate(binary: str, out_dir: Path) -> tuple[Path | None, str]:
     """Translates one staged program. Returns the executable, or None and the translator's last message."""
     stop_bus()
-    bundle = out_dir / "bundles" / binary
+    name = Path(binary).name
+    bundle = out_dir / "bundles" / name
     shutil.rmtree(bundle, ignore_errors=True)
-    command = [str(TRANSLATOR), "translate", str(out_dir / "stage" / "bin" / binary), "--lib-dir", str(out_dir / "stage" / "libs"),
+    command = [str(TRANSLATOR), "translate", str(out_dir / "stage" / "bin" / name), "--lib-dir", str(out_dir / "stage" / "libs"),
                "--shim", str(SHIM), "--out", str(bundle)]
     try:
         result = subprocess.run(command, capture_output=True, text=True, timeout=TRANSLATE_TIMEOUT)
@@ -47,13 +49,19 @@ def translate(binary: str, out_dir: Path) -> tuple[Path | None, str]:
     return [p for p in bundle.glob("*.exe") if p.name != "crossport-bus.exe"][0], ""
 
 
-def write_files(directory: str, files: dict[str, str]) -> None:
+def write_files(directory: str, files: dict[str, str], binary: dict[str, str] | None = None) -> None:
     """Creates the files with a fixed modification time (and the directories above them), as the Linux side does."""
     for name, text in files.items():
         target = os.path.join(directory, name)
         os.makedirs(os.path.dirname(target), exist_ok=True)
         with open(target, "w", encoding="utf-8", newline="") as handle:
             handle.write(text)
+        os.utime(target, (FIXED_MTIME, FIXED_MTIME))
+    for name, encoded in (binary or {}).items():
+        target = os.path.join(directory, name)
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        with open(target, "wb") as handle:
+            handle.write(base64.b64decode(encoded))
         os.utime(target, (FIXED_MTIME, FIXED_MTIME))
     for folder, _, _ in os.walk(directory):
         os.utime(folder, (FIXED_MTIME, FIXED_MTIME))
@@ -70,7 +78,7 @@ def snapshot(directory: str) -> dict[str, str]:
 
 def run_case(case: dict, exe: Path, appdir: Path) -> dict:
     with tempfile.TemporaryDirectory(prefix="sweep-") as directory:
-        write_files(directory, case["files"])
+        write_files(directory, case["files"], case.get("files_b64"))
         args = [str(exe)] + [a.replace("{file_url}", "file:///" + Path(directory).as_posix()).replace("{cwd}", Path(directory).as_posix()) for a in case["args"]]
         environment = {**os.environ, "HOME": directory, "LC_ALL": "C.UTF-8", "TERM": "dumb", "TZ": "UTC", "DBUS_SESSION_BUS_ADDRESS": "unix:path=/nonexistent", "APPDIR": str(appdir)}
         try:
@@ -83,9 +91,10 @@ def run_case(case: dict, exe: Path, appdir: Path) -> dict:
 
 def normalize(text: str, binary: str, exe: Path | None) -> str:
     """Program names as printed by Linux (/usr/bin/x) and by the translation (its bundle path) both reduce to x; line ends are unified."""
-    text = text.replace("\r\n", "\n").replace(f"/usr/bin/{binary}", binary)
+    short = Path(binary).name
+    text = text.replace("\r\n", "\n").replace(f"/usr/bin/{short}", short).replace(binary, short)
     if exe is not None:
-        text = text.replace(f"{exe.parent.as_posix()}/{exe.stem}", binary).replace(str(exe), binary).replace(exe.name, binary)
+        text = text.replace(f"{exe.parent.as_posix()}/{exe.stem}", short).replace(str(exe), short).replace(exe.name, short)
     return text
 
 

@@ -5,6 +5,25 @@ being worked on. A feature commit that adds user-visible capability (a new flag,
 that runs) bumps the patch number; a fix does not. The version lives in `translator/Cargo.toml` and is
 bumped in the same commit as the change. Releases are tagged by the maintainer, not by automation.
 
+## 0.7.21
+
+- C++ locales work. `locale_t` was a 4-byte stub, but libstdc++ reads the `__ctype_b`, `__ctype_tolower` and `__ctype_toupper` pointers straight out
+  of glibc's 232-byte `struct __locale_struct`, so any C++ program that converted case through `std::ctype<char>` (qpdf, among them) crashed on a
+  garbage table pointer. The object now has glibc's layout. New corpus case `cxx_locale` (facets, case conversion, stream imbuing, the global locale
+  from the environment, and the exception for an unknown locale name) is identical to Linux.
+- `printf` formats wide arguments: `%ls`, `%lc`, `%S` and `%C` were read as narrow, so a wide string printed its first character. A precision counts
+  bytes and never splits a character.
+- `%Lg`, `%Lf` and the other long-double conversions no longer crash: the argument is read from the System V overflow area at its 16-byte boundary.
+- The wide printf family (`swprintf`, `wprintf`, `fwprintf`, `vswprintf`, `vfwprintf`, the `_chk` forms) exists. New corpus case `wide_printf`
+  (also covers long double formatting, `expl`, `logl`, `sqrtl`, `roundl`, `modfl` and `rand_r`, whose sequence matches glibc's for a given seed).
+- `getopt_long_only` reads `-o` as the short option when it is one (GNU `as` assembles with `as -o file`), and falls back to short options when a
+  longer word matches no long option. `getopt_messages` now has five long-only cases.
+- `rand_r`, long-double math, `fgetpos` and `fsetpos`, `feclearexcept` and `fetestexcept`, `timespec_get`, the thread-cancel hooks and `gethostbyname2_r`.
+- The application sweep has a third set: binutils (`nm`, `objdump`, `readelf`, `size`, `strings`, `strip`, `ar`, `ld`, `objcopy`, `as`), compressors (`pigz`,
+  `brotli`, `lzop`, `lzip`, 7-Zip), XML and PDF tools (`xmllint`, `xsltproc`, `xmlstarlet`, `pdfinfo`, `pdftotext`, `qpdf`), image and audio tools
+  (`optipng`, `pngcrush`, `gifsicle`, `exiv2`, `cwebp`, `sox`), `cal` and `datamash`: 140 invocations of 112 programs, 135 match Linux. Left: `rsync`
+  (`fork`), ImageMagick and `ffmpeg` (the X11 client library) and `dot` (a glibc loader data symbol).
+
 ## 0.7.20
 
 - Option parsing prints glibc's messages: quoted names (`unrecognized option '--version'`, `invalid option -- 'x'`), the candidates after

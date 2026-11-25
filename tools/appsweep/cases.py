@@ -21,10 +21,10 @@ TREE_FILES = {"d/a.txt": "a\n", "d/e/b.txt": "bb\n", "d/e/f/c.txt": "ccc\n", "d/
 
 
 def case(app: str, identifier: str, args: list[str], stdin: str = "", files: dict[str, str] | None = None, binary: str | None = None,
-         ignore_files: list[str] | None = None) -> dict:
+         ignore_files: list[str] | None = None, files_b64: dict[str, str] | None = None) -> dict:
     """`ignore_files` names outputs whose bytes legitimately differ (archives record the file system's owners and modes)."""
     return {"app": app, "binary": binary or app, "id": identifier, "args": args, "stdin": stdin, "files": files or {},
-            "ignore_files": ignore_files or []}
+            "ignore_files": ignore_files or [], "files_b64": files_b64 or {}}
 
 
 def calculators() -> list[dict]:
@@ -108,8 +108,9 @@ def filesystem_tools() -> list[dict]:
 
 def all_cases() -> list[dict]:
     from cases_more import more_cases
+    from cases_third import third_cases
 
-    return calculators() + archivers() + text_tools() + data_and_scripting() + filesystem_tools() + more_cases()
+    return calculators() + archivers() + text_tools() + data_and_scripting() + filesystem_tools() + more_cases() + third_cases()
 
 
 if __name__ == "__main__":

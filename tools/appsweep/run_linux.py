@@ -8,6 +8,7 @@ Usage (inside the Ubuntu distribution): python3 run_linux.py CASES_JSON OUT_DIR
 Writes OUT_DIR/stage/bin, OUT_DIR/stage/libs and OUT_DIR/linux_results.json.
 """
 
+import base64
 import hashlib
 import json
 import os
@@ -19,7 +20,7 @@ import tempfile
 SHIM_PROVIDED = {"libc.so.6", "libm.so.6", "libdl.so.2", "libpthread.so.0", "librt.so.1"}
 TIMEOUT_SECONDS = 30
 FIXED_MTIME = 1700000000
-DATA_DIRECTORIES = ["share/units", "share/figlet", "share/misc", "share/file", "share/perl", "share/perl5", "share/git-core", "lib/x86_64-linux-gnu/perl",
+DATA_DIRECTORIES = ["share/xml", "share/sgml", "share/ghostscript", "share/poppler", "share/units", "share/figlet", "share/misc", "share/file", "share/perl", "share/perl5", "share/git-core", "lib/x86_64-linux-gnu/perl",
                     "lib/x86_64-linux-gnu/perl-base", "lib/x86_64-linux-gnu/graphviz", "share/graphviz", "share/ImageMagick-6", "lib/git-core"]
 # under /usr: data the staged programs read at run time
 DATA_FILES = [("/usr/lib/file/magic.mgc", "usr/share/misc/magic.mgc"), ("/usr/lib/file/magic.mgc", "usr/lib/file/magic.mgc")]
@@ -32,10 +33,10 @@ def libraries(path: str) -> list[str]:
 
 
 def stage(binary: str, out_dir: str) -> str | None:
-    path = shutil.which(binary, path="/usr/bin")
+    path = binary if os.path.isabs(binary) and os.access(binary, os.X_OK) else shutil.which(binary, path="/usr/bin")
     if path is None:
         return None
-    shutil.copy(path, f"{out_dir}/stage/bin/{binary}")
+    shutil.copy(path, f"{out_dir}/stage/bin/{os.path.basename(binary)}")
     for library in libraries(path):
         base = os.path.basename(library)
         destination = f"{out_dir}/stage/libs/{base}"
@@ -56,13 +57,19 @@ def stage_data(out_dir: str) -> None:
             shutil.copy(source, f"{out_dir}/appdir/{relative}")
 
 
-def write_files(directory: str, files: dict[str, str]) -> None:
+def write_files(directory: str, files: dict[str, str], binary: dict[str, str] | None = None) -> None:
     """Creates the files with a fixed modification time (and the directories above them) so archives are the same on both systems."""
     for name, text in files.items():
         target = os.path.join(directory, name)
         os.makedirs(os.path.dirname(target), exist_ok=True)
         with open(target, "w", encoding="utf-8", newline="") as handle:
             handle.write(text)
+        os.utime(target, (FIXED_MTIME, FIXED_MTIME))
+    for name, encoded in (binary or {}).items():
+        target = os.path.join(directory, name)
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        with open(target, "wb") as handle:
+            handle.write(base64.b64decode(encoded))
         os.utime(target, (FIXED_MTIME, FIXED_MTIME))
     for folder, _, _ in os.walk(directory):
         os.utime(folder, (FIXED_MTIME, FIXED_MTIME))
@@ -80,7 +87,7 @@ def snapshot(directory: str) -> dict[str, str]:
 
 def run_case(case: dict, path: str) -> dict:
     with tempfile.TemporaryDirectory(prefix="sweep-") as directory:
-        write_files(directory, case["files"])
+        write_files(directory, case["files"], case.get("files_b64"))
         args = [path] + [a.replace("{file_url}", "file://" + directory).replace("{cwd}", directory) for a in case["args"]]
         try:
             result = subprocess.run(args, input=case["stdin"].encode(), capture_output=True, timeout=TIMEOUT_SECONDS, cwd=directory,
