@@ -69,9 +69,20 @@ static size_t name_length(const char *entry)
     return length;
 }
 
-static ptrdiff_t find_locked(const char *name, size_t length)
+/* A program may empty or shorten the table by writing NULL into environ itself (util-linux's mount does); the table ends at the first NULL. */
+static void trim_locked(void)
 {
     for (size_t i = 0; i < g_count; i++) {
+        if (g_entries[i] == NULL) {
+            g_count = i;
+            return;
+        }
+    }
+}
+
+static ptrdiff_t find_locked(const char *name, size_t length)
+{
+    for (size_t i = 0; i < g_count && g_entries[i] != NULL; i++) {
         if (name_length(g_entries[i]) == length && memcmp(g_entries[i], name, length) == 0) {
             return (ptrdiff_t)i;
         }
@@ -108,6 +119,7 @@ static int store(const char *name, const char *value, int overwrite)
     CopyMemory(entry + length + 1, value, value_length + 1);
     int result = 0;
     AcquireSRWLockExclusive(&g_lock);
+    trim_locked();
     ptrdiff_t at = find_locked(name, length);
     if (at >= 0 && !overwrite) {
         HeapFree(GetProcessHeap(), 0, entry);
@@ -138,6 +150,7 @@ LIBC_FN int sysv_unsetenv(const char *name)
 {
     size_t length = (size_t)lstrlenA(name);
     AcquireSRWLockExclusive(&g_lock);
+    trim_locked();
     ptrdiff_t at = find_locked(name, length);
     if (at >= 0) {
         g_entries[at] = g_entries[--g_count];
