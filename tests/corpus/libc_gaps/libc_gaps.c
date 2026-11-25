@@ -151,7 +151,10 @@ static void check_strings(void)
     memset(buffer, 'x', sizeof(buffer));
     char *end = stpncpy(buffer, "abc", sizeof(buffer));
     printf("stpncpy end offset %d padded %d\n", (int)(end - buffer), buffer[7] == '\0');
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-truncation"
     end = stpncpy(buffer, "abcdefghij", 4);
+#pragma GCC diagnostic pop
     printf("stpncpy cut offset %d\n", (int)(end - buffer));
 }
 
