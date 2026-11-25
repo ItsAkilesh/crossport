@@ -25,8 +25,6 @@
 #define LIBC_VERSION "2.39"
 #define LIBC_RELEASE "stable"
 
-#define TEB_DEALLOCATION_STACK_OFFSET 0x1478 /* the lowest address of the thread's reserved stack (x64 TEB) */
-
 LIBC_FN size_t sysv_mbrtowc(int32_t *out, const char *text, size_t count, void *state);
 LIBC_FN uintptr_t sysv_signal(int signal_number, uintptr_t handler);
 LIBC_FN int sysv_eaccess(const char *path, int mode);
@@ -187,7 +185,7 @@ LIBC_FN const char *sysv_gnu_get_libc_release(void)
     return LIBC_RELEASE;
 }
 
-/* The calling thread's stack, from the limits Windows records for it. pthread_attr_t is opaque to programs; the first 24 bytes are used here. */
+/* The calling thread's stack, as the memory manager describes it. pthread_attr_t is opaque to programs; the first 24 bytes are used here. */
 typedef struct {
     void *stack_low;
     size_t stack_size;
@@ -197,9 +195,18 @@ typedef struct {
 LIBC_FN int sysv_pthread_getattr_np(uint64_t thread, StackAttributes *attributes)
 {
     (void)thread;
-    NT_TIB *block = (NT_TIB *)NtCurrentTeb();
-    uintptr_t high = (uintptr_t)block->StackBase;
-    uintptr_t low = (uintptr_t) * (void **)((char *)block + TEB_DEALLOCATION_STACK_OFFSET);
+    /* The stack is one allocation: its base is the lowest address and the regions that share that base add up to its size. */
+    MEMORY_BASIC_INFORMATION region = {0};
+    int on_this_stack = 0;
+    uintptr_t low = 0;
+    uintptr_t high = 0;
+    if (VirtualQuery(&on_this_stack, &region, sizeof(region)) != 0) {
+        low = (uintptr_t)region.AllocationBase;
+        high = low;
+        while (VirtualQuery((void *)high, &region, sizeof(region)) != 0 && (uintptr_t)region.AllocationBase == low) {
+            high += region.RegionSize;
+        }
+    }
     attributes->stack_low = (void *)low;
     attributes->stack_size = (size_t)(high - low);
     attributes->guard_size = GUARD_SIZE_BYTES;
