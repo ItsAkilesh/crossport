@@ -244,6 +244,10 @@ int shim_fd_close(int fd)
     if (entry.kind == FD_KIND_EPOLL) {
         return shim_epoll_close(entry.state);
     }
+    if (entry.kind == FD_KIND_COOKIE) {
+        CloseHandle(entry.handle);
+        return shim_cookie_close(entry.state);
+    }
     return (entry.is_standard || CloseHandle(entry.handle)) ? 0 : shim_fail_from_win();
 }
 
@@ -264,6 +268,9 @@ int64_t shim_fd_read(int fd, void *buffer, size_t count)
     }
     if (entry.kind == FD_KIND_RANDOM) {
         return read_random(buffer, count);
+    }
+    if (entry.kind == FD_KIND_COOKIE) {
+        return shim_cookie_read(entry.state, buffer, count);
     }
     if (entry.kind == FD_KIND_PIPE && entry.is_nonblocking && (shim_fd_ready(fd, 1) & 1) == 0) {
         return shim_fail(LINUX_EAGAIN);
@@ -289,6 +296,9 @@ int64_t shim_fd_write(int fd, const void *buffer, size_t count)
     if (entry.kind == FD_KIND_SOCKET) {
         return shim_socket_write(fd, buffer, count);
     }
+    if (entry.kind == FD_KIND_COOKIE) {
+        return shim_cookie_write(entry.state, buffer, count);
+    }
     const uint8_t *bytes = (const uint8_t *)buffer;
     size_t done = 0;
     while (done < count) {
@@ -307,6 +317,9 @@ int64_t shim_fd_seek(int fd, int64_t offset, int whence)
     FdEntry entry;
     if (lookup(fd, &entry) != 0) {
         return -1;
+    }
+    if (entry.kind == FD_KIND_COOKIE) {
+        return shim_cookie_seek(entry.state, offset, whence);
     }
     DWORD type = GetFileType(entry.handle);
     if (type != FILE_TYPE_DISK) {

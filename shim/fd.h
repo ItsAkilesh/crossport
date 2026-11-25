@@ -25,7 +25,8 @@ enum { LINUX_SEEK_SET = 0, LINUX_SEEK_CUR = 1, LINUX_SEEK_END = 2 };
 
 /* What a descriptor is, which decides how it is read, written and waited on. */
 typedef enum { FD_KIND_FILE = 0, FD_KIND_PIPE = 1, FD_KIND_EVENT = 2, FD_KIND_SOCKET = 3, FD_KIND_EPOLL = 4, FD_KIND_TIMER = 5,
-               FD_KIND_RANDOM = 6 } FdKind; /* FD_KIND_RANDOM: /dev/urandom, backed by a NUL handle, read from the system generator */
+               FD_KIND_RANDOM = 6, FD_KIND_COOKIE = 7 } FdKind; /* FD_KIND_RANDOM: /dev/urandom, backed by a NUL handle, read from the system generator;
+                                          FD_KIND_COOKIE: a stream whose bytes come from functions the program supplied (fopencookie) */
 
 /* An eventfd: a 64-bit counter and a Win32 event that is signalled while the counter is not zero. */
 typedef struct {
@@ -117,5 +118,12 @@ LIBC_FN int sysv_isatty(int fd);
 LIBC_FN int sysv_mkstemp64(char *pattern);
 LIBC_FN int sysv_unlink(const char *path);
 LIBC_FN int sysv_rmdir(const char *path);
+
+/* fopencookie support (fd_cookie.c): a descriptor whose reads, writes, seeks and close call the program's own functions. */
+int shim_cookie_open(void *cookie, const void *functions, int flags);
+int64_t shim_cookie_read(void *state, void *buffer, size_t count);
+int64_t shim_cookie_write(void *state, const void *buffer, size_t count);
+int64_t shim_cookie_seek(void *state, int64_t offset, int whence);
+int shim_cookie_close(void *state);
 
 #endif

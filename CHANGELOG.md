@@ -5,6 +5,24 @@ being worked on. A feature commit that adds user-visible capability (a new flag,
 that runs) bumps the patch number; a fix does not. The version lives in `translator/Cargo.toml` and is
 bumped in the same commit as the change. Releases are tagged by the maintainer, not by automation.
 
+## 0.7.20
+
+- Option parsing prints glibc's messages: quoted names (`unrecognized option '--version'`, `invalid option -- 'x'`), the candidates after
+  `is ambiguous; possibilities:`, `doesn't allow an argument`, `requires an argument`, and silence when the option string starts with `:`.
+  Plain `getopt` no longer treats `--word` as a long option (it reads `-` as an invalid short option, as glibc does), and a missing long-option
+  argument returns `?` unless the option string starts with `:`. `optopt` starts at 0 and is never reset, as in glibc. In the survey this
+  was 13 programs whose output differed. A new corpus case, `getopt_messages`, compares 17 invocations with glibc.
+- An exit status keeps its low eight bits: `exit(300)` ends with 44 and `exit(-1)` with 255. New corpus case `exit_status`.
+- The environment table ends at the first NULL entry. `mount` (util-linux) empties the environment by writing into `environ`, and the next
+  `getenv` read a NULL entry and crashed.
+- `fopencookie`: stdio streams over functions the program supplies (read, write, seek, close), as a descriptor of a new kind. New corpus
+  case `cookie_stream`, which also covers `memccpy` and `posix_fallocate`.
+- Legacy Xlib calls (`XSetStandardProperties`, `XSetNormalHints`, `XAllocColor`, `XGrabServer`, `XGetDefault`), `gethostbyaddr`,
+  `getservbyport`, and refusals for `mkfifo` and `openpty`.
+- Survey of the 488 `/usr/bin` programs: 390 translate (126 at the start of 0.7.17) and 342 match Linux on `--version` (95 before the
+  `argv[0]` fix). The 17 that still differ in behaviour all depend on data or services the survey does not provide (apt configuration,
+  groff data, `/proc/net`, a D-Bus service), except `aa-exec`, which crashes on Linux.
+
 ## 0.7.19
 
 - A successful open no longer leaves `errno` set to `EMFILE`. The descriptor allocator set it before looking for a free slot, so every program
