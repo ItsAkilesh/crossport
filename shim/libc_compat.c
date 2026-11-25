@@ -25,8 +25,7 @@
 #define LIBC_VERSION "2.39"
 #define LIBC_RELEASE "stable"
 
-/* Declared here because the header hides it below Windows 8; kernel32 has exported it since then. */
-VOID WINAPI GetCurrentThreadStackLimits(PULONG_PTR low_limit, PULONG_PTR high_limit);
+#define TEB_DEALLOCATION_STACK_OFFSET 0x1478 /* the lowest address of the thread's reserved stack (x64 TEB) */
 
 LIBC_FN size_t sysv_mbrtowc(int32_t *out, const char *text, size_t count, void *state);
 LIBC_FN uintptr_t sysv_signal(int signal_number, uintptr_t handler);
@@ -197,10 +196,10 @@ typedef struct {
 
 LIBC_FN int sysv_pthread_getattr_np(uint64_t thread, StackAttributes *attributes)
 {
-    ULONG_PTR low;
-    ULONG_PTR high;
     (void)thread;
-    GetCurrentThreadStackLimits(&low, &high);
+    NT_TIB *block = (NT_TIB *)NtCurrentTeb();
+    uintptr_t high = (uintptr_t)block->StackBase;
+    uintptr_t low = (uintptr_t) * (void **)((char *)block + TEB_DEALLOCATION_STACK_OFFSET);
     attributes->stack_low = (void *)low;
     attributes->stack_size = (size_t)(high - low);
     attributes->guard_size = GUARD_SIZE_BYTES;
