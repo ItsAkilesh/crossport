@@ -222,6 +222,31 @@ static SYSV int short_option(int argc, char **argv, const char *options)
     return options[0] == ':' ? ':' : '?';
 }
 
+/* Does any long option start with the text before an "=" in `name`? */
+static SYSV int has_long_match(const LongOption *longs, const char *name)
+{
+    size_t length = strcspn(name, "=");
+    for (const LongOption *at = longs; at->name != NULL; at++) {
+        if (strncmp(at->name, name, length) == 0) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+/*
+ * getopt_long_only reads "-name" as a long option. As in glibc, "-x" that is a valid short option, or "-xyz" that matches no long option
+ * while x is a short option, is read as short options instead (GNU as relies on this for "-o file").
+ */
+static SYSV int single_dash_is_long(const char *word, const char *options, const LongOption *longs)
+{
+    int is_short = word[1] != ':' && strchr(options, word[1]) != NULL;
+    if (!is_short) {
+        return 1;
+    }
+    return word[2] != '\0' && has_long_match(longs, word + 1);
+}
+
 static SYSV int scan(int argc, char **argv, const char *options, const LongOption *longs, int *index, int flags)
 {
     if ((*p_optind) == 0) {
@@ -263,7 +288,7 @@ static SYSV int scan(int argc, char **argv, const char *options, const LongOptio
                 g_place = word + 2;
                 return long_option(argc, argv, options, longs, index, flags);
             }
-            if (longs != NULL && (flags & FLAG_LONGONLY)) {
+            if (longs != NULL && (flags & FLAG_LONGONLY) && single_dash_is_long(word, options, longs)) {
                 return long_option(argc, argv, options, longs, index, flags);
             }
         }

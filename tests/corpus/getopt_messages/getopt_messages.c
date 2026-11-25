@@ -48,6 +48,11 @@ static const Case CASES[] = {
     {"vVn:m::p", 1, {"prog", "--need=abc", "--maybe=q", "--maybe"}},
     {"vVn:m::p", 1, {"prog", "-z"}},
     {"vVn:m::p", 1, {"prog", "-n"}},
+    {"o:v", 2, {"prog", "-o", "out.o", "in.s"}},
+    {"o:vVn:", 2, {"prog", "-verbose", "-ver", "-need=3"}},
+    {"o:v", 2, {"prog", "-unknown"}},
+    {"o:v", 2, {"prog", "-vo", "x"}},
+    {"vVn:m::p", 2, {"prog", "--verbose", "-p", "-zzz"}},
 };
 
 static void run(const Case *test)
@@ -68,8 +73,9 @@ static void run(const Case *test)
     fflush(stdout);
     int result;
     int index = -1;
-    while ((result = test->uses_long ? getopt_long(argc, argv, test->short_options, LONG_OPTIONS, &index)
-                                     : getopt(argc, argv, test->short_options)) != -1) {
+    while ((result = test->uses_long == 2   ? getopt_long_only(argc, argv, test->short_options, LONG_OPTIONS, &index)
+                      : test->uses_long == 1 ? getopt_long(argc, argv, test->short_options, LONG_OPTIONS, &index)
+                                             : getopt(argc, argv, test->short_options)) != -1) {
         printf("  result %d optopt %d optarg [%s]\n", result, optopt, optarg != NULL ? optarg : "(null)");
     }
     printf("  optind %d first rest [%s]\n", optind, optind < argc ? argv[optind] : "(none)");
