@@ -22,7 +22,8 @@ TREE_FILES = {"d/a.txt": "a\n", "d/e/b.txt": "bb\n", "d/e/f/c.txt": "ccc\n", "d/
 
 def case(app: str, identifier: str, args: list[str], stdin: str = "", files: dict[str, str] | None = None, binary: str | None = None,
          ignore_files: list[str] | None = None, files_b64: dict[str, str] | None = None) -> dict:
-    """`ignore_files` names outputs whose bytes legitimately differ (archives record the file system's owners and modes)."""
+    """`ignore_files` names outputs whose bytes legitimately differ (archives record the file system's owners and modes); "stdout" or "stderr"
+    in it skips that stream (7-Zip prints this machine's open-file limit)."""
     return {"app": app, "binary": binary or app, "id": identifier, "args": args, "stdin": stdin, "files": files or {},
             "ignore_files": ignore_files or [], "files_b64": files_b64 or {}}
 

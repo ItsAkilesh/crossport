@@ -103,9 +103,10 @@ def compare(binary: str, exe: Path, linux: dict, windows: dict, ignore: list[str
         return "timeout", []
     if isinstance(windows["rc"], int) and (windows["rc"] < 0 or windows["rc"] >= CRASH_CODE):
         return "crash", [f"exit code {windows['rc']:#x}"]
-    differences = [name for name in ("stdout", "stderr") if normalize(windows[name], binary, exe) != normalize(linux[name], binary, None)]
-    differences += ["exit code"] if windows["rc"] != linux["rc"] else []
     ignored = set(ignore)
+    streams = [name for name in ("stdout", "stderr") if name not in ignored]
+    differences = [name for name in streams if normalize(windows[name], binary, exe) != normalize(linux[name], binary, None)]
+    differences += ["exit code"] if windows["rc"] != linux["rc"] else []
     kept = lambda files: {name: digest for name, digest in files.items() if name not in ignored}
     differences += ["files"] if kept(windows["files"]) != kept(linux["files"]) else []
     return ("matches Linux", []) if not differences else ("differs", differences)

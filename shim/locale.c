@@ -56,12 +56,28 @@ static int is_c_utf8(const char *name)
     return lstrcmpiA(name, "C.UTF-8") == 0 || lstrcmpiA(name, "C.utf8") == 0;
 }
 
+LIBC_FN char *sysv_getenv(const char *name);
+
+/* "" selects the environment's locale: LC_ALL, else LANG. Only C.UTF-8 changes the answer; any other name keeps the C locale, as before. */
+static int environment_asks_for_utf8(void)
+{
+    const char *name = sysv_getenv("LC_ALL");
+    if (name == NULL || *name == 0) {
+        name = sysv_getenv("LANG");
+    }
+    return name != NULL && is_c_utf8(name);
+}
+
 /* The C and C.UTF-8 locales exist (glibc 2.35 and newer builds C.UTF-8 in, and the shim's one locale is UTF-8 anyway).
- * "" selects the environment's locale, which the corpus pins to C. A query (NULL) returns the locale last set. */
+ * "" selects the environment's locale (C.UTF-8 when LC_ALL or LANG names it, else C). A query (NULL) returns the locale last set. */
 LIBC_FN char *sysv_setlocale(int category, const char *locale)
 {
     (void)category;
     if (locale == NULL) {
+        return g_current_locale;
+    }
+    if (*locale == 0 && environment_asks_for_utf8()) {
+        g_current_locale = g_utf8_locale;
         return g_current_locale;
     }
     if (*locale == '\0' || lstrcmpA(locale, "C") == 0 || lstrcmpA(locale, "POSIX") == 0) {

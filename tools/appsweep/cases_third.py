@@ -47,7 +47,7 @@ def binutils() -> list[dict]:
 def compressors() -> list[dict]:
     files = {"in.txt": SAMPLE_TEXT * 60}
     return [
-        case("7zr", "archive", ["a", "-bd", "-y", "out.7z", "in.txt"], files=files, ignore_files=["out.7z"], binary="/usr/lib/7zip/7zr"),
+        case("7zr", "archive", ["a", "-bd", "-y", "out.7z", "in.txt"], files=files, ignore_files=["stdout"], binary="/usr/lib/7zip/7zr"),
         case("pigz", "compress", ["-k", "-n", "in.txt"], files=files),
         case("brotli", "compress", ["-k", "-q", "5", "in.txt"], files=files),
         case("lzop", "compress", ["-q", "-n", "in.txt"], files=files, ignore_files=["in.txt.lzo"]),

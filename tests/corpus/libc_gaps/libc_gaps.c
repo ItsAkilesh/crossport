@@ -180,7 +180,8 @@ static void check_glob(void)
 int main(int argc, char **argv)
 {
     (void)argc;
-    setlocale(LC_ALL, "C.UTF-8");
+    setenv("LC_ALL", "C.UTF-8", 1);
+    printf("locale chosen from the environment [%s]\n", setlocale(LC_ALL, ""));
     check_groups();
     check_alarm();
     check_temporary_files();

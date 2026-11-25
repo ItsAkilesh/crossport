@@ -19,6 +19,7 @@ bumped in the same commit as the change. Releases are tagged by the maintainer, 
 - `getopt_long_only` reads `-o` as the short option when it is one (GNU `as` assembles with `as -o file`), and falls back to short options when a
   longer word matches no long option. `getopt_messages` now has five long-only cases.
 - `rand_r`, long-double math, `fgetpos` and `fsetpos`, `feclearexcept` and `fetestexcept`, `timespec_get`, the thread-cancel hooks and `gethostbyname2_r`.
+- `setlocale(LC_ALL, "")` returns `C.UTF-8` when `LC_ALL` or `LANG` names it (it always returned `C`); 7-Zip prints the locale it runs in.
 - The application sweep has a third set: binutils (`nm`, `objdump`, `readelf`, `size`, `strings`, `strip`, `ar`, `ld`, `objcopy`, `as`), compressors (`pigz`,
   `brotli`, `lzop`, `lzip`, 7-Zip), XML and PDF tools (`xmllint`, `xsltproc`, `xmlstarlet`, `pdfinfo`, `pdftotext`, `qpdf`), image and audio tools
   (`optipng`, `pngcrush`, `gifsicle`, `exiv2`, `cwebp`, `sox`), `cal` and `datamash`: 140 invocations of 112 programs, 135 match Linux. Left: `rsync`
